@@ -6779,3 +6779,64 @@ fn combine_interleaves_files_with_the_second_reversed() {
     assert_eq!(page_text(&mut a, whole["document"]["doc"].as_u64().unwrap()), ["A1", "A2", "A3", "B1", "B2"]);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+/// The text each page shows: what lies inside its displayed page (text_extract alone also reads
+/// text a crop box hides).
+fn visible_text(a: &mut Automation, doc: u64) -> Vec<String> {
+    let info = ok(a, "doc_info", json!({ "doc": doc }));
+    let sizes: Vec<(f64, f64)> =
+        info["pages"].as_array().unwrap().iter().map(|p| (p["width"].as_f64().unwrap(), p["height"].as_f64().unwrap())).collect();
+    sizes
+        .iter()
+        .enumerate()
+        .map(|(i, (w, h))| {
+            let r = ok(a, "text_extract", json!({ "doc": doc, "pages": [i + 1], "rect": [0, 0, w, h] }));
+            r["pages"][0]["text"].as_str().unwrap().trim().to_string()
+        })
+        .collect()
+}
+
+/// Divide Pages: a 600 × 400 spread becomes two 300 × 400 pages, the left text on the first and
+/// the right text on the second (reversed right to left), in one undo step; the covers can be
+/// skipped and bad grids are refused.
+#[test]
+fn dividing_a_spread_through_tools() {
+    let dir = workdir("divide");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_create", json!({ "from": "blank", "pages": 3, "width": 600, "height": 400 }))["doc"].as_u64().unwrap();
+    for (page, text, x) in [(2, "Left", 50), (2, "Right", 350), (1, "Cover", 50), (3, "Back", 50)] {
+        ok(&mut a, "page_add_text", json!({ "doc": doc, "page": page, "text": text, "at": [x, 180], "width": 200 }));
+    }
+    let r = ok(&mut a, "page_divide", json!({ "doc": doc, "pages": [2] }));
+    assert_eq!(r["pages"], 4);
+    assert_eq!(r["page_sizes"][1], json!([300.0, 400.0]));
+    assert_eq!(r["page_sizes"][2], json!([300.0, 400.0]));
+    assert_eq!(visible_text(&mut a, doc), ["Cover", "Left", "Right", "Back"]);
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    assert_eq!(page_text(&mut a, doc).len(), 3, "one undo step restores the page");
+
+    let r = ok(&mut a, "page_divide", json!({ "doc": doc, "order": "rtl", "skip_first_last": true }));
+    assert_eq!(r["pages"], 4);
+    assert_eq!(visible_text(&mut a, doc), ["Cover", "Right", "Left", "Back"]);
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+
+    let r = ok(&mut a, "page_divide", json!({ "doc": doc, "pages": [1], "cols": 1, "rows": 2 }));
+    assert_eq!(r["page_sizes"][0], json!([600.0, 200.0]));
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+
+    for bad in [
+        json!({ "cols": 0 }),
+        json!({ "cols": 9 }),
+        json!({ "rows": -1 }),
+        json!({ "cols": 1, "rows": 1 }),
+        json!({ "order": "up" }),
+        json!({ "pages": [4] }),
+    ] {
+        let mut args = bad.clone();
+        args["doc"] = json!(doc);
+        assert!(matches!(a.call("page_divide", &args), Err(ToolError::InvalidArgs(_))), "{bad}");
+    }
+    let only_covers = ok(&mut a, "doc_create", json!({ "from": "blank", "pages": 2 }))["doc"].as_u64().unwrap();
+    assert!(matches!(a.call("page_divide", &json!({ "doc": only_covers, "skip_first_last": true })), Err(ToolError::InvalidArgs(_))));
+    assert_eq!(page_text(&mut a, doc).len(), 3, "refusals change nothing");
+}

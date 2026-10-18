@@ -135,6 +135,8 @@ impl PdfCraftApp {
                     }
                     Edit::InsertBlankPage { at, .. } => view.select_pages(&[at.min(info.pages.len() - 1)]),
                     Edit::DeletePages { .. } => view.select_pages(&[]),
+                    // The page numbers after a divided page have moved.
+                    Edit::DividePages { .. } => view.select_pages(&[]),
                     // A stroke drawn with the pen stays unselected, so the selection box and
                     // author popup don't sit over the next stroke (#429).
                     Edit::AddAnnotation(a)

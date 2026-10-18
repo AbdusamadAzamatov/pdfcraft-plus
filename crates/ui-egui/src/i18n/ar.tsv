@@ -2722,3 +2722,10 @@ certificate	Version	الإصدار
 	Interleave files…	دمج الملفات بالتناوب…
 	Interleave pages	ترتيب الصفحات بالتناوب
 	Reverse order of file 2	عكس ترتيب الملف 2
+	Divide pages	تقسيم الصفحات
+	Divide pages…	تقسيم الصفحات…
+	Columns	الأعمدة
+	Reading order	ترتيب القراءة
+	Left to right	من اليسار إلى اليمين
+	Right to left	من اليمين إلى اليسار
+	Skip first and last page	تخطي الصفحتين الأولى والأخيرة

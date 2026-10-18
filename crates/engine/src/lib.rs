@@ -47,6 +47,8 @@ pub use pdfcraft_organize::{BoxSpec, FieldConflicts, PageBox, SplitBy, Transitio
 
 /// One file produced by a split: (1-based first page, last page, PDF bytes).
 pub use pdfcraft_organize::LabelStyle;
+/// The most columns, and the most rows, Divide Pages cuts a page into.
+pub use pdfcraft_organize::MAX_DIVIDE;
 pub use pdfcraft_organize::view::{InitialView, Layout as InitialLayout, Magnification, Navigation};
 
 pub use pdfcraft_cos::Algorithm;
@@ -1285,6 +1287,14 @@ pub enum Edit {
     DuplicatePages {
         pages: Vec<usize>,
     },
+    /// Divide Pages: each of `pages` becomes `cols` × `rows` pages, one per equal part of the
+    /// page as displayed, read right to left when `rtl`.
+    DividePages {
+        pages: Vec<usize>,
+        cols: u32,
+        rows: u32,
+        rtl: bool,
+    },
     /// Replace Pages: the content of `pages` is replaced by `src_pages` of another PDF; the
     /// pages' links, comments and bookmarks stay.
     ReplacePages {
@@ -1810,6 +1820,7 @@ pub const EDIT_LABELS: &[&str] = &[
     "Insert blank page",
     "Duplicate page",
     "Duplicate pages",
+    "Divide pages",
     "Replace page",
     "Replace pages",
     "Crop page",
@@ -1949,6 +1960,7 @@ impl Edit {
             Edit::ReversePages { .. } => Label::of("Reverse pages"),
             Edit::InsertBlankPage { .. } => Label::of("Insert blank page"),
             Edit::DuplicatePages { pages } => plural("Duplicate page", "Duplicate pages", pages.len()),
+            Edit::DividePages { .. } => Label::of("Divide pages"),
             Edit::ReplacePages { pages, .. } => plural("Replace page", "Replace pages", pages.len()),
             Edit::SetPageBox { pages, which: PageBox::Crop, .. } => plural("Crop page", "Crop pages", pages.len()),
             Edit::SetPageBox { .. } => Label::of("Set page boxes"),
@@ -2122,6 +2134,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::ReversePages { .. }
         | Edit::InsertBlankPage { .. }
         | Edit::DuplicatePages { .. }
+        | Edit::DividePages { .. }
         | Edit::ReplacePages { .. }
         | Edit::SetPageBox { .. }
         | Edit::SetTransition { .. }
@@ -2336,6 +2349,7 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         }
         Edit::SetInfo { key, value } => pdfcraft_organize::set_info(doc, key, value)?,
         Edit::DuplicatePages { pages } => pdfcraft_organize::duplicate_pages(doc, pages)?,
+        Edit::DividePages { pages, cols, rows, rtl } => pdfcraft_organize::divide_pages(doc, pages, *cols, *rows, *rtl)?,
         Edit::ReplacePages { pages, name, bytes, src_pages } => {
             let src = open_source(name, bytes)?;
             pdfcraft_organize::replace_pages(doc, pages, &src, src_pages)?;

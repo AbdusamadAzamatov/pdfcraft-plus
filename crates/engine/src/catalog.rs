@@ -208,6 +208,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Booklet…", "book-open", "page.booklet", Ready),
                     item("Poster (tile)…", "maximize", "page.poster", Ready),
                     item("Interleave files…", "arrow-left-right", "page.interleave", Ready),
+                    item("Divide pages", "columns-2", "page.divide", Ready),
                 ],
             },
             ToolSection {

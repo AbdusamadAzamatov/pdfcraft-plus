@@ -6127,3 +6127,24 @@ fn interleaved_combine_alternates_pages_and_copies_each_file_once() {
     let refused = s.combine_interleaved_reporting(&sources, &[], &[], 0, &[], rename);
     assert!(matches!(refused, Err(EditError::Organize(pdfcraft_organize::OrganizeError::Invalid(ref e))) if e.contains("at least 1")), "{refused:?}");
 }
+
+/// Divide Pages: each 200 × 300 page becomes two 100 × 300 pages in one undo step, refused on a
+/// document that doesn't allow page changes.
+#[test]
+fn dividing_pages_is_one_undo_step_and_needs_assembly() {
+    let mut s = Session::new();
+    let id = s.open("a.pdf", None, Arc::new(fixture(2)), None).unwrap();
+    s.apply(id, Edit::DividePages { pages: vec![0, 1], cols: 2, rows: 1, rtl: false }).unwrap();
+    let doc = s.get(id).unwrap();
+    assert_eq!(doc.info.pages.iter().map(|p| (p.width, p.height)).collect::<Vec<_>>(), [(100.0, 300.0); 4]);
+    assert_eq!(doc.info.pages[1].crop, [100.0, 0.0, 200.0, 300.0]);
+    assert_eq!(doc.can_undo(), Some("Divide pages"));
+    s.undo(id).unwrap();
+    let doc = s.get(id).unwrap();
+    assert_eq!(doc.info.pages.iter().map(|p| (p.width, p.height)).collect::<Vec<_>>(), [(200.0, 300.0); 2]);
+    assert_eq!(doc.can_undo(), None);
+
+    let bytes = protected("", "owner", 0b0100);
+    let locked = s.open("r.pdf", None, bytes, None).unwrap();
+    assert_eq!(s.apply(locked, Edit::DividePages { pages: vec![0], cols: 2, rows: 1, rtl: false }), Err(EditError::NotPermitted("page changes")));
+}

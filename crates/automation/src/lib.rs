@@ -382,6 +382,7 @@ impl Automation {
                 let pages = self.pages(&a, "pages")?;
                 self.apply(&a, Edit::DuplicatePages { pages })?
             }
+            "page_divide" => self.page_divide(&a)?,
             "page_set_box" => self.page_set_box(&a)?,
             "page_transition_set" => self.page_transition_set(&a)?,
             "doc_create" => self.doc_create(&a)?,
@@ -1177,6 +1178,39 @@ impl Automation {
         if !doc.edit_notices.is_empty() {
             out["warnings"] = json!(doc.edit_notices.iter().map(ToString::to_string).collect::<Vec<_>>());
         }
+        Ok(out)
+    }
+
+    fn page_divide(&mut self, a: &Args) -> Result<Value> {
+        let n = self.doc(a)?.info.pages.len();
+        let mut pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => (0..n).collect(),
+        };
+        let count = |key: &str, default: i64| -> Result<u32> {
+            let v = a.opt_int(key)?.unwrap_or(default);
+            u32::try_from(v)
+                .ok()
+                .filter(|v| (1..=pdfcraft_engine::MAX_DIVIDE).contains(v))
+                .ok_or_else(|| ToolError::InvalidArgs(format!("{key} must be from 1 to {} (got {v})", pdfcraft_engine::MAX_DIVIDE)))
+        };
+        let (cols, rows) = (count("cols", 2)?, count("rows", 1)?);
+        if cols == 1 && rows == 1 {
+            return Err(ToolError::InvalidArgs("1 column × 1 row leaves the pages as they are: set cols or rows above 1".into()));
+        }
+        let rtl = match a.opt_str("order")?.unwrap_or("ltr") {
+            "ltr" => false,
+            "rtl" => true,
+            o => return Err(ToolError::InvalidArgs(format!("unknown order {o:?} (ltr, rtl)"))),
+        };
+        if a.opt_bool("skip_first_last")?.unwrap_or(false) {
+            pages.retain(|p| *p != 0 && p.saturating_add(1) != n);
+            if pages.is_empty() {
+                return Err(ToolError::InvalidArgs("no pages left to divide once the first and last pages are skipped".into()));
+            }
+        }
+        let mut out = self.apply(a, Edit::DividePages { pages, cols, rows, rtl })?;
+        out["page_sizes"] = json!(self.doc(a)?.info.pages.iter().map(|p| [p.width, p.height]).collect::<Vec<_>>());
         Ok(out)
     }
 

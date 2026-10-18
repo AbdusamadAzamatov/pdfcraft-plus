@@ -2933,3 +2933,150 @@ fn interleaved_runs_combine_each_file_once() {
     let marks: Vec<(String, Option<usize>)> = top_level_bookmarks(&out).into_iter().map(|m| (m.title, m.page)).collect();
     assert_eq!(marks, [("a".to_string(), Some(0)), ("b".to_string(), Some(1))]);
 }
+
+// ── Divide pages (PL4) ─────────────────────────────────────────────────────────────────────────
+
+/// One 600 × 400 page (`rotate` applied) with text on each half, a bookmark to it, a trim box
+/// on its left half, a form field's widget mostly on its right half, and a note on its left
+/// half whose popup lies on the right; a second, untouched page follows.
+fn spread(rotate: i64) -> Document {
+    let s = "BT /F1 12 Tf 50 200 Td (Left) Tj ET BT /F1 12 Tf 350 200 Td (Right) Tj ET";
+    let b: Vec<String> = vec![
+        "<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [8 0 R] >> /Outlines 11 0 R >>".into(), // 1
+        "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>".into(),                                    // 2
+        format!(
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 400] /Rotate {rotate} /TrimBox [10 10 200 390] /Contents 5 0 R \
+             /Resources << /Font << /F1 7 0 R >> >> /Annots [8 0 R 9 0 R 10 0 R] /Thumb 13 0 R >>"
+        ), // 3
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 6 0 R /Resources << /Font << /F1 7 0 R >> >> >>".into(), // 4
+        format!("<< /Length {} >>\nstream\n{s}\nendstream", s.len()),                                // 5
+        body("Next"),                                                                                // 6
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into(),                             // 7
+        "<< /Type /Annot /Subtype /Widget /FT /Tx /T (name) /Rect [280 100 400 120] /P 3 0 R >>".into(), // 8
+        "<< /Type /Annot /Subtype /Text /Rect [20 20 40 40] /P 3 0 R /Popup 10 0 R >>".into(),       // 9
+        "<< /Type /Annot /Subtype /Popup /Rect [400 300 580 380] /Parent 9 0 R /P 3 0 R >>".into(),  // 10
+        "<< /Type /Outlines /First 12 0 R /Last 12 0 R /Count 1 >>".into(),                          // 11
+        "<< /Title (Spread) /Parent 11 0 R /Dest [3 0 R /Fit] >>".into(),                            // 12
+        "<< /Length 0 >>\nstream\n\nendstream".into(),                                               // 13
+    ];
+    open(build(&b, "/Root 1 0 R"))
+}
+
+fn rect(doc: &Document, page: usize, key: &[u8]) -> Option<[f64; 4]> {
+    let d = page_dict(doc, page);
+    let v: Vec<f64> = doc.resolve(d.get(key)?).as_array()?.iter().map(|x| x.as_f64().unwrap()).collect();
+    Some([v[0], v[1], v[2], v[3]])
+}
+
+fn annot_refs(doc: &Document, page: usize) -> Vec<ObjRef> {
+    let d = page_dict(doc, page);
+    d.get(b"Annots").map(|a| doc.resolve(a).as_array().cloned().unwrap()).unwrap_or_default().iter().map(|a| a.as_ref().unwrap()).collect()
+}
+
+#[test]
+fn divide_splits_a_spread_into_two_halves_sharing_the_content() {
+    let mut doc = spread(0);
+    divide_pages(&mut doc, &[0], 2, 1, false).unwrap();
+    let doc = full_roundtrip(&doc);
+    assert_eq!(page_count(&doc).unwrap(), 3);
+    assert_eq!(rect(&doc, 0, b"CropBox"), Some([0.0, 0.0, 300.0, 400.0]));
+    assert_eq!(rect(&doc, 1, b"CropBox"), Some([300.0, 0.0, 600.0, 400.0]));
+    assert_eq!(rect(&doc, 2, b"CropBox"), None, "the next page is untouched");
+    assert_eq!(page_dict(&doc, 0).get(b"Contents"), page_dict(&doc, 1).get(b"Contents"), "parts share the content stream");
+    assert_eq!(labels(&doc), ["Left", "Left", "Next"]);
+    // The trim box is clipped to the left part and gone from the right one.
+    assert_eq!(rect(&doc, 0, b"TrimBox"), Some([10.0, 10.0, 200.0, 390.0]));
+    assert_eq!(rect(&doc, 1, b"TrimBox"), None);
+    assert!(!page_dict(&doc, 0).contains(b"Thumb") && !page_dict(&doc, 1).contains(b"Thumb"), "the whole-page thumbnail is stale");
+    // The bookmark still opens the first part.
+    assert_eq!(bookmarks(&doc)[0].page, Some(0));
+}
+
+#[test]
+fn divide_keeps_the_original_page_object_as_the_first_part() {
+    let mut doc = spread(0);
+    let original = pages(&doc).unwrap()[0].obj;
+    divide_pages(&mut doc, &[0], 2, 1, true).unwrap();
+    assert_eq!(pages(&doc).unwrap()[0].obj, original, "links and bookmarks to the page open its first part");
+}
+
+#[test]
+fn divide_right_to_left_reverses_the_parts() {
+    let mut doc = spread(0);
+    divide_pages(&mut doc, &[0], 2, 1, true).unwrap();
+    assert_eq!(rect(&doc, 0, b"CropBox"), Some([300.0, 0.0, 600.0, 400.0]));
+    assert_eq!(rect(&doc, 1, b"CropBox"), Some([0.0, 0.0, 300.0, 400.0]));
+}
+
+#[test]
+fn divide_rows_run_from_the_top_and_columns_follow_the_reading_order() {
+    let mut doc = spread(0);
+    divide_pages(&mut doc, &[0], 2, 2, true).unwrap();
+    let crops: Vec<_> = (0..4).map(|i| rect(&doc, i, b"CropBox").unwrap()).collect();
+    assert_eq!(crops, [[300.0, 200.0, 600.0, 400.0], [0.0, 200.0, 300.0, 400.0], [300.0, 0.0, 600.0, 200.0], [0.0, 0.0, 300.0, 200.0]]);
+}
+
+#[test]
+fn divide_cuts_a_rotated_page_as_it_is_displayed() {
+    // Turned a quarter clockwise, the 600 × 400 page shows 400 wide and 600 tall: its user-space
+    // bottom edge is the left side of the page as shown.
+    for (rotate, first, second) in [
+        (90, [0.0, 0.0, 600.0, 200.0], [0.0, 200.0, 600.0, 400.0]),
+        (180, [300.0, 0.0, 600.0, 400.0], [0.0, 0.0, 300.0, 400.0]),
+        (270, [0.0, 200.0, 600.0, 400.0], [0.0, 0.0, 600.0, 200.0]),
+    ] {
+        let mut doc = spread(rotate);
+        divide_pages(&mut doc, &[0], 2, 1, false).unwrap();
+        assert_eq!(rect(&doc, 0, b"CropBox"), Some(first), "/Rotate {rotate}");
+        assert_eq!(rect(&doc, 1, b"CropBox"), Some(second), "/Rotate {rotate}");
+        assert_eq!(page_rotation(&doc, 1).unwrap(), rotate, "the parts keep the rotation");
+    }
+}
+
+#[test]
+fn divide_puts_each_annotation_on_one_part_only() {
+    let mut doc = spread(0);
+    divide_pages(&mut doc, &[0], 2, 1, false).unwrap();
+    let doc = full_roundtrip(&doc);
+    let (left, right) = (pages(&doc).unwrap()[0].obj, pages(&doc).unwrap()[1].obj);
+    let (on_left, on_right) = (annot_refs(&doc, 0), annot_refs(&doc, 1));
+    assert_eq!(on_left.len() + on_right.len(), 3, "every annotation kept once");
+    assert!(on_left.iter().all(|a| !on_right.contains(a)), "no annotation is shared");
+    let kind = |r: &ObjRef| doc.get(*r).as_dict().unwrap().name(b"Subtype").unwrap().to_vec();
+    // The widget lies mostly on the right half; the note on the left, and its popup goes with it.
+    let widget = on_right.iter().find(|r| kind(r) == b"Widget").copied().expect("widget on the right part");
+    assert_eq!(doc.get(widget).as_dict().unwrap().reference(b"P"), Some(right));
+    assert!(on_left.iter().any(|r| kind(r) == b"Text") && on_left.iter().any(|r| kind(r) == b"Popup"));
+    assert!(on_left.iter().all(|r| doc.get(*r).as_dict().unwrap().reference(b"P") == Some(left)));
+    // The field still has its one widget.
+    let catalog = doc.get(doc.root().unwrap()).as_dict().cloned().unwrap();
+    let fields = catalog.get(b"AcroForm").and_then(|f| f.as_dict()).and_then(|f| f.get(b"Fields")).and_then(|f| f.as_array()).cloned().unwrap();
+    assert_eq!(fields, vec![Object::Ref(widget)]);
+}
+
+#[test]
+fn divide_refuses_bad_grids_and_pages_and_changes_nothing() {
+    let doc = spread(0);
+    for (pages_, cols, rows) in [(vec![0], 0, 1), (vec![0], 9, 1), (vec![0], 2, 9), (vec![0], 1, 1), (vec![5], 2, 1), (vec![], 2, 1)] {
+        let mut d = doc.clone();
+        assert!(divide_pages(&mut d, &pages_, cols, rows, false).is_err(), "{pages_:?} {cols}×{rows}");
+        assert_eq!(page_count(&d).unwrap(), 2);
+    }
+    // A page too small for its parts is refused by number.
+    let mut d = doc.clone();
+    let tiny = pages(&d).unwrap()[1].obj;
+    d.update_dict(tiny, |p| p.set(b"MediaBox".to_vec(), Object::Array(vec![0.into(), 0.into(), 4.into(), 300.into()]))).unwrap();
+    let err = divide_pages(&mut d, &[0, 1], 8, 1, false).unwrap_err();
+    assert_eq!(err, OrganizeError::Invalid("page 2 is too small to divide into 8 × 1 parts".into()));
+    assert_eq!(page_count(&d).unwrap(), 2, "nothing divided, not even page 1");
+}
+
+#[test]
+fn divide_handles_several_pages_and_repeated_indices() {
+    let mut doc = spread(0);
+    divide_pages(&mut doc, &[1, 0, 1], 1, 2, false).unwrap();
+    let doc = full_roundtrip(&doc);
+    assert_eq!(labels(&doc), ["Left", "Left", "Next", "Next"]);
+    assert_eq!(rect(&doc, 2, b"CropBox"), Some([0.0, 150.0, 300.0, 300.0]));
+    assert_eq!(rect(&doc, 3, b"CropBox"), Some([0.0, 0.0, 300.0, 150.0]));
+}

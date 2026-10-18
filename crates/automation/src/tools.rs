@@ -868,6 +868,23 @@ pub fn tools() -> Vec<ToolDef> {
             .cmd("page.duplicate")
             .with(schema(json!({ "doc": doc(), "pages": pages("to duplicate") }), &["doc", "pages"])),
         t(
+            "page_divide",
+            "Divide pages",
+            "Split each page into cols × rows equal parts, each becoming a page of its own right after the original (a scanned two-page spread becomes two pages). Parts are cut from the page as displayed (after its rotation), rows from the top, columns in the reading order: ltr (default) or rtl for right-to-left books. Lossless: the parts share the page's content and show their part through the crop box. Bookmarks and links to a page open its first part; each comment or form field widget moves to the part holding most of it. skip_first_last leaves the document's first and last pages (covers) whole. Returns page_sizes (displayed width, height in points, per page). One undo step.",
+        )
+        .cmd("page.divide")
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("to divide (default: all)"),
+                "cols": { "type": "integer", "minimum": 1, "maximum": 8, "description": "Columns (default 2)." },
+                "rows": { "type": "integer", "minimum": 1, "maximum": 8, "description": "Rows (default 1)." },
+                "order": { "type": "string", "enum": ["ltr", "rtl"], "description": "Reading order of the columns (default ltr)." },
+                "skip_first_last": { "type": "boolean", "description": "Leave the document's first and last pages whole (default false)." },
+            }),
+            &["doc"],
+        )),
+        t(
             "page_transition_set",
             "Set page transitions",
             "Set or remove the transition and display time pages play in a full-screen presentation (ISO 32000-2 §12.4.4; Acrobat's Organize ▸ Page Transitions). style: Split, Blinds, Box, Wipe, Dissolve, Glitter, R (replace, no effect), Fly, Push, Cover, Uncover or Fade, or none to remove the transition; duration in seconds (default 1); dimension horizontal/vertical (Split, Blinds); motion inward/outward (Split, Box, Fly); direction 0, 90, 180, 270, 315 or none (Wipe, Glitter, Fly, Cover, Uncover, Push); scale and opaque for Fly. display: seconds the page stays before advancing; left out, the page waits for the presenter. doc_info lists the result under transitions.",

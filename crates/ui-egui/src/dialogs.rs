@@ -55,6 +55,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut protect_now = false;
     let mut boxes_now = false;
     let mut impose_now = false;
+    let mut divide_now = false;
     let mut marks_now = false;
     let mut export_now = false;
     let mut props_now = false;
@@ -1006,6 +1007,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = create || cancel;
                 return;
             }
+            Dialog::DividePages => {
+                let (apply, cancel) = crate::divide_ui::body(ui, app, &t);
+                divide_now = apply;
+                close = apply || cancel;
+                return;
+            }
             Dialog::Protect => {
                 let (apply, cancel) = crate::protect::body(ui, app, &t);
                 protect_now = apply;
@@ -1376,6 +1383,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     }
     if impose_now {
         app.impose_with_draft();
+    }
+    if divide_now && let Some((_, id)) = app.active_ids() {
+        let count = app.session.get(id).map(|d| d.info.pages.len()).unwrap_or(0);
+        if let Some(edit) = app.divide_draft.edit(count) {
+            app.apply_edit(edit);
+        }
     }
     if protect_now && app.apply_edit(app.protect_draft.edit()) {
         app.protect_draft = Default::default();

@@ -78,6 +78,7 @@ mod autoscroll;
 mod bidi;
 pub mod bulk_fields;
 mod dialogs;
+mod divide_ui;
 mod edit_text_ui;
 pub use edit_text_ui::CropMode;
 mod editing;
@@ -289,6 +290,8 @@ pub enum Dialog {
     PageBoxes,
     /// Organize ▸ Layout ▸ Pages per sheet (N-up), Booklet or Poster: the sheets as a new document.
     Impose(print_ui::Handling),
+    /// Organize pages ▸ Divide pages.
+    DividePages,
     /// Add / Update Header and Footer, Watermark, Background.
     Marks(pdfcraft_engine::MarkKind),
     /// Export a PDF ▸ Image / Text.
@@ -771,6 +774,8 @@ pub struct PdfCraftApp {
     pub boxes_draft: pageboxes::BoxesDraft,
     /// Organize ▸ Layout ▸ N-up, Booklet and Poster dialog state.
     pub impose_draft: impose_ui::ImposeDraft,
+    /// Divide Pages dialog state.
+    pub divide_draft: divide_ui::DivideDraft,
     /// Header & footer / watermark / background dialog state.
     pub marks_draft: marks_ui::MarksDraft,
     /// Export dialog settings.
@@ -1057,6 +1062,7 @@ impl PdfCraftApp {
             protect_draft: Default::default(),
             boxes_draft: Default::default(),
             impose_draft: Default::default(),
+            divide_draft: Default::default(),
             marks_draft: Default::default(),
             export_draft: Default::default(),
             export_status: None,
@@ -2552,6 +2558,7 @@ impl PdfCraftApp {
                     "split" => Some(Dialog::Split),
                     "protect" => Some(Dialog::Protect),
                     "page-boxes" => Some(Dialog::PageBoxes),
+                    "divide-pages" => Some(Dialog::DividePages),
                     "header-footer" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter)),
                     "watermark" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Watermark)),
                     "background" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Background)),

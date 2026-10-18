@@ -2840,6 +2840,18 @@ evidence = ["crates/organize/src/tests.rs::reverse_pages_reorders", "crates/orga
 notes = "Organize Pages ▸ More ▸ Reverse pages, or the command palette: two or more selected pages swap among their own positions, otherwise the whole document reverses. One undo step. Not yet: an entry in the page thumbnails' right-click menu"
 
 [[feature]]
+id = "organize.divide-pages"
+title = "Divide pages into equal parts"
+area = "D"
+tier = "P2"
+milestone = "M4"
+status = "shipped"
+commands = ["page.divide"]
+tools = ["page_divide"]
+evidence = ["crates/organize/src/tests.rs::divide_splits_a_spread_into_two_halves_sharing_the_content", "crates/organize/src/tests.rs::divide_right_to_left_reverses_the_parts", "crates/organize/src/tests.rs::divide_cuts_a_rotated_page_as_it_is_displayed", "crates/organize/src/tests.rs::divide_puts_each_annotation_on_one_part_only", "crates/organize/src/tests.rs::divide_refuses_bad_grids_and_pages_and_changes_nothing", "crates/engine/src/tests.rs::dividing_pages_is_one_undo_step_and_needs_assembly", "crates/automation/tests/automation.rs::dividing_a_spread_through_tools", "crates/ui-egui/tests/ui_group/divide.rs::divide_pages_cuts_the_spread_right_to_left_and_skips_the_covers"]
+notes = "Organize pages ▸ Layout ▸ Divide pages (also in the Organize pages panel): columns and rows 1–8 (default 2 × 1), reading order left to right or right to left, all / selected / a range of pages, skip the first and last page (covers). One undo step; needs the Assembly permission. Lossless: the original page object becomes the first part (so bookmarks, links and named destinations open it) and the other parts are new page objects sharing its contents and resources, each showing its cell through /CropBox, cut from the page as displayed (after /Rotate) and mapped back to user space; Trim/Bleed/ArtBox are clipped to the part or dropped when nothing is left. Each annotation moves (never copied) to the part holding most of its /Rect, its /P updated; a popup follows its parent; widgets stay in their field. Decisions: the copies drop /StructParents, /B (article beads) and /Thumb, and the first part drops its stale /Thumb, so divided tagged pages keep their structure only on the first part. Missing: page labels are not shifted for the inserted parts (as with Duplicate pages); text extraction still reads text a part's crop box hides (text_extract with a rect reads only the visible part); no non-uniform cut lines or gutter overlap."
+
+[[feature]]
 id = "organize.interleave"
 title = "Interleave files (alternate pages, e.g. duplex scans)"
 area = "D"

@@ -664,6 +664,13 @@ impl PdfCraftApp {
                 self.boxes_draft.seeded = None;
                 self.dialog = Some(Dialog::PageBoxes);
             }
+            // Selected pages are offered (and chosen) when there are any; else every page.
+            "page.divide" => {
+                let selected = active.and_then(|i| self.views.get(i)).is_some_and(|v| !v.selected.is_empty());
+                self.divide_draft.range = if selected { crate::divide_ui::Range::Selection } else { crate::divide_ui::Range::All };
+                self.divide_draft.selection = if selected { targets } else { Vec::new() };
+                self.dialog = Some(Dialog::DividePages);
+            }
             "page.extract" => self.open_extract_dialog(),
             "page.nup" => self.open_impose(crate::print_ui::Handling::Multiple),
             "page.booklet" => self.open_impose(crate::print_ui::Handling::Booklet),
