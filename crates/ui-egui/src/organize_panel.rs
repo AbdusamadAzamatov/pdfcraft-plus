@@ -1,7 +1,8 @@
 //! Organize pages, laid out as Acrobat's panel: the pages selected (typed, or picked by kind from
 //! its menu); page options as a row of icon buttons (rotate both ways, delete, extract) and Insert,
-//! Replace, Split and Bates numbering; page setup (boxes, crop, transitions, templates, printing);
-//! and page labels and properties. It shows whenever the page grid does, so every way into
+//! Replace, Split and Bates numbering; the catalogue's Layout tools (crop pages and the other
+//! layout tools); page setup (boxes, transitions, templates, printing); and page labels and
+//! properties. It shows whenever the page grid does, so every way into
 //! Organize (the tool, the Edit panel, the command, `--organize`) gets the same controls, and the
 //! grid's own toolbar keeps only moving pages, their size, Save pages and Close.
 //!
@@ -139,10 +140,21 @@ pub(crate) fn panel(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
         if row(ui, t, "hash", tl!("Bates numbering"), Availability::Ready, false).clicked() {
             act = Some(Act::Command("edit.bates"));
         }
+        // Layout: the catalogue's Organize ▸ Layout section, so a new layout tool appears here as
+        // soon as it has a catalogue entry.
+        if let Some(layout) = pdfcraft_engine::catalog::group("organize").and_then(|g| g.sections.iter().find(|s| s.title == "Layout")) {
+            widgets::section_title(ui, tl!("Layout"));
+            for item in layout.items {
+                let availability =
+                    if item.availability == pdfcraft_engine::catalog::Availability::Ready { Availability::Ready } else { Availability::Later };
+                if row(ui, t, item.icon, tl!(item.label), availability, false).clicked() {
+                    act = Some(Act::Command(item.command));
+                }
+            }
+        }
         divider(ui, t);
         for (icon, label, availability, command) in [
             ("square-dashed-mouse-pointer", "Set page boxes", Availability::Ready, Some("page.boxes")),
-            ("crop", "Crop pages", Availability::Ready, Some("page.crop")),
             ("presentation", "Page transitions", Availability::Later, Some("page.transitions")),
             ("file-text", "Page templates", Availability::Later, None),
             ("printer", "Print pages", Availability::Ready, Some("print.dialog")),

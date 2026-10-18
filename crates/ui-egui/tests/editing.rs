@@ -4744,6 +4744,9 @@ fn organize_panel_comes_with_the_grid_and_closes_it() {
     h.get_by_label("Insert");
     h.get_by_label("Bates numbering");
     h.get_by_label("Page properties");
+    // Organize ▸ Layout comes from the catalogue, so its items run their commands.
+    h.get_by_label("Layout".to_uppercase().as_str());
+    h.get_by_label("Crop pages");
     h.get_by_label("Close panel").click();
     h.run_steps(3);
     assert!(!h.state().views[0].organize, "Close ends Organize");

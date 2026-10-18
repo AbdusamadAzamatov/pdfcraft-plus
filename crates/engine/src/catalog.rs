@@ -200,11 +200,11 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Split", "scissors", "page.split", Ready),
                 ],
             },
+            ToolSection { title: "Layout", items: &[item("Crop pages", "crop", "page.crop", Ready)] },
             ToolSection {
                 title: "More",
                 items: &[
                     item("Set page boxes", "square-dashed-mouse-pointer", "page.boxes", Ready),
-                    item("Crop pages", "crop", "page.crop", Ready),
                     item("Duplicate pages", "copy-plus", "page.duplicate", Ready),
                     item("Reverse pages", "arrow-up-down", "page.reverse", Ready),
                     item("Page labels", "tag", "page.number", Ready),
@@ -321,14 +321,17 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
         hue: RED,
         badge: None,
         availability: Ready,
-        sections: &[ToolSection {
-            title: "Optimize",
-            items: &[
-                item("Reduce file size", "file-down", "optimize.reduce", Ready),
-                item("Advanced optimization", "settings-2", "optimize.advanced", Ready),
-                item("Audit space usage", "gauge", "optimize.audit", Planned("M11")),
-            ],
-        }],
+        sections: &[
+            ToolSection {
+                title: "Optimize",
+                items: &[
+                    item("Reduce file size", "file-down", "optimize.reduce", Ready),
+                    item("Advanced optimization", "settings-2", "optimize.advanced", Ready),
+                    item("Audit space usage", "gauge", "optimize.audit", Planned("M11")),
+                ],
+            },
+            ToolSection { title: "Clean up", items: &[item("Remove hidden information", "eye-off", "protect.remove_hidden", Ready)] },
+        ],
     },
     ToolGroup {
         id: "form",
