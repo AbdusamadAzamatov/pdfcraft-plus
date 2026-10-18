@@ -6723,3 +6723,59 @@ fn doc_impose_makes_a_booklet_as_a_new_document_and_writes_inside_the_root() {
     assert!(matches!(err(&mut a, "doc_impose", json!({ "doc": doc, "layout": "multiple", "pages": "9" })), ToolError::InvalidArgs(_)));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// organize.interleave through doc_combine: a 3-page A and a 2-page B whose pages print their
+/// names; B reversed (a duplex scan's backs) gives A1 B2 A2 B1 A3, each file copied once with one
+/// bookmark. per_turn, ranges and the argument errors (with groups, bad shapes) are checked too.
+#[test]
+fn combine_interleaves_files_with_the_second_reversed() {
+    let dir = workdir("interleave");
+    let mut a = auto(&dir);
+    for (name, prefix, pages) in [("front.pdf", "A", 3), ("back.pdf", "B", 2)] {
+        let id = ok(&mut a, "doc_create", json!({"from":"blank","width":300,"height":400}))["doc"].as_u64().unwrap();
+        for page in 1..=pages {
+            if page > 1 {
+                ok(&mut a, "page_insert_blank", json!({"doc":id,"at":page}));
+            }
+            ok(&mut a, "page_add_text", json!({"doc":id,"page":page,"text":format!("{prefix}{page}"),"at":[40,60],"size":36}));
+        }
+        ok(&mut a, "doc_save", json!({"doc":id,"path":name}));
+    }
+    let paths = json!(["front.pdf", "back.pdf"]);
+    let out = ok(&mut a, "doc_combine", json!({ "paths": paths, "interleave": { "reverse": [false, true] }, "out": "duplex.pdf", "open": true }));
+    let doc = out["document"]["doc"].as_u64().unwrap();
+    assert_eq!(page_text(&mut a, doc), ["A1", "B2", "A2", "B1", "A3"]);
+    let marks = ok(&mut a, "bookmark_list", json!({ "doc": doc }))["bookmarks"].clone();
+    let marks: Vec<_> = marks.as_array().unwrap().iter().map(|b| (b["title"].as_str().unwrap().to_string(), b["page"].as_u64().unwrap())).collect();
+    assert_eq!(marks, [("front".to_string(), 1), ("back".to_string(), 2)], "one bookmark per file, at its first page shown");
+    assert!(dir.join("duplex.pdf").is_file());
+    // Plain alternation, two pages a turn, and chosen pages.
+    let plain = ok(&mut a, "doc_combine", json!({ "paths": paths, "interleave": {}, "open": true }));
+    assert_eq!(page_text(&mut a, plain["document"]["doc"].as_u64().unwrap()), ["A1", "B1", "A2", "B2", "A3"]);
+    let pairs = ok(&mut a, "doc_combine", json!({ "paths": paths, "interleave": { "per_turn": 2 }, "open": true }));
+    assert_eq!(page_text(&mut a, pairs["document"]["doc"].as_u64().unwrap()), ["A1", "A2", "B1", "B2", "A3"]);
+    let some = ok(&mut a, "doc_combine", json!({ "paths": paths, "pages": ["3, 1", null], "interleave": { "per_turn": 1 }, "open": true }));
+    assert_eq!(page_text(&mut a, some["document"]["doc"].as_u64().unwrap()), ["A3", "B1", "A1", "B2"]);
+    // Interleave and groups don't mix, and the error says why.
+    let both = a.call("doc_combine", &json!({ "paths": paths, "groups": [1, null], "interleave": {} }));
+    assert!(matches!(both, Err(ToolError::InvalidArgs(ref e)) if e.contains("groups") && e.contains("split by hand")), "{both:?}");
+    for bad in [
+        json!({ "per_turn": 0 }),
+        json!({ "per_turn": -1 }),
+        json!({ "per_turn": 1.5 }),
+        json!({ "per_turn": "2" }),
+        json!({ "reverse": [true, false, true] }),
+        json!({ "reverse": [1] }),
+        json!({ "reverse": true }),
+        json!({ "every": 2 }),
+        json!(true),
+        json!([1]),
+    ] {
+        let refused = a.call("doc_combine", &json!({ "paths": paths, "interleave": bad }));
+        assert!(matches!(refused, Err(ToolError::InvalidArgs(_))), "{bad}: {refused:?}");
+    }
+    // A huge turn takes each file whole.
+    let whole = ok(&mut a, "doc_combine", json!({ "paths": paths, "interleave": { "per_turn": u64::MAX }, "open": true }));
+    assert_eq!(page_text(&mut a, whole["document"]["doc"].as_u64().unwrap()), ["A1", "A2", "A3", "B1", "B2"]);
+    std::fs::remove_dir_all(dir).unwrap();
+}

@@ -16,6 +16,7 @@ use pdfcraft_cos::{Dict, Document, ObjRef, Object, PdfString, XrefEntry};
 mod boxes;
 mod dedupe;
 mod import;
+mod interleave;
 mod labels;
 mod outline;
 mod pdfx;
@@ -31,6 +32,7 @@ pub use import::{
     combine_selected, combine_selected_with, combine_with, extract_pages, field_name_conflicts, import_pages, import_pages_with, insert_file_pages,
     page_as_form, split, split_ranges,
 };
+pub use interleave::interleave_runs;
 pub use labels::{LabelRange, LabelStyle, PageLabels, number_pages, page_label_ranges, page_labels, set_page_label_ranges};
 pub use outline::{
     Bookmark, BookmarkPage, OutlineEntry, OutlineError, add_bookmark, add_bookmark_tree, bookmark_page, bookmarks, delete_bookmark, move_bookmark,

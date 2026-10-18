@@ -2832,6 +2832,46 @@ fn open_source_with(name: &str, bytes: &Arc<Vec<u8>>, password: Option<&str>) ->
     source_document(bytes, password).map_err(|p| EditError::Source(format!("{name}: {p}")))
 }
 
+/// Open combine sources where sources with the same `groups` key (by position) are one file:
+/// the documents (one per file), each source's file in that list, and each source's chosen pages
+/// (its range, or `None` for all). A group's later sources use its first source's password.
+#[allow(clippy::type_complexity)]
+fn open_grouped(
+    sources: &[CombineSource],
+    groups: &[u64],
+    passwords: &[Option<&str>],
+) -> Result<(Vec<pdfcraft_cos::Document>, Vec<usize>, Vec<Option<Vec<usize>>>), EditError> {
+    let (mut keys, mut docs, mut file): (Vec<Option<u64>>, Vec<pdfcraft_cos::Document>, Vec<usize>) = (Vec::new(), Vec::new(), Vec::new());
+    for (i, (name, bytes, _)) in sources.iter().enumerate() {
+        let key = groups.get(i).copied();
+        let known = key.and_then(|k| keys.iter().position(|g| *g == Some(k)));
+        let at = match known {
+            Some(at) => at,
+            None => {
+                docs.push(open_source_with(name, bytes, passwords.get(i).copied().flatten())?);
+                keys.push(key);
+                docs.len() - 1
+            }
+        };
+        file.push(at);
+    }
+    let mut pages = Vec::with_capacity(sources.len());
+    for ((name, _, range), at) in sources.iter().zip(&file) {
+        let range = range.as_deref().map(str::trim).filter(|r| !r.is_empty());
+        let Some(d) = docs.get(*at) else { return Err(EditError::Write(format!("{name}: not opened"))) };
+        pages.push(match range {
+            Some(r) => {
+                let n = pdfcraft_organize::page_count(d)?;
+                let p = pdfcraft_print::select_pages(n, Some(r), &[], pdfcraft_print::Subset::All, false)
+                    .map_err(|e| EditError::Print(format!("{name}: {e}")))?;
+                Some(p)
+            }
+            None => None,
+        });
+    }
+    Ok((docs, file, pages))
+}
+
 /// Why a file can't be a source for Combine Files (or Insert / Replace pages).
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum SourceProblem {
@@ -4582,38 +4622,53 @@ impl Session {
         passwords: &[Option<&str>],
         field_conflicts: pdfcraft_organize::FieldConflicts,
     ) -> Result<Combined, EditError> {
-        let (mut keys, mut docs, mut file): (Vec<Option<u64>>, Vec<pdfcraft_cos::Document>, Vec<usize>) = (Vec::new(), Vec::new(), Vec::new());
-        for (i, (name, bytes, _)) in sources.iter().enumerate() {
-            let key = groups.get(i).copied();
-            let known = key.and_then(|k| keys.iter().position(|g| *g == Some(k)));
-            let at = match known {
-                Some(at) => at,
-                None => {
-                    docs.push(open_source_with(name, bytes, passwords.get(i).copied().flatten())?);
-                    keys.push(key);
-                    docs.len() - 1
-                }
-            };
-            file.push(at);
-        }
-        let mut pages = Vec::with_capacity(sources.len());
-        for ((name, _, range), at) in sources.iter().zip(&file) {
-            let range = range.as_deref().map(str::trim).filter(|r| !r.is_empty());
-            let Some(d) = docs.get(*at) else { return Err(EditError::Write(format!("{name}: not opened"))) };
-            pages.push(match range {
-                Some(r) => {
-                    let n = pdfcraft_organize::page_count(d)?;
-                    let p = pdfcraft_print::select_pages(n, Some(r), &[], pdfcraft_print::Subset::All, false)
-                        .map_err(|e| EditError::Print(format!("{name}: {e}")))?;
-                    Some(p)
-                }
-                None => None,
-            });
-        }
+        let (docs, file, pages) = open_grouped(sources, groups, passwords)?;
         let mut runs: Vec<pdfcraft_organize::Run<'_>> = Vec::with_capacity(sources.len());
         for (((name, _, _), at), p) in sources.iter().zip(&file).zip(&pages) {
             let Some(d) = docs.get(*at) else { return Err(EditError::Write(format!("{name}: not opened"))) };
             runs.push((*at, name.as_str(), d, p.as_deref()));
+        }
+        let out = pdfcraft_organize::combine_grouped_with(&runs, field_conflicts)?;
+        let bytes = self.write_new(&out.doc)?;
+        Ok(Combined { bytes, renamed_fields: out.renamed_fields })
+    }
+
+    /// Interleave files (organize.interleave): up to `per_turn` pages from each source in turn,
+    /// round and round (A1, B1, A2, B2, …); a source whose `reverse` entry (by position) is `true`
+    /// gives its pages last to first, as the backs of a duplex scan come out; when a source runs out
+    /// the others go on. Each source's pages are its range, or all of them. Sources share files as
+    /// in [`Self::combine_grouped`] (`groups` may be empty: each source a file of its own), and
+    /// each file is copied once, keeping its bookmarks, links and fields. Errors when `per_turn`
+    /// is 0.
+    pub fn combine_interleaved_reporting(
+        &self,
+        sources: &[CombineSource],
+        groups: &[u64],
+        passwords: &[Option<&str>],
+        per_turn: usize,
+        reverse: &[bool],
+        field_conflicts: pdfcraft_organize::FieldConflicts,
+    ) -> Result<Combined, EditError> {
+        let (docs, file, pages) = open_grouped(sources, groups, passwords)?;
+        let mut lists = Vec::with_capacity(sources.len());
+        for ((name, _, _), (at, chosen)) in sources.iter().zip(file.iter().zip(pages)) {
+            lists.push(match chosen {
+                Some(p) => p,
+                None => {
+                    let Some(d) = docs.get(*at) else { return Err(EditError::Write(format!("{name}: not opened"))) };
+                    (0..pdfcraft_organize::page_count(d)?).collect()
+                }
+            });
+        }
+        let turns = pdfcraft_organize::interleave_runs(&lists, per_turn, reverse)?;
+        let mut runs: Vec<pdfcraft_organize::Run<'_>> = Vec::with_capacity(turns.len());
+        for (source, chosen) in &turns {
+            let (Some((name, _, _)), Some(at)) = (sources.get(*source), file.get(*source)) else { continue };
+            let Some(d) = docs.get(*at) else { return Err(EditError::Write(format!("{name}: not opened"))) };
+            runs.push((*at, name.as_str(), d, Some(chosen.as_slice())));
+        }
+        if runs.is_empty() {
+            return Err(EditError::Print("there are no pages to interleave".into()));
         }
         let out = pdfcraft_organize::combine_grouped_with(&runs, field_conflicts)?;
         let bytes = self.write_new(&out.doc)?;

@@ -207,6 +207,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Pages per sheet (N-up)…", "grid-3x3", "page.nup", Ready),
                     item("Booklet…", "book-open", "page.booklet", Ready),
                     item("Poster (tile)…", "maximize", "page.poster", Ready),
+                    item("Interleave files…", "arrow-left-right", "page.interleave", Ready),
                 ],
             },
             ToolSection {

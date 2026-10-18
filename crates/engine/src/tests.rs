@@ -6105,3 +6105,25 @@ fn impose_new_refuses_a_document_without_the_assembly_permission() {
     let out = s.impose_new(owner, settings).unwrap();
     assert!(pdfcraft_cos::Document::open(out).is_ok(), "the owner's copy opens without a password");
 }
+
+/// Interleave files: pages alternate (the second file reversed here, as the backs of a duplex
+/// scan), each file is copied once with one bookmark, ranges choose the pages, and zero pages
+/// per turn is refused.
+#[test]
+fn interleaved_combine_alternates_pages_and_copies_each_file_once() {
+    let mut s = Session::new();
+    let (a, b) = (Arc::new(fixture(3)), Arc::new(fixture(2)));
+    let sources: Vec<CombineSource> = vec![("a".into(), a.clone(), None), ("b".into(), b.clone(), None)];
+    let rename = pdfcraft_organize::FieldConflicts::Rename;
+    let combined = s.combine_interleaved_reporting(&sources, &[], &[], 1, &[false, true], rename).unwrap();
+    let id = s.open_new("Interleaved.pdf", combined.bytes).unwrap();
+    assert_eq!(page_texts(&s, id), ["Page 1", "Page 2", "Page 2", "Page 1", "Page 3"]);
+    assert_eq!(outline_titles(&s.get(id).unwrap().info.outline), ["a→1", "b→2"]);
+    // Two at a time from chosen pages; the rest of a follows.
+    let sources: Vec<CombineSource> = vec![("a".into(), a.clone(), Some("3, 1, 2".into())), ("b".into(), b.clone(), Some("2".into()))];
+    let combined = s.combine_interleaved_reporting(&sources, &[], &[], 2, &[], rename).unwrap();
+    let id = s.open_new("Interleaved 2.pdf", combined.bytes).unwrap();
+    assert_eq!(page_texts(&s, id), ["Page 3", "Page 1", "Page 2", "Page 2"]);
+    let refused = s.combine_interleaved_reporting(&sources, &[], &[], 0, &[], rename);
+    assert!(matches!(refused, Err(EditError::Organize(pdfcraft_organize::OrganizeError::Invalid(ref e))) if e.contains("at least 1")), "{refused:?}");
+}

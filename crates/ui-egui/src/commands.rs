@@ -167,6 +167,10 @@ impl PdfCraftApp {
             "file.clear_recent" => self.recent.clear(),
             "file.pin_folder" => self.pin_folder_dialog(),
             "page.combine" => self.open_combine_tab(),
+            "page.interleave" => {
+                self.open_combine_tab();
+                self.combine_tab.interleave = true;
+            }
             "file.save" => {
                 self.save_active(SaveTarget::InPlace);
             }

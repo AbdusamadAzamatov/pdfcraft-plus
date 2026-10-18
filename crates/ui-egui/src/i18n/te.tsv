@@ -2351,3 +2351,6 @@ animation effects	Off	ఆఫ్
 	Same as first page	మొదటి పేజీ లాగానే
 	Created {name}	{name} సృష్టించబడింది
 	Creates a new document; this one is not changed.	కొత్త పత్రాన్ని సృష్టిస్తుంది; ఈ పత్రం మారదు.
+	Interleave files…	ఫైల్‌లను ఒకదాని తర్వాత ఒకటిగా కలుపు…
+	Interleave pages	పేజీలను ఒకదాని తర్వాత ఒకటిగా అమర్చు
+	Reverse order of file 2	ఫైల్ 2 క్రమాన్ని తిప్పు

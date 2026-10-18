@@ -2441,3 +2441,6 @@ animation effects	Off	Ki
 	Same as first page	Mint az első oldal
 	Created {name}	Létrehozva: {name}
 	Creates a new document; this one is not changed.	Új dokumentumot hoz létre; ez nem változik.
+	Interleave files…	Fájlok összefésülése…
+	Interleave pages	Oldalak összefésülése
+	Reverse order of file 2	A 2. fájl sorrendjének megfordítása

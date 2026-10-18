@@ -218,6 +218,12 @@ pub struct CombineTab {
     /// "Leave out files that can't be read?", asked when Combine is clicked with such files in the
     /// list.
     pub(crate) confirm_skip: bool,
+    /// Interleave pages (organize.interleave): one page from each file in turn, A1 B1 A2 B2 …,
+    /// instead of one file after another. Offered with two or more files.
+    pub interleave: bool,
+    /// With [`Self::interleave`]: take the second file's pages last to first (the backs of a
+    /// duplex scan).
+    pub interleave_reverse_second: bool,
 }
 
 /// The pages a range takes, and the range and page count they were worked out for.
@@ -812,6 +818,17 @@ pub(crate) fn page(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             }
         });
         ui.add_space(10.0);
+
+        // Interleave pages: with two or more files, take a page from each in turn.
+        if n >= 2 {
+            ui.add(widgets::checkbox(&mut app.combine_tab.interleave, tl!("Interleave pages")));
+            if app.combine_tab.interleave {
+                ui.indent("combine-interleave", |ui| {
+                    ui.add(widgets::checkbox(&mut app.combine_tab.interleave_reverse_second, tl!("Reverse order of file 2")))
+                });
+            }
+            ui.add_space(6.0);
+        }
 
         // The list, in a card that highlights while files are dragged over the window.
         let footer_h = 34.0;
@@ -2580,7 +2597,16 @@ impl PdfCraftApp {
         let sources: Vec<(String, Arc<Vec<u8>>, Option<String>)> =
             files.iter().map(|f| (title_of(&f.name).to_string(), f.bytes.clone(), Some(f.range.clone()).filter(|r| !r.trim().is_empty()))).collect();
         let passwords: Vec<Option<&str>> = files.iter().map(|f| f.password.as_ref().map(|p| p.0.as_str())).collect();
-        match self.session.combine_grouped(&sources, &groups, &passwords) {
+        // Interleaved (with two or more files): a page from each in turn, the second reversed if
+        // asked; a file split into parts is still copied once.
+        let combined = if self.combine_tab.interleave && files.len() > 1 {
+            let reverse = [false, self.combine_tab.interleave_reverse_second];
+            let conflicts = pdfcraft_engine::FieldConflicts::Rename;
+            self.session.combine_interleaved_reporting(&sources, &groups, &passwords, 1, &reverse, conflicts).map(|c| c.bytes)
+        } else {
+            self.session.combine_grouped(&sources, &groups, &passwords)
+        };
+        match combined {
             Ok(bytes) => {
                 self.close_combine_tab();
                 let message = crate::i18n::fmt(tl!("Combined {n} files"), &[("n", &count.to_string())]);

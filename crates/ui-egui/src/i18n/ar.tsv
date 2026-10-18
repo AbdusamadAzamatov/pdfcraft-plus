@@ -2719,3 +2719,6 @@ certificate	Version	الإصدار
 	Same as first page	مثل الصفحة الأولى
 	Created {name}	تم إنشاء {name}
 	Creates a new document; this one is not changed.	يُنشئ مستندًا جديدًا؛ ولا يتغيّر هذا المستند.
+	Interleave files…	دمج الملفات بالتناوب…
+	Interleave pages	ترتيب الصفحات بالتناوب
+	Reverse order of file 2	عكس ترتيب الملف 2

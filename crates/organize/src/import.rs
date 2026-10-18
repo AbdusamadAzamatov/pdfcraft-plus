@@ -1060,6 +1060,8 @@ pub fn combine_grouped_with(runs: &[Run<'_>], conflicts: FieldConflicts) -> Resu
         title: &'a str,
         src: &'a Document,
         pages: Vec<usize>,
+        /// Its page count, read once (an interleave gives a file a run per page).
+        count: usize,
     }
     let mut files: Vec<(usize, File<'_>)> = Vec::new();
     let mut slices: Vec<(usize, usize, usize)> = Vec::with_capacity(runs.len());
@@ -1067,12 +1069,12 @@ pub fn combine_grouped_with(runs: &[Run<'_>], conflicts: FieldConflicts) -> Resu
         let at = match files.iter().position(|(g, _)| g == group) {
             Some(at) => at,
             None => {
-                files.push((*group, File { title, src, pages: Vec::new() }));
+                files.push((*group, File { title, src, pages: Vec::new(), count: crate::page_count(src)? }));
                 files.len() - 1
             }
         };
         let Some((_, file)) = files.get_mut(at) else { continue };
-        let n = crate::page_count(file.src)?;
+        let n = file.count;
         let pages: Vec<usize> = match chosen {
             Some(p) => {
                 if let Some(bad) = p.iter().find(|i| **i >= n) {

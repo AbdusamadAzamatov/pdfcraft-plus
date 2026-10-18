@@ -2808,3 +2808,128 @@ fn rotate_repeated_indices_accumulate_from_the_current_page_value() {
         }
     }
 }
+
+/// Property (exhaustive over small cases): interleaving takes every selected page exactly once,
+/// each file's pages in order (reversed when asked), up to `per_turn` at a time in file order,
+/// round and round; a file that runs out drops out and the others go on. Runs are never empty and
+/// never two in a row from the same file.
+#[test]
+fn interleave_runs_take_every_page_once_alternating_by_turns() {
+    fn check(lists: &[Vec<usize>], per_turn: usize, reverse: &[bool]) {
+        let runs = interleave_runs(lists, per_turn, reverse).unwrap();
+        let wanted: Vec<Vec<usize>> = lists
+            .iter()
+            .enumerate()
+            .map(|(i, l)| if reverse.get(i).copied().unwrap_or(false) { l.iter().rev().copied().collect() } else { l.clone() })
+            .collect();
+        // Every page once, each file's in its order.
+        for (file, pages) in wanted.iter().enumerate() {
+            let got: Vec<usize> = runs.iter().filter(|(f, _)| *f == file).flat_map(|(_, p)| p.iter().copied()).collect();
+            assert_eq!(&got, pages, "{lists:?} per {per_turn} rev {reverse:?}: file {file}");
+        }
+        assert!(runs.iter().all(|(f, p)| !p.is_empty() && *f < lists.len()));
+        assert!(runs.windows(2).all(|w| w[0].0 != w[1].0), "adjacent runs of one file are merged: {runs:?}");
+        // The order of turns: walk the flattened result, one turn at a time.
+        let flat: Vec<usize> = runs.iter().flat_map(|(f, p)| std::iter::repeat_n(*f, p.len())).collect();
+        let mut left: Vec<usize> = wanted.iter().map(Vec::len).collect();
+        let mut at = 0;
+        while left.iter().any(|l| *l > 0) {
+            for (file, l) in left.iter_mut().enumerate() {
+                let turn = (*l).min(per_turn);
+                assert!(flat[at..at + turn].iter().all(|f| *f == file), "{lists:?} per {per_turn}: turn of file {file} at {at} in {flat:?}");
+                at += turn;
+                *l -= turn;
+            }
+        }
+        assert_eq!(at, flat.len());
+    }
+    let lens = [0usize, 1, 2, 3, 5];
+    for &a in &lens {
+        for &b in &lens {
+            for &c in &[0usize, 2, 4] {
+                for per_turn in 1..=4 {
+                    for mask in 0..8u8 {
+                        let lists = [(0..a).collect::<Vec<_>>(), (10..10 + b).collect(), (20..20 + c).collect()];
+                        let reverse = [mask & 1 != 0, mask & 2 != 0, mask & 4 != 0];
+                        check(&lists[..2], per_turn, &reverse[..2]);
+                        check(&lists, per_turn, &reverse);
+                        check(&lists, per_turn, &reverse[..1]);
+                    }
+                }
+            }
+        }
+    }
+    // Pages chosen out of order (a range such as "3, 1") keep that order.
+    check(&[vec![2, 0, 1], vec![4, 4]], 1, &[false, true]);
+}
+
+#[test]
+fn interleave_runs_examples_and_edge_cases() {
+    // A1 B1 A2 B2 A3, and with B reversed (a duplex scan's backs) A1 B2 A2 B1 A3.
+    assert_eq!(
+        interleave_runs(&[vec![0, 1, 2], vec![0, 1]], 1, &[]).unwrap(),
+        [(0, vec![0]), (1, vec![0]), (0, vec![1]), (1, vec![1]), (0, vec![2])]
+    );
+    assert_eq!(
+        interleave_runs(&[vec![0, 1, 2], vec![0, 1]], 1, &[false, true]).unwrap(),
+        [(0, vec![0]), (1, vec![1]), (0, vec![1]), (1, vec![0]), (0, vec![2])]
+    );
+    // Two at a time; the rest of the longer file follows as one run.
+    assert_eq!(interleave_runs(&[vec![0, 1, 2, 3, 4, 5, 6], vec![0]], 2, &[]).unwrap(), [(0, vec![0, 1]), (1, vec![0]), (0, vec![2, 3, 4, 5, 6])]);
+    // Nothing to take, or one file only.
+    assert!(interleave_runs(&[], 1, &[]).unwrap().is_empty());
+    assert!(interleave_runs(&[vec![], vec![]], 3, &[true, true, true]).unwrap().is_empty());
+    assert_eq!(interleave_runs(&[vec![], vec![3, 4]], 1, &[]).unwrap(), [(1, vec![3, 4])]);
+    // Zero pages per turn is refused; a huge turn takes whole files.
+    assert!(matches!(interleave_runs(&[vec![0], vec![0]], 0, &[]), Err(OrganizeError::Invalid(e)) if e.contains("at least 1")));
+    assert_eq!(interleave_runs(&[vec![0, 1], vec![0]], usize::MAX, &[]).unwrap(), [(0, vec![0, 1]), (1, vec![0])]);
+    // Many files, most of them empty, and long lists: the work follows the pages, not the files.
+    let mut lists = vec![Vec::new(); 100_000];
+    lists[7] = (0..200_000).collect();
+    lists[99_999] = (0..3).collect();
+    let runs = interleave_runs(&lists, 1, &[]).unwrap();
+    assert_eq!(runs.len(), 7);
+    assert_eq!(runs.last().map(|(f, p)| (*f, p.len())), Some((7, 199_997)));
+}
+
+/// A page-named document: page `i` shows "{prefix}{i+1}".
+fn named_pages(prefix: &str, n: usize) -> Document {
+    let mut objs: Vec<Vec<u8>> = vec![b"<< /Type /Catalog /Pages 2 0 R >>".to_vec()];
+    let kids: Vec<String> = (0..n).map(|i| format!("{} 0 R", 3 + 2 * i)).collect();
+    objs.push(format!("<< /Type /Pages /Kids [{}] /Count {n} /MediaBox [0 0 200 200] >>", kids.join(" ")).into_bytes());
+    for i in 0..n {
+        objs.push(format!("<< /Type /Page /Parent 2 0 R /Contents {} 0 R >>", 4 + 2 * i).into_bytes());
+        objs.push(stream(format!("BT 20 20 Td ({prefix}{}) Tj ET", i + 1).as_bytes()));
+    }
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n", i + 1).as_bytes());
+        out.extend_from_slice(o);
+        out.extend_from_slice(b"\nendobj\n");
+    }
+    let xref = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    open(out)
+}
+
+/// The runs, combined as groups: pages alternate, and each file is copied once, with one
+/// bookmark at its first page shown.
+#[test]
+fn interleaved_runs_combine_each_file_once() {
+    let (a, b) = (named_pages("A", 3), named_pages("B", 2));
+    let lists = [(0..3).collect::<Vec<_>>(), (0..2).collect()];
+    let runs = interleave_runs(&lists, 1, &[false, true]).unwrap();
+    let docs = [(&a, "a"), (&b, "b")];
+    let grouped: Vec<Run<'_>> = runs.iter().map(|(f, p)| (*f, docs[*f].1, docs[*f].0, Some(p.as_slice()))).collect();
+    let out = combine_grouped_with(&grouped, FieldConflicts::Rename).unwrap().doc;
+    let out = save_and_reopen(&out);
+    assert_eq!(labels(&out), ["A1", "B2", "A2", "B1", "A3"]);
+    let marks: Vec<(String, Option<usize>)> = top_level_bookmarks(&out).into_iter().map(|m| (m.title, m.page)).collect();
+    assert_eq!(marks, [("a".to_string(), Some(0)), ("b".to_string(), Some(1))]);
+}

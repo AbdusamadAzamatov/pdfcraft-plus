@@ -2438,3 +2438,6 @@ animation effects	Off	Kapalı
 	Same as first page	İlk sayfayla aynı
 	Created {name}	{name} oluşturuldu
 	Creates a new document; this one is not changed.	Yeni bir belge oluşturur; bu belge değişmez.
+	Interleave files…	Dosyaları iç içe geçir…
+	Interleave pages	Sayfaları iç içe geçir
+	Reverse order of file 2	2. dosyanın sırasını ters çevir

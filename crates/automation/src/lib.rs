@@ -1654,6 +1654,41 @@ impl Automation {
             }
             Some(_) => return Err(ToolError::InvalidArgs("groups must list a number (or null) for each path".into())),
         };
+        // Interleave: pages from each file in turn (A1, B1, A2, B2, …), per_turn at a time.
+        let interleave: Option<(usize, Vec<bool>)> = match a.get("interleave") {
+            None | Some(Value::Null) => None,
+            Some(Value::Object(o)) => {
+                if let Some(k) = o.keys().find(|k| !matches!(k.as_str(), "per_turn" | "reverse")) {
+                    return Err(ToolError::InvalidArgs(format!("interleave has no option {k:?}; it takes per_turn and reverse")));
+                }
+                // A turn larger than any file takes each file whole (saturating, as on wasm32).
+                let per_turn = match o.get("per_turn") {
+                    None | Some(Value::Null) => Some(1),
+                    Some(v) => v.as_u64().filter(|n| *n >= 1).map(|n| usize::try_from(n).unwrap_or(usize::MAX)),
+                }
+                .ok_or_else(|| ToolError::InvalidArgs("interleave.per_turn must be a whole number of pages, 1 or more".into()))?;
+                let reverse = match o.get("reverse") {
+                    None | Some(Value::Null) => Vec::new(),
+                    Some(Value::Array(v)) if v.len() <= paths.len() && v.iter().all(Value::is_boolean) => {
+                        v.iter().map(|x| x.as_bool().unwrap_or(false)).collect()
+                    }
+                    Some(_) => {
+                        return Err(ToolError::InvalidArgs(
+                            "interleave.reverse must list true or false for each path (no more entries than paths)".into(),
+                        ));
+                    }
+                };
+                Some((per_turn, reverse))
+            }
+            Some(_) => {
+                return Err(ToolError::InvalidArgs("interleave must be an object such as {\"per_turn\": 1, \"reverse\": [false, true]}".into()));
+            }
+        };
+        if interleave.is_some() && groups.is_some() {
+            return Err(ToolError::InvalidArgs(
+                "interleave and groups can't be used together: interleave makes its own runs of each file, so a file can't also be split by hand. Drop groups (each path is then one file) or drop interleave".into(),
+            ));
+        }
         let field_conflicts = match a.opt_str("field_conflicts")? {
             None | Some("rename") => pdfcraft_organize::FieldConflicts::Rename,
             Some("merge") => pdfcraft_organize::FieldConflicts::Merge,
@@ -1688,9 +1723,12 @@ impl Automation {
             sources.push((name, bytes, range));
         }
         let passwords: Vec<Option<&str>> = passwords.iter().map(Option::as_deref).collect();
-        let combined = match groups {
-            None => self.session.combine_unlocked_reporting(&sources, &passwords, field_conflicts),
-            Some(groups) => {
+        let combined = match (groups, interleave) {
+            (_, Some((per_turn, reverse))) => {
+                self.session.combine_interleaved_reporting(&sources, &[], &passwords, per_turn, &reverse, field_conflicts)
+            }
+            (None, None) => self.session.combine_unlocked_reporting(&sources, &passwords, field_conflicts),
+            (Some(groups), None) => {
                 // A path without a group is a file of its own: give it a key no group uses.
                 let mut next = groups.iter().flatten().max().map_or(Some(0), |m| m.checked_add(1));
                 let mut keys = Vec::with_capacity(groups.len());

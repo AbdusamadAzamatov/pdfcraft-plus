@@ -183,6 +183,8 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("create.images", "Create PDF from images…", FILE, None, Nothing, "image"),
     c("create.clipboard", "Create PDF from clipboard", FILE, None, Nothing, "copy-plus"),
     c("page.combine", "Combine files…", FILE, None, Nothing, "files"),
+    // Opens Combine files with Interleave pages on (organize.interleave).
+    c("page.interleave", "Interleave files…", None, None, Nothing, "arrow-left-right"),
     c("file.save", "Save", FILE, Some(Shortcut::cmd("S")), Document, "save"),
     c("file.save_as", "Save as…", FILE, Some(Shortcut::cmd_shift("S")), Document, "save"),
     c("file.close", "Close file", FILE, Some(Shortcut::cmd("W")), Document, "x"),

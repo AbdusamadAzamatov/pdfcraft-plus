@@ -1841,3 +1841,47 @@ fn open_documents_already_in_the_list_are_not_added_again() {
     add_all(&mut h);
     assert_eq!(names(&h), ["a.pdf", "report.pdf", "report.pdf", "b.pdf"]);
 }
+
+/// A document whose page `i` shows "{prefix}{i+1}".
+fn named_pages(prefix: &str, n: usize) -> Vec<u8> {
+    let page = fixture(n);
+    let mut doc = pdfcraft_cos::Document::open(std::sync::Arc::new(page)).unwrap();
+    for i in 0..n {
+        let num = (5 + 2 * i) as u32;
+        let body = format!("BT /F1 24 Tf 20 150 Td ({prefix}{}) Tj ET", i + 1);
+        let stream = pdfcraft_cos::Stream::from_raw(pdfcraft_cos::Dict::new(), body.into_bytes());
+        doc.set(pdfcraft_cos::ObjRef::new(num, 0), pdfcraft_cos::Object::Stream(stream));
+    }
+    pdfcraft_cos::write_full(&doc, &Default::default()).unwrap()
+}
+
+/// organize.interleave: with two or more files the Combine tab offers Interleave pages, and
+/// "Reverse order of file 2" under it; combined, a 3-page front and 2-page back alternate as
+/// A1 B2 A2 B1 A3, each file with one bookmark. Organize ▸ Layout ▸ Interleave files… opens the
+/// tab with the toggle on.
+#[test]
+fn interleave_toggle_alternates_the_files_and_reverses_the_second() {
+    let mut h = grid_of(vec![("front.pdf", named_pages("A", 3))], vec2(1400.0, 900.0));
+    assert!(h.query_by_label("Interleave pages").is_none(), "one file has nothing to interleave");
+    h.state_mut().use_files(FilePurpose::Combine, vec![("back.pdf".into(), named_pages("B", 2))]);
+    h.run_steps(3);
+    assert!(h.query_by_label("Reverse order of file 2").is_none(), "shown only with the toggle on");
+    h.get_by_label("Interleave pages").click();
+    h.run_steps(2);
+    assert!(h.state().combine_tab.interleave);
+    h.get_by_label("Reverse order of file 2").click();
+    h.run_steps(2);
+    assert!(h.state().combine_tab.interleave_reverse_second);
+    h.get_by_label("Combine").click();
+    h.run_steps(3);
+    let app = h.state();
+    assert_eq!(app.views.len(), 1, "the result opens");
+    assert_eq!(texts_of(app, 0), ["A1", "B2", "A2", "B1", "A3"]);
+    let doc = app.session.get(app.views[0].id).unwrap();
+    assert_eq!(doc.info.outline.iter().map(|o| o.title.as_str()).collect::<Vec<_>>(), ["front", "back"]);
+    assert!(!app.combine_tab.interleave, "the next combine starts plain");
+    // The catalog item opens Combine files with Interleave pages on.
+    h.state_mut().execute("page.interleave");
+    h.run_steps(3);
+    assert!(h.state().combine_showing() && h.state().combine_tab.interleave);
+}

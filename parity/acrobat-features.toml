@@ -2840,6 +2840,18 @@ evidence = ["crates/organize/src/tests.rs::reverse_pages_reorders", "crates/orga
 notes = "Organize Pages ▸ More ▸ Reverse pages, or the command palette: two or more selected pages swap among their own positions, otherwise the whole document reverses. One undo step. Not yet: an entry in the page thumbnails' right-click menu"
 
 [[feature]]
+id = "organize.interleave"
+title = "Interleave files (alternate pages, e.g. duplex scans)"
+area = "D"
+tier = "P2"
+milestone = "M4"
+status = "shipped"
+commands = ["page.interleave", "page.combine"]
+tools = ["doc_combine"]
+evidence = ["crates/organize/src/tests.rs::interleave_runs_take_every_page_once_alternating_by_turns", "crates/organize/src/tests.rs::interleave_runs_examples_and_edge_cases", "crates/organize/src/tests.rs::interleaved_runs_combine_each_file_once", "crates/engine/src/tests.rs::interleaved_combine_alternates_pages_and_copies_each_file_once", "crates/automation/tests/automation.rs::combine_interleaves_files_with_the_second_reversed", "crates/ui-egui/tests/combine_grid.rs::interleave_toggle_alternates_the_files_and_reverses_the_second"]
+notes = "Combine files tab: an Interleave pages toggle (shown with two or more files) takes one page from each file in turn (A1, B1, A2, B2, …), with Reverse order of file 2 under it for duplex scans whose backs came out last to first; when a file runs out the rest of the others follow. Organize ▸ Layout ▸ Interleave files… opens the tab with the toggle on. Each file's page range applies before interleaving (reverse reverses the chosen pages). Each file is copied once (pdfcraft_organize::interleave_runs feeding combine_grouped_with), so it keeps one bookmark at its first page shown, its links and its form fields. doc_combine takes interleave: {per_turn, reverse: [bool per path]} and refuses it together with groups. Decisions: the UI always takes 1 page per turn and reverses only file 2 (per_turn and reversing other files are automation-only); in the UI each list entry counts as a file, so a file split into parts takes turns per part but is still copied once. Not yet: per-turn and per-file reverse in the UI, a preview of the interleaved order in the grid."
+
+[[feature]]
 id = "organize.nup-to-pdf"
 title = "Pages per sheet (N-up) as a new document"
 area = "D"

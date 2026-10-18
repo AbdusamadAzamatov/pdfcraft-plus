@@ -2442,3 +2442,6 @@ animation effects	Off	オフ
 	Same as first page	最初のページと同じ
 	Created {name}	{name} を作成しました
 	Creates a new document; this one is not changed.	新しい文書を作成します。この文書は変更されません。
+	Interleave files…	ファイルを交互に結合…
+	Interleave pages	ページを交互に並べる
+	Reverse order of file 2	ファイル 2 を逆順にする
