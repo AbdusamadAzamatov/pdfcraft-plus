@@ -2576,3 +2576,9 @@ animation effects	Off	Desactivados
 	You are viewing revision {rev} of “{from}”. It is a snapshot: changes here won't affect the original.	Estás viendo la revisión {rev} de «{from}». Es una instantánea: los cambios aquí no afectarán al original.
 	Layout	Diseño
 	Clean up	Limpiar
+	Pages per sheet (N-up)…	Páginas por hoja (N-up)…
+	Booklet…	Folleto…
+	Poster (tile)…	Póster (mosaico)…
+	Same as first page	Igual que la primera página
+	Created {name}	Se creó {name}
+	Creates a new document; this one is not changed.	Crea un documento nuevo; este no se modifica.

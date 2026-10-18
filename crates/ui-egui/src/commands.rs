@@ -661,6 +661,9 @@ impl PdfCraftApp {
                 self.dialog = Some(Dialog::PageBoxes);
             }
             "page.extract" => self.open_extract_dialog(),
+            "page.nup" => self.open_impose(crate::print_ui::Handling::Multiple),
+            "page.booklet" => self.open_impose(crate::print_ui::Handling::Booklet),
+            "page.poster" => self.open_impose(crate::print_ui::Handling::Poster),
             "page.rotate_dialog" => {
                 if let Some(i) = active {
                     let n = self.session.get(self.views[i].id).map_or(1, |d| d.info.pages.len());

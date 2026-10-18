@@ -200,7 +200,15 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Split", "scissors", "page.split", Ready),
                 ],
             },
-            ToolSection { title: "Layout", items: &[item("Crop pages", "crop", "page.crop", Ready)] },
+            ToolSection {
+                title: "Layout",
+                items: &[
+                    item("Crop pages", "crop", "page.crop", Ready),
+                    item("Pages per sheet (N-up)…", "grid-3x3", "page.nup", Ready),
+                    item("Booklet…", "book-open", "page.booklet", Ready),
+                    item("Poster (tile)…", "maximize", "page.poster", Ready),
+                ],
+            },
             ToolSection {
                 title: "More",
                 items: &[

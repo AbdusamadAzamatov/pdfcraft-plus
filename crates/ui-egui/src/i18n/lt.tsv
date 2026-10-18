@@ -2687,3 +2687,9 @@ key	Space	Tarpas
 theme	Appearance	Išvaizda
 	Layout	Išdėstymas
 	Clean up	Išvalymas
+	Pages per sheet (N-up)…	Puslapių lape (N-up)…
+	Booklet…	Brošiūra…
+	Poster (tile)…	Plakatas (išklotinė)…
+	Same as first page	Kaip pirmasis puslapis
+	Created {name}	Sukurta: {name}
+	Creates a new document; this one is not changed.	Sukuria naują dokumentą; šis nepakeičiamas.

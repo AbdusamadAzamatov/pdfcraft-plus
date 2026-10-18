@@ -2400,3 +2400,9 @@ animation effects	Off	关
 	Page properties	页面属性
 	Layout	布局
 	Clean up	清理
+	Pages per sheet (N-up)…	每张纸页数 (N-up)…
+	Booklet…	小册子…
+	Poster (tile)…	海报 (平铺)…
+	Same as first page	与第一页相同
+	Created {name}	已创建 {name}
+	Creates a new document; this one is not changed.	创建新文档；此文档不会更改。

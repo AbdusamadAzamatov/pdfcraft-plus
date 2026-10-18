@@ -6684,3 +6684,42 @@ fn a_root_less_write_output_is_atomic_too() {
     assert!(matches!(&e, ToolError::Failed(m) if m.contains("is a folder")), "{e:?}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Organize ▸ Layout (PL1): `doc_impose` makes a booklet as a new unsaved document (sheets in
+/// front/back pairs) without touching the source, writes it atomically inside --root with `out`,
+/// and refuses layouts it doesn't make and paths outside the root.
+#[test]
+fn doc_impose_makes_a_booklet_as_a_new_document_and_writes_inside_the_root() {
+    let dir = workdir("impose");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    let r = ok(&mut a, "doc_impose", json!({ "doc": doc, "layout": "booklet", "open": true }));
+    let sheets = r["sheets"].as_u64().unwrap();
+    assert!(sheets >= 2 && sheets.is_multiple_of(2), "a booklet's sheets come in front/back pairs: {r}");
+    assert_eq!(r["document"]["pages"].as_u64(), Some(sheets));
+    assert_eq!(r["document"]["name"], "a (booklet).pdf");
+    assert_ne!(r["document"]["doc"].as_u64(), Some(doc), "a new document");
+    assert!(r.get("path").is_none(), "nothing written without out");
+    let source = ok(&mut a, "doc_info", json!({ "doc": doc }))["document"].clone();
+    assert_eq!((source["pages"].as_u64(), source["dirty"].as_bool()), (Some(3), Some(false)), "the source is unchanged");
+
+    // 2-up onto A4, written to a file and not opened.
+    let r = ok(&mut a, "doc_impose", json!({ "doc": doc, "layout": "multiple", "per_sheet": 2, "paper": "A4", "out": "sheets/2up.pdf" }));
+    assert_eq!(r["sheets"].as_u64(), Some(2));
+    assert!(r.get("document").is_none(), "out alone doesn't open it");
+    let written = dir.join("sheets").join("2up.pdf");
+    assert_eq!(std::fs::read_dir(dir.join("sheets")).unwrap().count(), 1, "no staging file is left behind");
+    let reopened = ok(&mut a, "doc_open", json!({ "path": "sheets/2up.pdf" }))["doc"].as_u64().unwrap();
+    assert_eq!(ok(&mut a, "doc_info", json!({ "doc": reopened }))["document"]["pages"].as_u64(), Some(2));
+    assert!(written.is_file());
+
+    let outside = dir.parent().unwrap().join(format!("pdfcraft-impose-escape-{}.pdf", std::process::id()));
+    assert!(
+        a.call("doc_impose", &json!({ "doc": doc, "layout": "poster", "out": "../".to_string() + outside.file_name().unwrap().to_str().unwrap() }))
+            .is_err()
+    );
+    assert!(!outside.exists(), "nothing written outside --root");
+    assert!(matches!(err(&mut a, "doc_impose", json!({ "doc": doc, "layout": "fit" })), ToolError::InvalidArgs(m) if m.contains("booklet")));
+    assert!(matches!(err(&mut a, "doc_impose", json!({ "doc": doc, "layout": "multiple", "pages": "9" })), ToolError::InvalidArgs(_)));
+    let _ = std::fs::remove_dir_all(&dir);
+}

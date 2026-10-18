@@ -426,3 +426,34 @@ fn an_empty_printer_list_says_none_were_found() {
     h.get_by_label_contains("No printers were found");
     assert!(!h.get_by_role_and_label(Role::Button, "Save as PDF").accesskit_node().is_disabled());
 }
+
+/// Organize ▸ Layout ▸ Pages per sheet (PL1): the dialog opens from the Layout tools of the
+/// Organize pages panel, reuses the Print dialog's layout controls, and Create opens the sheets
+/// in a second tab while the document stays as it was.
+#[test]
+fn n_up_dialog_opens_from_the_layout_tools_and_creates_a_second_tab() {
+    let mut h = harness();
+    let source = h.state().views[0].id;
+    let pages = h.state().session.get(source).unwrap().info.pages.len();
+    h.state_mut().set_option("tool", "organize").unwrap();
+    h.run_steps(4);
+    h.get_by_label("Pages per sheet (N-up)…").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::Impose(pdfcraft_ui_egui::PrintHandling::Multiple)));
+    // The Print dialog's controls for several pages per sheet.
+    h.get_by_label("Pages per sheet:");
+    h.get_by_label("Print page border");
+    h.get_by_value("Same as first page");
+    h.get_by_role_and_label(Role::Button, "Create").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, None);
+    assert_eq!(h.state().views.len(), 2, "a second tab");
+    let new = h.state().views[1].id;
+    let doc = h.state().session.get(new).unwrap();
+    assert_eq!(doc.name, "form (2-up).pdf");
+    assert_eq!(doc.info.pages.len(), pages.div_ceil(2));
+    assert!(doc.dirty, "the new document is unsaved");
+    let src = h.state().session.get(source).unwrap();
+    assert_eq!(src.info.pages.len(), pages);
+    assert!(!src.dirty, "the document itself is unchanged");
+}

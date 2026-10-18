@@ -54,6 +54,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut link_command: Option<&'static str> = None;
     let mut protect_now = false;
     let mut boxes_now = false;
+    let mut impose_now = false;
     let mut marks_now = false;
     let mut export_now = false;
     let mut props_now = false;
@@ -999,6 +1000,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = apply || cancel;
                 return;
             }
+            Dialog::Impose(handling) => {
+                let (create, cancel) = crate::impose_ui::body(ui, app, &t, handling);
+                impose_now = create;
+                close = create || cancel;
+                return;
+            }
             Dialog::Protect => {
                 let (apply, cancel) = crate::protect::body(ui, app, &t);
                 protect_now = apply;
@@ -1366,6 +1373,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
         let edit = app.boxes_draft.edit(app.views[i].current, count);
         app.apply_edit(edit);
         app.boxes_draft.seeded = None;
+    }
+    if impose_now {
+        app.impose_with_draft();
     }
     if protect_now && app.apply_edit(app.protect_draft.edit()) {
         app.protect_draft = Default::default();

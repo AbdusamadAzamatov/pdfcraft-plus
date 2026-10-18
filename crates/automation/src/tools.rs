@@ -70,6 +70,36 @@ fn comment_ref(mut extra: Value) -> Value {
     extra
 }
 
+/// The page range and layout options `doc_print` and `doc_impose` share (parsed by the helpers in
+/// `printing.rs`), added to `extra` where it doesn't have its own.
+fn print_layout(mut extra: Value) -> Value {
+    if let Some(props) = extra.as_object_mut() {
+        let shared = json!({
+            "pages": { "type": "string" },
+            "subset": { "type": "string", "enum": ["all", "odd", "even"] },
+            "reverse": { "type": "boolean" },
+            "scale": { "type": "number", "exclusiveMinimum": 0 },
+            "per_sheet": { "type": "integer", "minimum": 1, "maximum": 256 },
+            "order": { "type": "string", "enum": ["horizontal", "horizontal-reversed", "vertical", "vertical-reversed", "cut-stack"] },
+            "border": { "type": "boolean" },
+            "auto_rotate": { "type": "boolean" },
+            "booklet_subset": { "type": "string", "enum": ["both", "front", "back"] },
+            "binding": { "type": "string", "enum": ["left", "right"] },
+            "overlap": { "type": "number", "minimum": 0 },
+            "cut_marks": { "type": "boolean" },
+            "orientation": { "type": "string", "enum": ["auto", "portrait", "landscape"] },
+            "comments_forms": { "type": "string", "enum": ["document", "document-and-markups", "document-and-stamps", "form-fields-only"] },
+            "paper": { "type": "string" },
+        });
+        if let Value::Object(shared) = shared {
+            for (k, v) in shared {
+                props.entry(k).or_insert(v);
+            }
+        }
+    }
+    extra
+}
+
 fn schema(props: Value, required: &[&str]) -> Value {
     json!({ "type": "object", "properties": props, "required": required, "additionalProperties": false })
 }
@@ -488,24 +518,9 @@ pub fn tools() -> Vec<ToolDef> {
             "Print with Acrobat's Print dialog options, or save the print-ready PDF. pages: a range such as \"1-3, 6, 9-\" (page labels allowed; default all); subset odd/even; reverse. layout: fit (default), actual, shrink, custom (scale %), multiple (per_sheet 2/4/6/9/16, order, border, auto_rotate; cut-stack order arranges single-sided sheets for cutting into piles and stacking left to right, top to bottom, keeping sheet order within each pile; duplex must be off), booklet (booklet_subset both/front/back, binding left/right), poster (scale %, overlap pt, cut_marks). orientation auto/portrait/landscape; comments_forms document / document-and-markups (default) / document-and-stamps / form-fields-only; paper Letter/Legal/Tabloid, ARCH A/B/C/D/E1/E, ANSI C/D/E, or A0/A1/A2/A3/A4/A5/A6 (short names or full preset labels); use layout actual for 100% in the print-ready PDF; printer drivers may still substitute paper or scale. Then path (save) or printer (a name or \"default\") with copies, collate, duplex off/long-edge/short-edge, grayscale, and options (driver options from printer_options, CUPS).",
         )
         .with(schema(
-            json!({
+            print_layout(json!({
                 "doc": doc(),
-                "pages": { "type": "string" },
-                "subset": { "type": "string", "enum": ["all", "odd", "even"] },
-                "reverse": { "type": "boolean" },
                 "layout": { "type": "string", "enum": ["fit", "actual", "shrink", "custom", "multiple", "booklet", "poster"] },
-                "scale": { "type": "number", "exclusiveMinimum": 0 },
-                "per_sheet": { "type": "integer", "minimum": 1, "maximum": 256 },
-                "order": { "type": "string", "enum": ["horizontal", "horizontal-reversed", "vertical", "vertical-reversed", "cut-stack"] },
-                "border": { "type": "boolean" },
-                "auto_rotate": { "type": "boolean" },
-                "booklet_subset": { "type": "string", "enum": ["both", "front", "back"] },
-                "binding": { "type": "string", "enum": ["left", "right"] },
-                "overlap": { "type": "number", "minimum": 0 },
-                "cut_marks": { "type": "boolean" },
-                "orientation": { "type": "string", "enum": ["auto", "portrait", "landscape"] },
-                "comments_forms": { "type": "string", "enum": ["document", "document-and-markups", "document-and-stamps", "form-fields-only"] },
-                "paper": { "type": "string" },
                 "path": { "type": "string" },
                 "printer": { "type": "string" },
                 "copies": { "type": "integer", "minimum": 1, "maximum": 999 },
@@ -515,8 +530,24 @@ pub fn tools() -> Vec<ToolDef> {
                 "as_image": { "type": "boolean", "description": "Print as image (Acrobat's Advanced Print Setup): every page rendered to a picture at dpi before it is placed on the paper, for printers that skip text, shading or transparency; the print is no longer searchable text, and with grayscale the pictures are grey." },
                 "dpi": { "type": "number", "minimum": 72, "maximum": 600, "description": "Resolution for as_image (default 300)." },
                 "options": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Printer driver options from printer_options: key → choice value." },
-            }),
+            })),
             &["doc"],
+        )),
+        t(
+            "doc_impose",
+            "N-up, booklet or poster as a new PDF",
+            "Lay the pages out on sheets as a new PDF (Organize ▸ Layout): layout multiple (per_sheet 2/4/6/9/16, order, border, auto_rotate), booklet (booklet_subset both/front/back, binding left/right; sheets come in front/back pairs) or poster (scale %, overlap pt, cut_marks; each page tiled over several sheets). Same options as doc_print: pages (a range such as \"1-3, 6\", page labels allowed; default all), subset, reverse, orientation, comments_forms. paper defaults to \"first-page\" (the first page laid out, upright); otherwise a doc_print paper name. The result opens as a new unsaved document named \"<name> (2-up).pdf\", \"(booklet)\" or \"(poster)\", and/or is written to out; it reports sheets. The document itself is not changed (nothing to undo). The new file is not encrypted, so a restricted document needs the page-assembly permission or the owner password.",
+        )
+        .cmd("page.nup")
+        .with(schema(
+            print_layout(json!({
+                "doc": doc(),
+                "layout": { "type": "string", "enum": ["multiple", "booklet", "poster"] },
+                "paper": { "type": "string", "description": "\"first-page\" (default) or a paper name, as for doc_print." },
+                "out": { "type": "string", "description": "File to write. Omit to open the result as a new unsaved document instead." },
+                "open": { "type": "boolean", "description": "Also open the result as a new document (default: only when out is omitted)." },
+            })),
+            &["doc", "layout"],
         )),
         t("content_list", "List added content", "Text and images added with page_add_text/page_add_image (or Edit a PDF ▸ Add content), per page with a 1-based index, rect (points from the top-left of the page), and text style.")
             .ro()

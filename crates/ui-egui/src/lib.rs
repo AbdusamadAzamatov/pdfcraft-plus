@@ -91,6 +91,7 @@ pub mod forms_ui;
 mod home;
 mod icon_data;
 pub mod icons;
+mod impose_ui;
 pub mod last_session;
 pub mod motion;
 mod page_selection_ui;
@@ -286,6 +287,8 @@ pub enum Dialog {
     Protect,
     /// Set Page Boxes (crop, trim, bleed, art, media).
     PageBoxes,
+    /// Organize ▸ Layout ▸ Pages per sheet (N-up), Booklet or Poster: the sheets as a new document.
+    Impose(print_ui::Handling),
     /// Add / Update Header and Footer, Watermark, Background.
     Marks(pdfcraft_engine::MarkKind),
     /// Export a PDF ▸ Image / Text.
@@ -766,6 +769,8 @@ pub struct PdfCraftApp {
     pub protect_draft: protect::ProtectDraft,
     /// Set Page Boxes dialog state.
     pub boxes_draft: pageboxes::BoxesDraft,
+    /// Organize ▸ Layout ▸ N-up, Booklet and Poster dialog state.
+    pub impose_draft: impose_ui::ImposeDraft,
     /// Header & footer / watermark / background dialog state.
     pub marks_draft: marks_ui::MarksDraft,
     /// Export dialog settings.
@@ -1051,6 +1056,7 @@ impl PdfCraftApp {
             pending_remote_link: None,
             protect_draft: Default::default(),
             boxes_draft: Default::default(),
+            impose_draft: Default::default(),
             marks_draft: Default::default(),
             export_draft: Default::default(),
             export_status: None,

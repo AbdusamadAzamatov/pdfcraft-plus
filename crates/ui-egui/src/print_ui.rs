@@ -792,6 +792,143 @@ fn combo<T: PartialEq + Copy>(ui: &mut egui::Ui, id: &str, value: &mut T, choice
     });
 }
 
+/// Which pages: all, the current page, a range (page labels allowed) or the pages picked before
+/// the dialog opened; odd or even pages; reversed. Shared by Print and Organize ▸ Layout.
+pub(crate) fn pages_controls(ui: &mut egui::Ui, d: &mut PrintDraft, count: usize) {
+    ui.horizontal(|ui| {
+        widgets::radio_value(ui, &mut d.which, Which::All, tl!("All"));
+        widgets::radio_value(ui, &mut d.which, Which::Current, tl!("Current page"));
+        widgets::radio_value(ui, &mut d.which, Which::Range, tl!("Pages"));
+        let r = ui.add_enabled(d.which == Which::Range, crate::widgets::line(&mut d.range).hint_text(format!("1-{count}")).desired_width(110.0));
+        if r.gained_focus() {
+            d.which = Which::Range;
+        }
+    });
+    // Offered only when pages were picked before the dialog opened.
+    if !d.selected.is_empty() {
+        let label = format!("{} ({})", tl!("Selected pages"), d.selected.len());
+        widgets::radio_value(ui, &mut d.which, Which::Selected, label);
+    }
+    ui.horizontal(|ui| {
+        ui.label(tl!("More options:"));
+        combo(
+            ui,
+            "subset",
+            &mut d.subset,
+            &[(Subset::All, tl!("All pages in range")), (Subset::Odd, tl!("Odd pages only")), (Subset::Even, tl!("Even pages only"))],
+            150.0,
+        );
+        ui.add(widgets::checkbox(&mut d.reverse, tl!("Reverse pages")));
+    });
+}
+
+/// The options of the chosen page handling (size, poster, multiple, booklet, label), then the
+/// orientation and what to include (comments & forms). Shared by Print and Organize ▸ Layout,
+/// whose dialogs fix the handling.
+pub(crate) fn layout_controls(ui: &mut egui::Ui, d: &mut PrintDraft, t: &Tokens) {
+    match d.handling {
+        Handling::Size => {
+            ui.horizontal(|ui| {
+                widgets::radio_value(ui, &mut d.size, SizeMode::Fit, tl!("Fit"));
+                widgets::radio_value(ui, &mut d.size, SizeMode::Actual, tl!("Actual size"));
+                widgets::radio_value(ui, &mut d.size, SizeMode::Shrink, tl!("Shrink oversized pages"));
+            });
+            ui.horizontal(|ui| {
+                let custom = matches!(d.size, SizeMode::Custom(_));
+                if ui.add(widgets::radio(custom, tl!("Custom scale:"))).clicked() {
+                    d.size = SizeMode::Custom(d.custom_scale);
+                }
+                ui.add_enabled(custom, egui::DragValue::new(&mut d.custom_scale).range(1.0..=1000.0).suffix(" %"));
+            });
+        }
+        Handling::Label => {
+            ui.add(widgets::checkbox(&mut d.label_flip, tl!("Turn upside down (180°)")));
+            ui.label(
+                egui::RichText::new(tl!(
+                    "Cuts each page to its printed area, turns it upright and fits it to the sheet without stretching. One label per sheet."
+                ))
+                .small()
+                .color(t.text_muted),
+            );
+        }
+        Handling::Poster => {
+            ui.horizontal(|ui| {
+                ui.label(tl!("Tile scale:"));
+                ui.add(egui::DragValue::new(&mut d.poster_scale).range(10.0..=1000.0).suffix(" %"));
+                ui.label(tl!("Overlap:"));
+                ui.add(egui::DragValue::new(&mut d.overlap).range(0.0..=144.0).suffix(" pt"));
+                ui.add(widgets::checkbox(&mut d.cut_marks, tl!("Cut marks")));
+            });
+        }
+        Handling::Multiple => {
+            ui.horizontal(|ui| {
+                ui.label(tl!("Pages per sheet:"));
+                combo(ui, "per-sheet", &mut d.per_sheet, &[(2, "2"), (4, "4"), (6, "6"), (9, "9"), (16, "16")], 60.0);
+                ui.label(tl!("Page order:"));
+                combo(
+                    ui,
+                    "order",
+                    &mut d.order,
+                    &[
+                        (PageOrder::Horizontal, tl!("Horizontal")),
+                        (PageOrder::HorizontalReversed, tl!("Horizontal reversed")),
+                        (PageOrder::Vertical, tl!("Vertical")),
+                        (PageOrder::VerticalReversed, tl!("Vertical reversed")),
+                        (PageOrder::CutStack, tl!("Cut and stack")),
+                    ],
+                    150.0,
+                );
+            });
+            ui.horizontal(|ui| {
+                ui.add(widgets::checkbox(&mut d.border, tl!("Print page border")));
+                ui.add(widgets::checkbox(&mut d.auto_rotate, tl!("Auto-rotate pages")));
+            });
+            if d.order == PageOrder::CutStack {
+                ui.label(tl!("Print single-sided. Keep the sheets in order, cut at the marks, then stack the piles left to right, top to bottom."));
+            }
+        }
+        Handling::Booklet => {
+            ui.horizontal(|ui| {
+                ui.label(tl!("Booklet subset:"));
+                combo(
+                    ui,
+                    "booklet",
+                    &mut d.booklet_subset,
+                    &[
+                        (BookletSubset::BothSides, tl!("Both sides")),
+                        (BookletSubset::FrontOnly, tl!("Front side only")),
+                        (BookletSubset::BackOnly, tl!("Back side only")),
+                    ],
+                    130.0,
+                );
+                ui.label(tl!("Binding:"));
+                combo(ui, "binding", &mut d.binding, &[(Binding::Left, tl!("Left")), (Binding::Right, tl!("Right"))], 80.0);
+            });
+        }
+    }
+    ui.add_space(6.0);
+    ui.horizontal(|ui| {
+        ui.label(tl!("Orientation:"));
+        widgets::radio_value(ui, &mut d.orientation, Orientation::Auto, tl!("Auto portrait/landscape"));
+        widgets::radio_value(ui, &mut d.orientation, Orientation::Portrait, tl!("Portrait"));
+        widgets::radio_value(ui, &mut d.orientation, Orientation::Landscape, tl!("Landscape"));
+    });
+    ui.add_space(6.0);
+    widgets::section_title(ui, tl!("Comments & Forms"));
+    combo(
+        ui,
+        "content",
+        &mut d.content,
+        &[
+            (Content::Document, tl!("Document")),
+            (Content::DocumentAndMarkups, tl!("Document and markups")),
+            (Content::DocumentAndStamps, tl!("Document and stamps")),
+            (Content::FormFieldsOnly, tl!("Form fields only")),
+        ],
+        220.0,
+    );
+}
+
 /// Draw the dialog. `thumb` gives a page's thumbnail texture when there is one. Returns
 /// (print, cancel).
 pub(crate) fn body(
@@ -951,34 +1088,7 @@ pub(crate) fn body(
             }
             ui.add_space(6.0);
             widgets::section_title(ui, tl!("Pages to Print"));
-            ui.horizontal(|ui| {
-                widgets::radio_value(ui, &mut d.which, Which::All, tl!("All"));
-                widgets::radio_value(ui, &mut d.which, Which::Current, tl!("Current page"));
-                widgets::radio_value(ui, &mut d.which, Which::Range, tl!("Pages"));
-                let r = ui.add_enabled(
-                    d.which == Which::Range,
-                    crate::widgets::line(&mut d.range).hint_text(format!("1-{}", sizes.len())).desired_width(110.0),
-                );
-                if r.gained_focus() {
-                    d.which = Which::Range;
-                }
-            });
-            // Offered only when pages were picked before the dialog opened.
-            if !d.selected.is_empty() {
-                let label = format!("{} ({})", tl!("Selected pages"), d.selected.len());
-                widgets::radio_value(ui, &mut d.which, Which::Selected, label);
-            }
-            ui.horizontal(|ui| {
-                ui.label(tl!("More options:"));
-                combo(
-                    ui,
-                    "subset",
-                    &mut d.subset,
-                    &[(Subset::All, tl!("All pages in range")), (Subset::Odd, tl!("Odd pages only")), (Subset::Even, tl!("Even pages only"))],
-                    150.0,
-                );
-                ui.add(widgets::checkbox(&mut d.reverse, tl!("Reverse pages")));
-            });
+            pages_controls(ui, d, sizes.len());
             ui.add_space(6.0);
             widgets::section_title(ui, tl!("Page Sizing & Handling"));
             ui.horizontal_wrapped(|ui| {
@@ -1000,107 +1110,7 @@ pub(crate) fn body(
                 }
             });
             ui.add_space(4.0);
-            match d.handling {
-                Handling::Size => {
-                    ui.horizontal(|ui| {
-                        widgets::radio_value(ui, &mut d.size, SizeMode::Fit, tl!("Fit"));
-                        widgets::radio_value(ui, &mut d.size, SizeMode::Actual, tl!("Actual size"));
-                        widgets::radio_value(ui, &mut d.size, SizeMode::Shrink, tl!("Shrink oversized pages"));
-                    });
-                    ui.horizontal(|ui| {
-                        let custom = matches!(d.size, SizeMode::Custom(_));
-                        if ui.add(widgets::radio(custom, tl!("Custom scale:"))).clicked() {
-                            d.size = SizeMode::Custom(d.custom_scale);
-                        }
-                        ui.add_enabled(custom, egui::DragValue::new(&mut d.custom_scale).range(1.0..=1000.0).suffix(" %"));
-                    });
-                }
-                Handling::Label => {
-                    ui.add(widgets::checkbox(&mut d.label_flip, tl!("Turn upside down (180°)")));
-                    ui.label(
-                        egui::RichText::new(tl!("Cuts each page to its printed area, turns it upright and fits it to the sheet without stretching. One label per sheet."))
-                            .small()
-                            .color(t.text_muted),
-                    );
-                }
-                Handling::Poster => {
-                    ui.horizontal(|ui| {
-                        ui.label(tl!("Tile scale:"));
-                        ui.add(egui::DragValue::new(&mut d.poster_scale).range(10.0..=1000.0).suffix(" %"));
-                        ui.label(tl!("Overlap:"));
-                        ui.add(egui::DragValue::new(&mut d.overlap).range(0.0..=144.0).suffix(" pt"));
-                        ui.add(widgets::checkbox(&mut d.cut_marks, tl!("Cut marks")));
-                    });
-                }
-                Handling::Multiple => {
-                    ui.horizontal(|ui| {
-                        ui.label(tl!("Pages per sheet:"));
-                        combo(ui, "per-sheet", &mut d.per_sheet, &[(2, "2"), (4, "4"), (6, "6"), (9, "9"), (16, "16")], 60.0);
-                        ui.label(tl!("Page order:"));
-                        combo(
-                            ui,
-                            "order",
-                            &mut d.order,
-                            &[
-                                (PageOrder::Horizontal, tl!("Horizontal")),
-                                (PageOrder::HorizontalReversed, tl!("Horizontal reversed")),
-                                (PageOrder::Vertical, tl!("Vertical")),
-                                (PageOrder::VerticalReversed, tl!("Vertical reversed")),
-                                (PageOrder::CutStack, tl!("Cut and stack")),
-                            ],
-                            150.0,
-                        );
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(widgets::checkbox(&mut d.border, tl!("Print page border")));
-                        ui.add(widgets::checkbox(&mut d.auto_rotate, tl!("Auto-rotate pages")));
-                    });
-                    if d.order == PageOrder::CutStack {
-                        ui.label(tl!(
-                            "Print single-sided. Keep the sheets in order, cut at the marks, then stack the piles left to right, top to bottom."
-                        ));
-                    }
-                }
-                Handling::Booklet => {
-                    ui.horizontal(|ui| {
-                        ui.label(tl!("Booklet subset:"));
-                        combo(
-                            ui,
-                            "booklet",
-                            &mut d.booklet_subset,
-                            &[
-                                (BookletSubset::BothSides, tl!("Both sides")),
-                                (BookletSubset::FrontOnly, tl!("Front side only")),
-                                (BookletSubset::BackOnly, tl!("Back side only")),
-                            ],
-                            130.0,
-                        );
-                        ui.label(tl!("Binding:"));
-                        combo(ui, "binding", &mut d.binding, &[(Binding::Left, tl!("Left")), (Binding::Right, tl!("Right"))], 80.0);
-                    });
-                }
-            }
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                ui.label(tl!("Orientation:"));
-                widgets::radio_value(ui, &mut d.orientation, Orientation::Auto, tl!("Auto portrait/landscape"));
-                widgets::radio_value(ui, &mut d.orientation, Orientation::Portrait, tl!("Portrait"));
-                widgets::radio_value(ui, &mut d.orientation, Orientation::Landscape, tl!("Landscape"));
-            });
-            ui.add_space(6.0);
-            widgets::section_title(ui, tl!("Comments & Forms"));
-            combo(
-                ui,
-                "content",
-                &mut d.content,
-                &[
-                    (Content::Document, tl!("Document")),
-                    (Content::DocumentAndMarkups, tl!("Document and markups")),
-                    (Content::DocumentAndStamps, tl!("Document and stamps")),
-                    (Content::FormFieldsOnly, tl!("Form fields only")),
-                ],
-                220.0,
-            );
+            layout_controls(ui, d, t);
             // Advanced (Acrobat's Advanced Print Setup): print as image. Folded unless it is on.
             ui.add_space(6.0);
             egui::CollapsingHeader::new(egui::RichText::new(crate::i18n::upper_label("Advanced")).font(theme::semibold(10.5)).color(t.text_faint))

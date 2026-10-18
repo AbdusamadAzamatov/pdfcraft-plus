@@ -2796,6 +2796,32 @@ pub fn guard<T>(f: impl FnOnce() -> T) -> Result<T, String> {
     })
 }
 
+/// What [`Session::impose_new`] says when the sheets can't be laid out: what was wrong, and what to
+/// change.
+fn impose_error(e: pdfcraft_print::PrintError) -> EditError {
+    use pdfcraft_print::PrintError as P;
+    match e {
+        P::NoPages => EditError::Invalid("there are no pages to lay out: choose at least one page".into()),
+        P::OutOfRange(..) | P::NotAPage(_) => EditError::Invalid(format!("{e}; give pages such as \"1-3, 6\"")),
+        P::Invalid(why) => EditError::Invalid(format!("{why}; change the layout or paper and try again")),
+        P::Spool(why) => EditError::Print(why),
+        P::Cos(e) => EditError::Write(e.to_string()),
+    }
+}
+
+/// The name [`Session::impose_new`]'s result opens under: `<name> (2-up).pdf`, `<name> (booklet).pdf`
+/// or `<name> (poster).pdf`, from the document's name with its `.pdf` taken off.
+pub fn impose_name(name: &str, layout: &print::Layout) -> String {
+    let stem = name.strip_suffix(".pdf").or_else(|| name.strip_suffix(".PDF")).unwrap_or(name);
+    let what = match layout {
+        print::Layout::Multiple { per_sheet, .. } => format!("{per_sheet}-up"),
+        print::Layout::Booklet { .. } => "booklet".into(),
+        print::Layout::Poster { .. } => "poster".into(),
+        print::Layout::Size(_) | print::Layout::Label { .. } => "print".into(),
+    };
+    format!("{stem} ({what}).pdf")
+}
+
 /// Parse another PDF to copy pages from.
 fn open_source(name: &str, bytes: &Arc<Vec<u8>>) -> Result<pdfcraft_cos::Document, EditError> {
     open_source_with(name, bytes, None)
@@ -4403,6 +4429,40 @@ impl Session {
             },
         };
         (0..doc.info.pages.len()).map(|i| pages.contains(&i) && pdfcraft_print::text_reads_up(&cos, i)).collect()
+    }
+
+    /// Organize ▸ Layout: N-up, booklet or poster sheets as a **new** PDF (to open with
+    /// [`Self::open_new`], named with [`impose_name`]). The pages are laid out as Print does
+    /// ([`pdfcraft_print::impose`]), from the document as it is now, unsaved changes included; the
+    /// document itself is not changed.
+    ///
+    /// The result is not encrypted, so a restricted document needs the Assembly permission (or
+    /// the owner password), as Extract pages does. Only the multiple, booklet and poster layouts
+    /// are made here, and never as pictures (`settings.raster` must be `None`).
+    pub fn impose_new(&self, id: DocId, settings: print::Settings) -> Result<Arc<Vec<u8>>, EditError> {
+        let src = self.cos(id)?;
+        if src.permissions().is_some_and(|p| !p.assemble()) {
+            return Err(EditError::NotPermitted("making a new document from its pages"));
+        }
+        if !matches!(settings.layout, print::Layout::Multiple { .. } | print::Layout::Booklet { .. } | print::Layout::Poster { .. }) {
+            return Err(EditError::Invalid("choose a layout of several pages per sheet, a booklet or a poster".into()));
+        }
+        if settings.raster.is_some() {
+            return Err(EditError::Invalid("a new document's pages can't be made as pictures here; leave print as image off".into()));
+        }
+        let doc = self.get(id).ok_or(EditError::NoDocument)?;
+        let mut cos = src.clone();
+        // The layers come out as they are shown, as in Print.
+        if !doc.config.layers.is_empty() {
+            set_default_layer_state(&mut cos, &doc.info.layers);
+        }
+        let bytes = guard(|| pdfcraft_print::impose(&cos, &settings)).map_err(EditError::Write)?.map_err(impose_error)?;
+        let bytes = Arc::new(bytes);
+        // Checked like any new file before anyone writes or opens it: it reopens with its sheets.
+        let out = pdfcraft_cos::Document::open(bytes.clone()).map_err(|e| EditError::Reopen(e.to_string()))?;
+        let sheets = pdfcraft_organize::page_count(&out)?;
+        pdfcraft_render::check_pages(bytes.clone(), None, sheets).map_err(|e| EditError::Reopen(e.to_string()))?;
+        Ok(bytes)
     }
 
     /// Combine whole files, in order, into new PDF bytes (one bookmark per file).

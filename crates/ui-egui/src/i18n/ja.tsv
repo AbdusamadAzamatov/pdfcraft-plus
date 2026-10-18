@@ -2436,3 +2436,9 @@ animation effects	Off	オフ
 	Page properties	ページのプロパティ
 	Layout	レイアウト
 	Clean up	クリーンアップ
+	Pages per sheet (N-up)…	1 枚あたりのページ数 (N-up)…
+	Booklet…	小冊子…
+	Poster (tile)…	ポスター (タイル)…
+	Same as first page	最初のページと同じ
+	Created {name}	{name} を作成しました
+	Creates a new document; this one is not changed.	新しい文書を作成します。この文書は変更されません。

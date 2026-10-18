@@ -2840,6 +2840,42 @@ evidence = ["crates/organize/src/tests.rs::reverse_pages_reorders", "crates/orga
 notes = "Organize Pages ▸ More ▸ Reverse pages, or the command palette: two or more selected pages swap among their own positions, otherwise the whole document reverses. One undo step. Not yet: an entry in the page thumbnails' right-click menu"
 
 [[feature]]
+id = "organize.nup-to-pdf"
+title = "Pages per sheet (N-up) as a new document"
+area = "D"
+tier = "P2"
+milestone = "M4"
+status = "shipped"
+commands = ["page.nup"]
+tools = ["doc_impose"]
+evidence = ["crates/engine/src/tests.rs::impose_new_lays_five_pages_two_up_on_three_sheets_and_leaves_the_source_alone", "crates/engine/src/tests.rs::impose_new_refuses_a_document_without_the_assembly_permission", "crates/automation/tests/automation.rs::doc_impose_makes_a_booklet_as_a_new_document_and_writes_inside_the_root", "crates/ui-egui/tests/print.rs::n_up_dialog_opens_from_the_layout_tools_and_creates_a_second_tab"]
+notes = "Organize ▸ Layout ▸ Pages per sheet (N-up)…: the print.n-up layout (2/4/6/9/16, order, borders, auto-rotate; same engine, pdfcraft_print::impose) opened as a new unsaved tab named '<name> (N-up).pdf'; the source is unchanged. The dialog reuses the Print dialog's page and layout controls; paper defaults to the first page's size, upright (doc_impose paper \"first-page\"). The new file is unencrypted, so it needs the Assembly permission or the owner password (refusal tested). Not here: print as image, no live sheet preview in the dialog (Print has one)."
+
+[[feature]]
+id = "organize.booklet-to-pdf"
+title = "Booklet as a new document"
+area = "D"
+tier = "P2"
+milestone = "M4"
+status = "shipped"
+commands = ["page.booklet"]
+tools = ["doc_impose"]
+evidence = ["crates/automation/tests/automation.rs::doc_impose_makes_a_booklet_as_a_new_document_and_writes_inside_the_root", "crates/engine/src/tests.rs::impose_new_refuses_a_document_without_the_assembly_permission"]
+notes = "Organize ▸ Layout ▸ Booklet…: the print.booklet layout (both sides / front / back, left or right binding) as a new unsaved document '<name> (booklet).pdf'; same dialog and permission rule as organize.nup-to-pdf. The booklet dialog itself has no kittest of its own (the N-up one covers the shared dialog)."
+
+[[feature]]
+id = "organize.poster-to-pdf"
+title = "Poster (tiled pages) as a new document"
+area = "D"
+tier = "P2"
+milestone = "M4"
+status = "shipped"
+commands = ["page.poster"]
+tools = ["doc_impose"]
+evidence = ["crates/automation/tests/automation.rs::doc_impose_makes_a_booklet_as_a_new_document_and_writes_inside_the_root", "crates/engine/src/tests.rs::impose_new_refuses_a_document_without_the_assembly_permission"]
+notes = "Organize ▸ Layout ▸ Poster (tile)…: the print.poster layout (tile scale, overlap, cut marks; at most 1024 sheets per page) as a new unsaved document '<name> (poster).pdf'; same dialog and permission rule as organize.nup-to-pdf. The automation test writes a poster only to check --root confinement; tiling itself is covered by the print.poster tests."
+
+[[feature]]
 id = "organize.cut-copy-paste-pages"
 title = "Cut, copy and paste pages"
 area = "D"

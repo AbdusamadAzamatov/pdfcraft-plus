@@ -2648,3 +2648,9 @@ certificate	SHA-1 digest	Impronta SHA-1
 certificate	SHA-256 digest	Impronta SHA-256
 	Layout	Layout
 	Clean up	Pulizia
+	Pages per sheet (N-up)…	Pagine per foglio (N-up)…
+	Booklet…	Opuscolo…
+	Poster (tile)…	Poster (sezioni)…
+	Same as first page	Come la prima pagina
+	Created {name}	Creato {name}
+	Creates a new document; this one is not changed.	Crea un nuovo documento; questo non viene modificato.

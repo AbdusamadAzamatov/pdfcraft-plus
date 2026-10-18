@@ -2689,3 +2689,9 @@ key	Space	Space
 	You are viewing revision {rev} of “{from}”. It is a snapshot: changes here won't affect the original.	Bạn đang xem bản sửa đổi {rev} của “{from}”. Đây là ảnh nhanh: các thay đổi ở đây không được áp dụng đến bản gốc.
 	Layout	Bố cục
 	Clean up	Dọn dẹp
+	Pages per sheet (N-up)…	Số trang mỗi tờ (N-up)…
+	Booklet…	Sách nhỏ…
+	Poster (tile)…	Áp phích (lát)…
+	Same as first page	Giống trang đầu tiên
+	Created {name}	Đã tạo {name}
+	Creates a new document; this one is not changed.	Tạo tài liệu mới; tài liệu này không thay đổi.

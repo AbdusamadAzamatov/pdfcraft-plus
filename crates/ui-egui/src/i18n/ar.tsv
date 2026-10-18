@@ -2713,3 +2713,9 @@ certificate	Version	الإصدار
 	Page properties	خصائص الصفحة
 	Layout	التخطيط
 	Clean up	تنظيف
+	Pages per sheet (N-up)…	صفحات لكل ورقة (N-up)…
+	Booklet…	كتيّب…
+	Poster (tile)…	ملصق (تجانب)…
+	Same as first page	مثل الصفحة الأولى
+	Created {name}	تم إنشاء {name}
+	Creates a new document; this one is not changed.	يُنشئ مستندًا جديدًا؛ ولا يتغيّر هذا المستند.

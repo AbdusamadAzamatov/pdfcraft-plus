@@ -6064,3 +6064,44 @@ fn undo_never_makes_an_unsaved_document_clean() {
     s.undo(new).unwrap();
     assert!(!s.get(new).unwrap().dirty, "once saved, undo back to the saved state is clean");
 }
+
+/// Organize ▸ Layout ▸ Pages per sheet (PL1): five pages two-up make three sheets in a new
+/// document, named after the source, and the source keeps its pages and stays clean.
+#[test]
+fn impose_new_lays_five_pages_two_up_on_three_sheets_and_leaves_the_source_alone() {
+    let (mut s, id) = session_with(5);
+    let before = s.save_bytes(id).unwrap();
+    let settings = print::Settings { pages: (0..5).collect(), layout: print::Layout::multiple(2), ..Default::default() };
+    let name = impose_name(&s.get(id).unwrap().name, &settings.layout);
+    assert_eq!(name, "fixture (2-up).pdf");
+    let bytes = s.impose_new(id, settings).unwrap();
+    let new = s.open_new(name, bytes).unwrap();
+    let d = s.get(new).unwrap();
+    assert_eq!(d.info.pages.len(), 3, "five pages two to a sheet");
+    assert!(d.dirty, "the new document is unsaved");
+    let src = s.get(id).unwrap();
+    assert_eq!(src.info.pages.len(), 5);
+    assert!(!src.dirty, "the source is unchanged");
+    assert_eq!(s.save_bytes(id).unwrap(), before);
+    assert_eq!(impose_name("a.PDF", &print::Layout::Booklet { subset: Default::default(), binding: Default::default() }), "a (booklet).pdf");
+    assert_eq!(impose_name("plan", &print::Layout::Poster { scale: 200.0, overlap: 18.0, cut_marks: true }), "plan (poster).pdf");
+    // A layout that isn't N-up, booklet or poster, or no pages at all, is refused with what to do.
+    let fit = print::Settings { pages: vec![0], ..Default::default() };
+    assert!(matches!(s.impose_new(id, fit), Err(EditError::Invalid(m)) if m.contains("booklet")));
+    let none = print::Settings { pages: Vec::new(), layout: print::Layout::multiple(4), ..Default::default() };
+    assert!(matches!(s.impose_new(id, none), Err(EditError::Invalid(m)) if m.contains("choose at least one page")));
+}
+
+/// The imposed file is not encrypted, so a document whose security withholds page assembly is
+/// refused (it would be a way around the restriction) unless the owner password opened it.
+#[test]
+fn impose_new_refuses_a_document_without_the_assembly_permission() {
+    let bytes = protected("", "owner", 0b0100); // print only, no password to open
+    let mut s = Session::new();
+    let id = s.open("r.pdf", None, bytes.clone(), None).unwrap();
+    let settings = print::Settings { pages: vec![0, 1], layout: print::Layout::multiple(2), ..Default::default() };
+    assert_eq!(s.impose_new(id, settings.clone()), Err(EditError::NotPermitted("making a new document from its pages")));
+    let owner = s.open("r.pdf", None, bytes, Some("owner")).unwrap();
+    let out = s.impose_new(owner, settings).unwrap();
+    assert!(pdfcraft_cos::Document::open(out).is_ok(), "the owner's copy opens without a password");
+}

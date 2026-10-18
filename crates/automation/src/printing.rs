@@ -41,89 +41,16 @@ impl Automation {
         let doc = self.doc(a)?;
         let (id, count) = (doc.id, doc.info.pages.len());
         let labels: Vec<String> = doc.info.pages.iter().map(|p| p.label.clone()).collect();
-        let subset = match a.opt_str("subset")?.unwrap_or("all") {
-            "all" => Subset::All,
-            "odd" => Subset::Odd,
-            "even" => Subset::Even,
-            s => return Err(bad(format!("unknown subset {s:?}"))),
-        };
-        let pages = print::select_pages(count, a.opt_str("pages")?, &labels, subset, a.opt_bool("reverse")?.unwrap_or(false))
-            .map_err(|e| bad(e.to_string()))?;
-        let layout = match a.opt_str("layout")?.unwrap_or("fit") {
-            "fit" => Layout::Size(SizeMode::Fit),
-            "actual" => Layout::Size(SizeMode::Actual),
-            "shrink" => Layout::Size(SizeMode::Shrink),
-            "custom" => Layout::Size(SizeMode::Custom(a.opt_num("scale")?.ok_or_else(|| bad("custom needs scale (percent)"))?)),
-            "multiple" => {
-                let per = a.opt_int("per_sheet")?.unwrap_or(2).clamp(1, 256) as usize;
-                let order = match a.opt_str("order")?.unwrap_or("horizontal") {
-                    "horizontal" => PageOrder::Horizontal,
-                    "horizontal-reversed" => PageOrder::HorizontalReversed,
-                    "vertical" => PageOrder::Vertical,
-                    "vertical-reversed" => PageOrder::VerticalReversed,
-                    "cut-stack" => PageOrder::CutStack,
-                    o => return Err(bad(format!("unknown order {o:?}"))),
-                };
-                match Layout::multiple(per) {
-                    Layout::Multiple { cols, rows, per_sheet, .. } => Layout::Multiple {
-                        cols,
-                        rows,
-                        per_sheet,
-                        order,
-                        border: a.opt_bool("border")?.unwrap_or(false),
-                        auto_rotate: a.opt_bool("auto_rotate")?.unwrap_or(true),
-                    },
-                    l => l,
-                }
-            }
-            "booklet" => Layout::Booklet {
-                subset: match a.opt_str("booklet_subset")?.unwrap_or("both") {
-                    "both" => BookletSubset::BothSides,
-                    "front" => BookletSubset::FrontOnly,
-                    "back" => BookletSubset::BackOnly,
-                    s => return Err(bad(format!("unknown booklet_subset {s:?}"))),
-                },
-                binding: if a.opt_str("binding")? == Some("right") { Binding::Right } else { Binding::Left },
-            },
-            "poster" => Layout::Poster {
-                scale: a.opt_num("scale")?.unwrap_or(200.0),
-                overlap: a.opt_num("overlap")?.unwrap_or(18.0),
-                cut_marks: a.opt_bool("cut_marks")?.unwrap_or(true),
-            },
-            l => return Err(bad(format!("unknown layout {l:?}"))),
-        };
+        let pages = pages_to_print(a, count, &labels)?;
+        let layout = layout_of(a, a.opt_str("layout")?.unwrap_or("fit"))?;
         if matches!(layout, Layout::Multiple { order: PageOrder::CutStack, .. }) && a.opt_str("duplex")?.unwrap_or("off") != "off" {
             return Err(bad("cut-and-stack printing needs duplex off (single-sided sheets)"));
         }
-        if a.opt_str("order")? == Some("cut-stack") && !matches!(layout, Layout::Multiple { .. }) {
-            return Err(bad("cut-stack order needs layout multiple"));
-        }
-        let orientation = match a.opt_str("orientation")?.unwrap_or("auto") {
-            "auto" => Orientation::Auto,
-            "portrait" => Orientation::Portrait,
-            "landscape" => Orientation::Landscape,
-            o => return Err(bad(format!("unknown orientation {o:?}"))),
-        };
-        let content = match a.opt_str("comments_forms")?.unwrap_or("document-and-markups") {
-            "document" => Content::Document,
-            "document-and-markups" => Content::DocumentAndMarkups,
-            "document-and-stamps" => Content::DocumentAndStamps,
-            "form-fields-only" => Content::FormFieldsOnly,
-            c => return Err(bad(format!("unknown comments_forms {c:?}"))),
-        };
+        let orientation = orientation_of(a)?;
+        let content = content_of(a)?;
         let paper = match a.opt_str("paper")? {
             None => PAPERS[0].1,
-            Some(p) => PAPERS
-                .iter()
-                .find(|(n, _)| {
-                    n.eq_ignore_ascii_case(p)
-                        || n.replace("US ", "").eq_ignore_ascii_case(p)
-                        || n.split(" (").next().is_some_and(|name| name.eq_ignore_ascii_case(p))
-                })
-                .map(|x| x.1)
-                .ok_or_else(|| {
-                    bad(format!("unknown paper {p:?}; choose one of {}", PAPERS.iter().map(|(name, _)| *name).collect::<Vec<_>>().join(", ")))
-                })?,
+            Some(p) => paper_named(p)?,
         };
         // Print as image (Acrobat's Advanced Print Setup): pictures at `dpi`, grey when
         // `grayscale` is also asked for.
@@ -180,4 +107,131 @@ impl Automation {
         }
         Ok(out)
     }
+
+    /// Organize ▸ Layout: N-up, booklet or poster sheets as a new document (opened, written to
+    /// `out`, or both), with `doc_print`'s layout options. The document itself is not changed.
+    pub(crate) fn doc_impose(&mut self, a: &Args) -> Result<Value> {
+        let doc = self.doc(a)?;
+        let (id, name, count) = (doc.id, doc.name.clone(), doc.info.pages.len());
+        let labels: Vec<String> = doc.info.pages.iter().map(|p| p.label.clone()).collect();
+        let sizes: Vec<(f64, f64)> = doc.info.pages.iter().map(|p| (p.width as f64, p.height as f64)).collect();
+        let kind = a.str("layout")?;
+        if !matches!(kind, "multiple" | "booklet" | "poster") {
+            return Err(bad(format!("layout must be \"multiple\", \"booklet\" or \"poster\", not {kind:?} (doc_print has the other layouts)")));
+        }
+        let pages = pages_to_print(a, count, &labels)?;
+        let layout = layout_of(a, kind)?;
+        // The paper defaults to the size of the first page laid out, upright.
+        let paper = match a.opt_str("paper")? {
+            None | Some("first-page") => {
+                let (w, h) = pages.first().and_then(|&p| sizes.get(p)).copied().ok_or_else(|| bad("there are no pages to lay out"))?;
+                (w.min(h), w.max(h))
+            }
+            Some(p) => paper_named(p)?,
+        };
+        let settings =
+            print::Settings { pages, paper, orientation: orientation_of(a)?, layout, content: content_of(a)?, raster: None, crops: Vec::new() };
+        let pages = settings.pages.len();
+        let bytes = self.session.impose_new(id, settings.clone()).map_err(failed)?;
+        let sheets = print::layout(&sizes, &settings).map(|s| s.len()).map_err(|e| failed(e.to_string()))?;
+        let mut out = self.deliver(a, &pdfcraft_engine::impose_name(&name, &layout), bytes)?;
+        out["sheets"] = json!(sheets);
+        out["pages"] = json!(pages);
+        Ok(out)
+    }
+}
+
+/// `pages` (a range such as "1-3, 6, 9-", labels allowed; default all), `subset` and `reverse`, as
+/// the 0-based pages to print, in order.
+fn pages_to_print(a: &Args, count: usize, labels: &[String]) -> Result<Vec<usize>> {
+    let subset = match a.opt_str("subset")?.unwrap_or("all") {
+        "all" => Subset::All,
+        "odd" => Subset::Odd,
+        "even" => Subset::Even,
+        s => return Err(bad(format!("unknown subset {s:?}"))),
+    };
+    print::select_pages(count, a.opt_str("pages")?, labels, subset, a.opt_bool("reverse")?.unwrap_or(false)).map_err(|e| bad(e.to_string()))
+}
+
+/// The page sizing and handling `layout` names, with its options from `a`.
+fn layout_of(a: &Args, layout: &str) -> Result<Layout> {
+    let layout = match layout {
+        "fit" => Layout::Size(SizeMode::Fit),
+        "actual" => Layout::Size(SizeMode::Actual),
+        "shrink" => Layout::Size(SizeMode::Shrink),
+        "custom" => Layout::Size(SizeMode::Custom(a.opt_num("scale")?.ok_or_else(|| bad("custom needs scale (percent)"))?)),
+        "multiple" => {
+            let per = a.opt_int("per_sheet")?.unwrap_or(2).clamp(1, 256) as usize;
+            let order = match a.opt_str("order")?.unwrap_or("horizontal") {
+                "horizontal" => PageOrder::Horizontal,
+                "horizontal-reversed" => PageOrder::HorizontalReversed,
+                "vertical" => PageOrder::Vertical,
+                "vertical-reversed" => PageOrder::VerticalReversed,
+                "cut-stack" => PageOrder::CutStack,
+                o => return Err(bad(format!("unknown order {o:?}"))),
+            };
+            match Layout::multiple(per) {
+                Layout::Multiple { cols, rows, per_sheet, .. } => Layout::Multiple {
+                    cols,
+                    rows,
+                    per_sheet,
+                    order,
+                    border: a.opt_bool("border")?.unwrap_or(false),
+                    auto_rotate: a.opt_bool("auto_rotate")?.unwrap_or(true),
+                },
+                l => l,
+            }
+        }
+        "booklet" => Layout::Booklet {
+            subset: match a.opt_str("booklet_subset")?.unwrap_or("both") {
+                "both" => BookletSubset::BothSides,
+                "front" => BookletSubset::FrontOnly,
+                "back" => BookletSubset::BackOnly,
+                s => return Err(bad(format!("unknown booklet_subset {s:?}"))),
+            },
+            binding: if a.opt_str("binding")? == Some("right") { Binding::Right } else { Binding::Left },
+        },
+        "poster" => Layout::Poster {
+            scale: a.opt_num("scale")?.unwrap_or(200.0),
+            overlap: a.opt_num("overlap")?.unwrap_or(18.0),
+            cut_marks: a.opt_bool("cut_marks")?.unwrap_or(true),
+        },
+        l => return Err(bad(format!("unknown layout {l:?}"))),
+    };
+    if a.opt_str("order")? == Some("cut-stack") && !matches!(layout, Layout::Multiple { .. }) {
+        return Err(bad("cut-stack order needs layout multiple"));
+    }
+    Ok(layout)
+}
+
+fn orientation_of(a: &Args) -> Result<Orientation> {
+    Ok(match a.opt_str("orientation")?.unwrap_or("auto") {
+        "auto" => Orientation::Auto,
+        "portrait" => Orientation::Portrait,
+        "landscape" => Orientation::Landscape,
+        o => return Err(bad(format!("unknown orientation {o:?}"))),
+    })
+}
+
+fn content_of(a: &Args) -> Result<Content> {
+    Ok(match a.opt_str("comments_forms")?.unwrap_or("document-and-markups") {
+        "document" => Content::Document,
+        "document-and-markups" => Content::DocumentAndMarkups,
+        "document-and-stamps" => Content::DocumentAndStamps,
+        "form-fields-only" => Content::FormFieldsOnly,
+        c => return Err(bad(format!("unknown comments_forms {c:?}"))),
+    })
+}
+
+/// A paper preset by its short name or full label ("Letter", "A4", "ARCH C (18 x 24 in)"), portrait.
+fn paper_named(p: &str) -> Result<(f64, f64)> {
+    PAPERS
+        .iter()
+        .find(|(n, _)| {
+            n.eq_ignore_ascii_case(p)
+                || n.replace("US ", "").eq_ignore_ascii_case(p)
+                || n.split(" (").next().is_some_and(|name| name.eq_ignore_ascii_case(p))
+        })
+        .map(|x| x.1)
+        .ok_or_else(|| bad(format!("unknown paper {p:?}; choose one of {}", PAPERS.iter().map(|(name, _)| *name).collect::<Vec<_>>().join(", "))))
 }
