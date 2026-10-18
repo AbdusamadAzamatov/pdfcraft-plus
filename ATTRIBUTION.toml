@@ -140,7 +140,7 @@ licence = "MIT OR Apache-2.0"
 licence_file = "LICENSE-MIT"
 kind = "translation"
 usage = "Russian UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs"
-sha256 = "2652aa79c8069d356f3e26d93c32d1b89a49fcd2a39891b3190784fd205b8c4a"
+sha256 = "a512a49b7e2dbe9cda474748f66ce0def20229ff4aa17b4dc63c7a7d6d3ad490"
 
 [[asset]]
 path = "crates/ui-egui/src/i18n/hu.tsv"
