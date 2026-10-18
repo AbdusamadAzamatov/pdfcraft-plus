@@ -2742,3 +2742,9 @@ certificate	Version	الإصدار
 	Remove inverted colours	إزالة عكس الألوان
 	inverted colours	ألوان معكوسة
 	Comments and form fields keep their colours.	تحتفظ التعليقات وحقول النماذج بألوانها.
+	Remove blank pages…	إزالة الصفحات الفارغة…
+	Pages with at most this share of dark pixels count as blank	تُعدّ الصفحات التي لا تتجاوز نسبة البكسلات الداكنة فيها هذا الحد فارغة
+	Ignore pages with comments or form fields	تجاهل الصفحات التي تحتوي على تعليقات أو حقول نماذج
+	Checking page {d} of {t}…	جارٍ فحص الصفحة {d} من {t}…
+	No blank pages found	لم يُعثر على صفحات فارغة
+	A document must keep at least one page: uncheck a page to keep it.	يجب أن يحتفظ المستند بصفحة واحدة على الأقل: ألغِ تحديد صفحة للاحتفاظ بها.

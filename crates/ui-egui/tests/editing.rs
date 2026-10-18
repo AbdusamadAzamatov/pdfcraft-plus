@@ -4854,3 +4854,59 @@ fn rotate_by_angle_dialog_turns_pages_and_offers_flatten_for_comments() {
     assert!(d.info.annotations.is_empty(), "flattened");
     assert_eq!((d.info.pages[1].width, d.info.pages[1].height), (200.0, 300.0), "keep page size");
 }
+
+/// Organize ▸ Layout ▸ Remove blank pages (PL5): the dialog opens from the Layout tools of the
+/// Organize pages panel, lists the two blank pages checked for removal (and not the text pages);
+/// unchecking one keeps that page, Remove deletes the other in one undo step, and checking every
+/// page is refused, saying why.
+#[test]
+fn remove_blank_pages_lists_candidates_and_keeps_an_unchecked_one() {
+    use egui::accesskit::Toggled;
+    use pdfcraft_engine::Edit;
+    let mut h = harness(3, |app| {
+        app.run_inline = true;
+        assert!(app.apply_edit(Edit::InsertBlankPage { at: 1, width: 200.0, height: 300.0 }));
+        assert!(app.apply_edit(Edit::InsertBlankPage { at: 3, width: 200.0, height: 300.0 }));
+    });
+    assert_eq!(page_texts(h.state()), ["Page 1", "", "Page 2", "", "Page 3"]);
+    h.state_mut().set_option("tool", "organize").unwrap();
+    h.run_steps(4);
+    h.get_by_label("Remove blank pages…").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, Some(Dialog::RemoveBlank));
+    // The Organize grid behind the dialog has a "Page n" check box for every page; the dialog
+    // adds one, checked, for each blank page only.
+    let boxes = |h: &Harness<'static, PdfCraftApp>, p: &str| h.query_all_by_role_and_label(Role::CheckBox, p).count();
+    let checked = |h: &Harness<'static, PdfCraftApp>, p: &str| {
+        h.query_all_by_role_and_label(Role::CheckBox, p).filter(|n| n.accesskit_node().toggled() == Some(Toggled::True)).count()
+    };
+    for p in ["Page 2", "Page 4"] {
+        assert_eq!((boxes(&h, p), checked(&h, p)), (2, 1), "{p} is listed, checked for removal");
+    }
+    assert_eq!(h.state().blank_draft.checked(), [1, 3]);
+    for p in ["Page 1", "Page 3", "Page 5"] {
+        assert_eq!((boxes(&h, p), checked(&h, p)), (1, 0), "{p} has text and is not listed");
+    }
+    h.query_all_by_role_and_label(Role::CheckBox, "Page 4").find(|n| n.accesskit_node().toggled() == Some(Toggled::True)).unwrap().click();
+    h.run_steps(2);
+    assert_eq!(h.state().blank_draft.checked(), [1]);
+    h.get_by_role_and_label(Role::Button, "Remove").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, None);
+    assert_eq!(page_texts(h.state()), ["Page 1", "Page 2", "", "Page 3"], "the unchecked blank page stays");
+    assert!(h.state_mut().execute("edit.undo"));
+    h.run_steps(2);
+    assert_eq!(page_texts(h.state()), ["Page 1", "", "Page 2", "", "Page 3"], "one undo step brings it back");
+
+    // Every page checked: Remove is refused, with why.
+    h.state_mut().blank_draft = Default::default();
+    let id = h.state().views[0].id;
+    h.state_mut().blank_draft.percent = 2.0;
+    assert!(h.state_mut().execute("page.remove_blank"));
+    h.run_steps(3);
+    let all = h.state().session.get(id).unwrap().info.pages.len();
+    h.state_mut().blank_draft.found = (0..all).map(|page| (pdfcraft_engine::BlankPage { page, ink_ratio: 0.0, structural: false }, true)).collect();
+    h.run_steps(2);
+    h.get_by_label_contains("must keep at least one page");
+    assert!(h.get_by_role_and_label(Role::Button, "Remove").accesskit_node().is_disabled());
+}

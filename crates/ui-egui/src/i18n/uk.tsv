@@ -2487,3 +2487,9 @@ animation effects	Off	Вимкнено
 	Remove inverted colours	Вилучити інверсію кольорів
 	inverted colours	інверсії кольорів
 	Comments and form fields keep their colours.	Коментарі та поля форм зберігають свої кольори.
+	Remove blank pages…	Вилучити порожні сторінки…
+	Pages with at most this share of dark pixels count as blank	Сторінки, де частка темних пікселів не перевищує цієї, вважаються порожніми
+	Ignore pages with comments or form fields	Пропускати сторінки з коментарями або полями форм
+	Checking page {d} of {t}…	Перевірка сторінки {d} з {t}…
+	No blank pages found	Порожніх сторінок не знайдено
+	A document must keep at least one page: uncheck a page to keep it.	У документі має лишитися принаймні одна сторінка: зніміть позначку зі сторінки, щоб залишити її.

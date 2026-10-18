@@ -302,6 +302,7 @@ impl Automation {
                 let pages = self.pages(&a, "pages")?;
                 self.apply(&a, Edit::DeletePages { pages })?
             }
+            "page_find_blank" => self.page_find_blank(&a)?,
             "page_move" => {
                 let pages = self.pages(&a, "pages")?;
                 let to = self.position(&a, "to")?;
@@ -1888,6 +1889,35 @@ impl Automation {
             return Err(ToolError::InvalidArgs(format!("page {} is out of range: the document has {n} pages", p + 1)));
         }
         Ok(pages)
+    }
+
+    /// `page_find_blank`: the pages that look blank, 1-based, with the share of ink in percent.
+    fn page_find_blank(&self, a: &Args) -> Result<Value> {
+        let id = self.doc(a)?.id;
+        let pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => Vec::new(),
+        };
+        let percent = a.opt_num("sensitivity")?.unwrap_or(f64::from(pdfcraft_engine::blank::DEFAULT_SENSITIVITY) * 100.0);
+        if !(0.0..=100.0).contains(&percent) {
+            return Err(ToolError::InvalidArgs(format!("sensitivity is a percentage from 0 to 100 (default 0.2), not {percent}")));
+        }
+        let opts = pdfcraft_engine::BlankOptions {
+            sensitivity: (percent / 100.0) as f32,
+            ignore_annotated: a.opt_bool("ignore_annotated")?.unwrap_or(true),
+            pages,
+        };
+        let found = self.session.find_blank_pages(id, &opts).map_err(failed)?;
+        let round = |v: f32| (f64::from(v) * 100.0 * 1000.0).round() / 1000.0;
+        let blank: Vec<Value> =
+            found.iter().map(|b| json!({ "page": b.page + 1, "ink_percent": round(b.ink_ratio), "structural": b.structural })).collect();
+        let numbers: Vec<usize> = found.iter().map(|b| b.page + 1).collect();
+        let total = self.doc(a)?.info.pages.len();
+        let mut out = json!({ "blank": blank, "pages": numbers, "page_count": total });
+        if !numbers.is_empty() && numbers.len() == total {
+            out["note"] = json!("every page looks blank: page_delete refuses to remove them all, since a document must keep at least one page");
+        }
+        Ok(out)
     }
 
     /// A 1-based insertion position (1 = before the first page, n+1 = after the last) → 0-based.

@@ -81,6 +81,7 @@ mod dialogs;
 mod divide_ui;
 mod edit_text_ui;
 pub use edit_text_ui::CropMode;
+mod blank_ui;
 mod editing;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file_watch;
@@ -293,6 +294,8 @@ pub enum Dialog {
     Impose(print_ui::Handling),
     /// Organize pages ▸ Divide pages.
     DividePages,
+    /// Organize ▸ Layout ▸ Remove blank pages: the pages that look blank, checked for removal.
+    RemoveBlank,
     /// Add / Update Header and Footer, Watermark, Background.
     Marks(pdfcraft_engine::MarkKind),
     /// Export a PDF ▸ Image / Text.
@@ -780,6 +783,8 @@ pub struct PdfCraftApp {
     pub impose_draft: impose_ui::ImposeDraft,
     /// Divide Pages dialog state.
     pub divide_draft: divide_ui::DivideDraft,
+    /// Organize ▸ Layout ▸ Remove blank pages dialog state (options, search, results).
+    pub blank_draft: blank_ui::BlankDraft,
     /// Header & footer / watermark / background dialog state.
     pub marks_draft: marks_ui::MarksDraft,
     /// Export dialog settings.
@@ -1068,6 +1073,7 @@ impl PdfCraftApp {
             boxes_draft: Default::default(),
             impose_draft: Default::default(),
             divide_draft: Default::default(),
+            blank_draft: Default::default(),
             marks_draft: Default::default(),
             export_draft: Default::default(),
             export_status: None,

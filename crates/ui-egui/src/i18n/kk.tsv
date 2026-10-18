@@ -2463,3 +2463,9 @@ animation effects	Off	Өшірулі
 	Remove inverted colours	Түс инверсиясын жою
 	inverted colours	түс инверсиясы
 	Comments and form fields keep their colours.	Пікірлер мен пішін өрістері өз түстерін сақтайды.
+	Remove blank pages…	Бос беттерді жою…
+	Pages with at most this share of dark pixels count as blank	Күңгірт пикселдердің үлесі осы мәннен аспайтын беттер бос деп саналады
+	Ignore pages with comments or form fields	Түсініктемелері немесе пішін өрістері бар беттерді елемеу
+	Checking page {d} of {t}…	{t} беттің {d}-беті тексерілуде…
+	No blank pages found	Бос беттер табылмады
+	A document must keep at least one page: uncheck a page to keep it.	Құжатта кемінде бір бет қалуы керек: сақтау үшін беттің белгісін алып тастаңыз.

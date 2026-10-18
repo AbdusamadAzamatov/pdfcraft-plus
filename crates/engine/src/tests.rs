@@ -6229,3 +6229,113 @@ fn invert_colours_turns_black_text_white_and_red_cyan_on_rgb_and_cmyk_pages() {
     assert!(s.apply(id, Edit::InvertColors { pages: vec![] }).is_err(), "no pages is refused");
     assert!(s.apply(id, Edit::InvertColors { pages: vec![5] }).is_err(), "a missing page is refused");
 }
+
+/// Pages for Remove blank pages (PL5), each 200 × 300 pt: 1 empty, 2 text, 3 a page-sized scan
+/// that is white but for five specks, 4 a white-filled rectangle, 5 empty but for a comment
+/// whose appearance draws nothing, 6 empty but for a link.
+fn blank_fixture() -> Vec<u8> {
+    let (w, h) = (200usize, 300usize);
+    let mut scan = vec![255u8; w * h];
+    for (x, y) in [(20, 30), (100, 60), (150, 200), (60, 250), (180, 280)] {
+        for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+            scan[(y + dy) * w + x + dx] = 0;
+        }
+    }
+    let stream = |dict: &str, data: &[u8]| {
+        let mut o = format!("<< {dict} /Length {} >>\nstream\n", data.len()).into_bytes();
+        o.extend_from_slice(data);
+        o.extend_from_slice(b"\nendstream");
+        o
+    };
+    let page = |contents: usize, extra: &str| {
+        format!("<< /Type /Page /Parent 2 0 R /Contents {contents} 0 R /Resources << /Font << /F1 3 0 R >> /XObject << >> >> {extra} >>").into_bytes()
+    };
+    let objs: Vec<Vec<u8>> = vec![
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 11 0 R 13 0 R 16 0 R] /Count 6 /MediaBox [0 0 200 300] >>".to_vec(),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_vec(),
+        page(5, ""),
+        stream("", b""),
+        page(7, ""),
+        stream("", b"BT /F1 24 Tf 20 150 Td (Text) Tj ET"),
+        b"<< /Type /Page /Parent 2 0 R /Contents 9 0 R /Resources << /XObject << /Im1 10 0 R >> >> >>".to_vec(),
+        stream("", b"q 200 0 0 300 0 0 cm /Im1 Do Q"),
+        stream("/Type /XObject /Subtype /Image /Width 200 /Height 300 /ColorSpace /DeviceGray /BitsPerComponent 8", &scan),
+        page(12, ""),
+        stream("", b"1 g 0 0 200 300 re f"),
+        page(14, "/Annots [15 0 R]"),
+        stream("", b""),
+        b"<< /Type /Annot /Subtype /Square /Rect [50 50 150 150] /C [1 0 0] /AP << /N 17 0 R >> >>".to_vec(),
+        page(18, "/Annots [19 0 R]"),
+        stream("/Type /XObject /Subtype /Form /BBox [0 0 100 100]", b""),
+        stream("", b""),
+        b"<< /Type /Annot /Subtype /Link /Rect [50 50 150 150] /Border [0 0 0] /A << /S /URI /URI (https://example.com) >> >>".to_vec(),
+    ];
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n", i + 1).as_bytes());
+        out.extend_from_slice(o);
+        out.extend_from_slice(b"\nendobj\n");
+    }
+    let xref = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    out
+}
+
+/// Remove blank pages (PL5): at the default 0.2% the empty page (structurally), the specked
+/// scan, the white rectangle and the page with only a link are found; the text page is not, and
+/// the page with a comment is left alone unless asked. At 0% the specks count.
+#[test]
+fn find_blank_pages_finds_empty_white_and_specked_pages_by_sensitivity() {
+    let mut s = Session::new();
+    let id = s.open("blank.pdf", None, Arc::new(blank_fixture()), None).unwrap();
+    let found = |s: &Session, opts: blank::BlankOptions| -> Vec<(usize, bool)> {
+        s.find_blank_pages(id, &opts).unwrap().iter().map(|b| (b.page, b.structural)).collect()
+    };
+    let default = s.find_blank_pages(id, &Default::default()).unwrap();
+    assert_eq!(default.iter().map(|b| (b.page, b.structural)).collect::<Vec<_>>(), [(0, true), (2, false), (3, false), (5, false)]);
+    let specks = default.iter().find(|b| b.page == 2).unwrap().ink_ratio;
+    assert!(specks > 0.0 && specks <= blank::DEFAULT_SENSITIVITY, "the specks are some ink, under 0.2%: {specks}");
+    assert_eq!(default.iter().find(|b| b.page == 3).unwrap().ink_ratio, 0.0, "a white fill is no ink");
+    assert_eq!(found(&s, blank::BlankOptions { sensitivity: 0.0, ..Default::default() }), [(0, true), (3, false), (5, false)]);
+    assert_eq!(
+        found(&s, blank::BlankOptions { ignore_annotated: false, ..Default::default() }),
+        [(0, true), (2, false), (3, false), (4, false), (5, false)]
+    );
+    // Only some pages, and wild values refused with what is allowed.
+    assert_eq!(found(&s, blank::BlankOptions { pages: vec![3, 1, 3], ..Default::default() }), [(3, false)]);
+    for bad in [f32::NAN, -0.1, 1.5, f32::INFINITY] {
+        let e = s.find_blank_pages(id, &blank::BlankOptions { sensitivity: bad, ..Default::default() }).unwrap_err();
+        assert!(matches!(&e, EditError::Invalid(m) if m.contains("between 0 and 1")), "{e:?}");
+    }
+    let e = s.find_blank_pages(id, &blank::BlankOptions { pages: vec![6], ..Default::default() }).unwrap_err();
+    assert!(matches!(&e, EditError::Invalid(m) if m.contains("page 7")), "{e:?}");
+    // A cancelled run says so; progress counts every page.
+    let job = s.blank_job(id, &Default::default()).unwrap();
+    assert_eq!(job.len(), 6);
+    assert_eq!(job.run(|done, _| done < 2).unwrap_err(), EditError::Cancelled);
+    let mut seen = Vec::new();
+    s.blank_job(id, &Default::default())
+        .unwrap()
+        .run(|d, t| {
+            seen.push((d, t));
+            true
+        })
+        .unwrap();
+    assert_eq!(seen.last(), Some(&(6, 6)));
+    // Removing them is one undo step; removing every page is refused with why.
+    let pages: Vec<usize> = default.iter().map(|b| b.page).collect();
+    s.apply(id, Edit::DeletePages { pages }).unwrap();
+    assert_eq!(s.get(id).unwrap().info.pages.len(), 2);
+    assert!(s.find_blank_pages(id, &Default::default()).unwrap().is_empty(), "the text page and the comment page are left");
+    s.undo(id).unwrap();
+    assert_eq!(s.get(id).unwrap().info.pages.len(), 6);
+    let e = s.apply(id, Edit::DeletePages { pages: (0..6).collect() }).unwrap_err();
+    assert!(e.to_string().contains("at least one page"), "{e}");
+}

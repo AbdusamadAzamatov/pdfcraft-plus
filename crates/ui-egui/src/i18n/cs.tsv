@@ -2539,3 +2539,9 @@ animation effects	Off	Vypnuto
 	Remove inverted colours	Odebrat invertované barvy
 	inverted colours	invertované barvy
 	Comments and form fields keep their colours.	Komentáře a pole formulářů si ponechají své barvy.
+	Remove blank pages…	Odstranit prázdné stránky…
+	Pages with at most this share of dark pixels count as blank	Stránky, na nichž tmavé pixely tvoří nejvýše tento podíl, se považují za prázdné
+	Ignore pages with comments or form fields	Vynechat stránky s komentáři nebo poli formuláře
+	Checking page {d} of {t}…	Kontroluje se stránka {d} z {t}…
+	No blank pages found	Nebyly nalezeny žádné prázdné stránky
+	A document must keep at least one page: uncheck a page to keep it.	Dokument musí mít alespoň jednu stránku: zrušte zaškrtnutí stránky, kterou chcete ponechat.

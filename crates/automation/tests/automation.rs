@@ -6913,3 +6913,45 @@ fn invert_colours_through_tools_and_remove_it_as_a_mark() {
     assert!(matches!(a.call("doc_remove_marks", &json!({ "doc": copy, "kind": "invert" })), Err(ToolError::Failed(_))), "nothing left to remove");
     assert!(matches!(a.call("doc_invert", &json!({ "doc": doc, "pages": [9] })), Err(ToolError::InvalidArgs(_))), "a page past the end");
 }
+
+/// Organize ▸ Layout ▸ Remove blank pages (PL5): `page_find_blank` finds an inserted blank page
+/// (structurally, without drawing it) and nothing else, changes nothing, and `page_delete` then
+/// removes it in one undo step. Bad sensitivities are refused with what is allowed, and a
+/// document that is all blank pages is flagged, since page_delete keeps at least one page.
+#[test]
+fn page_find_blank_then_page_delete_removes_the_blank_page() {
+    let dir = workdir("find-blank");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "page_insert_blank", json!({ "doc": doc, "at": 2 }));
+    let r = ok(&mut a, "page_find_blank", json!({ "doc": doc }));
+    assert_eq!(r["pages"], json!([2]), "{r}");
+    assert_eq!(r["blank"][0], json!({ "page": 2, "ink_percent": 0.0, "structural": true }));
+    assert_eq!(r["page_count"], 4);
+    assert!(r.get("note").is_none());
+    // At the most tolerant setting the text pages still have too much ink; a page list narrows it.
+    assert_eq!(ok(&mut a, "page_find_blank", json!({ "doc": doc, "sensitivity": 0.0 }))["pages"], json!([2]));
+    assert_eq!(ok(&mut a, "page_find_blank", json!({ "doc": doc, "pages": [1, 3] }))["pages"], json!([]));
+    let loose = ok(&mut a, "page_find_blank", json!({ "doc": doc, "ignore_annotated": false }));
+    assert_eq!(loose["pages"], json!([2]));
+    for bad in [json!(-1), json!(101), json!("0.2")] {
+        assert!(matches!(err(&mut a, "page_find_blank", json!({ "doc": doc, "sensitivity": bad })), ToolError::InvalidArgs(_)));
+    }
+    assert!(matches!(err(&mut a, "page_find_blank", json!({ "doc": doc, "pages": [9] })), ToolError::InvalidArgs(m) if m.contains("page 9")));
+
+    ok(&mut a, "page_delete", json!({ "doc": doc, "pages": r["pages"] }));
+    assert_eq!(page_text(&mut a, doc), ["Page 1", "Page 2", "Page 3"]);
+    assert_eq!(ok(&mut a, "page_find_blank", json!({ "doc": doc }))["pages"], json!([]));
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc }))["document"]["pages"].as_u64(), Some(4), "one undo step brings it back");
+
+    // A document of blank pages only: all are found, with a note, and page_delete refuses.
+    let blank = ok(&mut a, "doc_open", json!({ "path": "b.pdf" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "page_insert_blank", json!({ "doc": blank, "at": 1 }));
+    ok(&mut a, "page_delete", json!({ "doc": blank, "pages": [2, 3] }));
+    let r = ok(&mut a, "page_find_blank", json!({ "doc": blank }));
+    assert_eq!(r["pages"], json!([1]));
+    assert!(r["note"].as_str().unwrap().contains("at least one page"), "{r}");
+    assert!(matches!(err(&mut a, "page_delete", json!({ "doc": blank, "pages": [1] })), ToolError::Failed(m) if m.contains("at least one page")));
+    let _ = std::fs::remove_dir_all(&dir);
+}

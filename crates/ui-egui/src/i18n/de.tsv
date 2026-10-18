@@ -2466,3 +2466,9 @@ animation effects	Off	Aus
 	Remove inverted colours	Farbumkehr entfernen
 	inverted colours	Farbumkehr
 	Comments and form fields keep their colours.	Kommentare und Formularfelder behalten ihre Farben.
+	Remove blank pages…	Leere Seiten entfernen…
+	Pages with at most this share of dark pixels count as blank	Seiten, deren Anteil dunkler Pixel höchstens so groß ist, gelten als leer
+	Ignore pages with comments or form fields	Seiten mit Kommentaren oder Formularfeldern übergehen
+	Checking page {d} of {t}…	Seite {d} von {t} wird geprüft…
+	No blank pages found	Keine leeren Seiten gefunden
+	A document must keep at least one page: uncheck a page to keep it.	Ein Dokument muss mindestens eine Seite behalten: Entferne das Häkchen bei einer Seite, um sie zu behalten.

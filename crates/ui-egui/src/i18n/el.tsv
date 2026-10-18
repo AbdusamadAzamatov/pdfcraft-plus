@@ -2471,3 +2471,9 @@ animation effects	Off	Ανενεργά
 	Remove inverted colours	Κατάργηση αντιστροφής χρωμάτων
 	inverted colours	αντεστραμμένα χρώματα
 	Comments and form fields keep their colours.	Τα σχόλια και τα πεδία φόρμας διατηρούν τα χρώματά τους.
+	Remove blank pages…	Αφαίρεση κενών σελίδων…
+	Pages with at most this share of dark pixels count as blank	Οι σελίδες με το πολύ αυτό το ποσοστό σκοτεινών εικονοστοιχείων θεωρούνται κενές
+	Ignore pages with comments or form fields	Παράβλεψη σελίδων με σχόλια ή πεδία φόρμας
+	Checking page {d} of {t}…	Έλεγχος σελίδας {d} από {t}…
+	No blank pages found	Δεν βρέθηκαν κενές σελίδες
+	A document must keep at least one page: uncheck a page to keep it.	Ένα έγγραφο πρέπει να έχει τουλάχιστον μία σελίδα: αποεπιλέξτε μια σελίδα για να τη διατηρήσετε.

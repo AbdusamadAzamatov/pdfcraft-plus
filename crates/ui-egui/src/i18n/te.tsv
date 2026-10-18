@@ -2374,3 +2374,9 @@ animation effects	Off	ఆఫ్
 	Remove inverted colours	తిరగమార్చిన రంగులను తీసివేయి
 	inverted colours	తిరగమార్చిన రంగులు
 	Comments and form fields keep their colours.	వ్యాఖ్యలు మరియు ఫారమ్ ఫీల్డ్‌లు వాటి రంగులను నిలుపుకుంటాయి.
+	Remove blank pages…	ఖాళీ పేజీలను తీసివేయి…
+	Pages with at most this share of dark pixels count as blank	చీకటి పిక్సెళ్ల వాటా ఇంతకు మించని పేజీలను ఖాళీగా పరిగణిస్తారు
+	Ignore pages with comments or form fields	వ్యాఖ్యలు లేదా ఫారమ్ ఫీల్డ్‌లు ఉన్న పేజీలను విస్మరించు
+	Checking page {d} of {t}…	{t}లో పేజీ {d} తనిఖీ చేస్తోంది…
+	No blank pages found	ఖాళీ పేజీలు ఏవీ కనుగొనబడలేదు
+	A document must keep at least one page: uncheck a page to keep it.	పత్రంలో కనీసం ఒక పేజీ ఉండాలి: ఉంచాలనుకునే పేజీ ఎంపికను తీసివేయండి.

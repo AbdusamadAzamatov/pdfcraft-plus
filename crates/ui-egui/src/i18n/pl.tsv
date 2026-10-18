@@ -2441,3 +2441,9 @@ animation effects	Off	Wyłączone
 	Remove inverted colours	Usuń odwrócenie kolorów
 	inverted colours	odwrócone kolory
 	Comments and form fields keep their colours.	Komentarze i pola formularzy zachowują swoje kolory.
+	Remove blank pages…	Usuń puste strony…
+	Pages with at most this share of dark pixels count as blank	Strony, na których udział ciemnych pikseli nie przekracza tej wartości, są uznawane za puste
+	Ignore pages with comments or form fields	Pomijaj strony z komentarzami lub polami formularza
+	Checking page {d} of {t}…	Sprawdzanie strony {d} z {t}…
+	No blank pages found	Nie znaleziono pustych stron
+	A document must keep at least one page: uncheck a page to keep it.	Dokument musi zachować co najmniej jedną stronę: odznacz stronę, aby ją zachować.

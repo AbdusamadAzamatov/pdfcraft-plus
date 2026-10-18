@@ -2718,3 +2718,9 @@ key	Space	Space
 	Remove inverted colours	Gỡ đảo ngược màu
 	inverted colours	màu đảo ngược
 	Comments and form fields keep their colours.	Bình luận và trường biểu mẫu giữ nguyên màu.
+	Remove blank pages…	Xóa các trang trống…
+	Pages with at most this share of dark pixels count as blank	Các trang có tỷ lệ điểm ảnh tối không vượt quá mức này được coi là trống
+	Ignore pages with comments or form fields	Bỏ qua các trang có nhận xét hoặc trường biểu mẫu
+	Checking page {d} of {t}…	Đang kiểm tra trang {d} trên {t}…
+	No blank pages found	Không tìm thấy trang trống nào
+	A document must keep at least one page: uncheck a page to keep it.	Tài liệu phải giữ lại ít nhất một trang: bỏ chọn một trang để giữ lại.

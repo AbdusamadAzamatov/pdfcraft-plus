@@ -2379,3 +2379,9 @@ animation effects	Off	Выкл
 	Remove inverted colours	Удалить инверсию цветов
 	inverted colours	инверсии цветов
 	Comments and form fields keep their colours.	Комментарии и поля форм сохраняют свои цвета.
+	Remove blank pages…	Удалить пустые страницы…
+	Pages with at most this share of dark pixels count as blank	Страницы, где доля тёмных пикселей не больше этой, считаются пустыми
+	Ignore pages with comments or form fields	Пропускать страницы с комментариями или полями форм
+	Checking page {d} of {t}…	Проверка страницы {d} из {t}…
+	No blank pages found	Пустые страницы не найдены
+	A document must keep at least one page: uncheck a page to keep it.	В документе должна остаться хотя бы одна страница: снимите отметку со страницы, чтобы оставить её.

@@ -210,6 +210,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Interleave files…", "arrow-left-right", "page.interleave", Ready),
                     item("Divide pages", "columns-2", "page.divide", Ready),
                     item("Rotate by angle", "rotate-cw", "page.rotate_angle", Ready),
+                    item("Remove blank pages…", "file-minus", "page.remove_blank", Ready),
                 ],
             },
             ToolSection {

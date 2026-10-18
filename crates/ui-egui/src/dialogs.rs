@@ -57,6 +57,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut boxes_now = false;
     let mut impose_now = false;
     let mut divide_now = false;
+    let mut blank_now = false;
     let mut marks_now = false;
     let mut export_now = false;
     let mut props_now = false;
@@ -1025,6 +1026,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = apply || cancel;
                 return;
             }
+            Dialog::RemoveBlank => {
+                let (remove, cancel) = crate::blank_ui::body(ui, app, &t);
+                blank_now = remove;
+                close = remove || cancel;
+                return;
+            }
             Dialog::Protect => {
                 let (apply, cancel) = crate::protect::body(ui, app, &t);
                 protect_now = apply;
@@ -1405,6 +1412,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
             app.apply_edit(edit);
         }
     }
+    if blank_now {
+        app.remove_blank_with_draft();
+    }
     if protect_now && app.apply_edit(app.protect_draft.edit()) {
         app.protect_draft = Default::default();
         app.notify_tr("Password protection will be applied when you save");
@@ -1421,6 +1431,8 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     // Protect / Remove security replace the Properties dialog.
     let replaces = link_command.is_some_and(|c| c.starts_with("protect.")) || open_revision.is_some();
     if modal.should_close() || close || replaces {
+        // A search still under way for Remove blank pages has no one to report to.
+        app.blank_draft.cancel();
         app.dialog = None;
         app.props_draft = None;
         app.view_draft = None;

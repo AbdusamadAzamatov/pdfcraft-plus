@@ -2470,3 +2470,9 @@ animation effects	Off	Izklopljeni
 	Remove inverted colours	Odstrani obrnjene barve
 	inverted colours	obrnjenih barv
 	Comments and form fields keep their colours.	Komentarji in polja obrazcev ohranijo svoje barve.
+	Remove blank pages…	Odstrani prazne strani…
+	Pages with at most this share of dark pixels count as blank	Strani, na katerih delež temnih slikovnih pik ne presega te vrednosti, štejejo za prazne
+	Ignore pages with comments or form fields	Prezri strani s komentarji ali polji obrazca
+	Checking page {d} of {t}…	Preverjanje strani {d} od {t}…
+	No blank pages found	Ni najdenih praznih strani
+	A document must keep at least one page: uncheck a page to keep it.	Dokument mora obdržati vsaj eno stran: počistite potrditev strani, ki jo želite obdržati.

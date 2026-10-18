@@ -2461,3 +2461,9 @@ animation effects	Off	Kapalı
 	Remove inverted colours	Ters çevrilmiş renkleri kaldır
 	inverted colours	ters çevrilmiş renkler
 	Comments and form fields keep their colours.	Yorumlar ve form alanları renklerini korur.
+	Remove blank pages…	Boş sayfaları kaldır…
+	Pages with at most this share of dark pixels count as blank	Koyu piksel oranı en fazla bu kadar olan sayfalar boş sayılır
+	Ignore pages with comments or form fields	Yorum veya form alanı içeren sayfaları yok say
+	Checking page {d} of {t}…	Sayfa {d} / {t} denetleniyor…
+	No blank pages found	Boş sayfa bulunamadı
+	A document must keep at least one page: uncheck a page to keep it.	Bir belgede en az bir sayfa kalmalıdır: tutmak istediğiniz sayfanın işaretini kaldırın.

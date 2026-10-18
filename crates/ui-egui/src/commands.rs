@@ -682,6 +682,7 @@ impl PdfCraftApp {
             "page.nup" => self.open_impose(crate::print_ui::Handling::Multiple),
             "page.booklet" => self.open_impose(crate::print_ui::Handling::Booklet),
             "page.poster" => self.open_impose(crate::print_ui::Handling::Poster),
+            "page.remove_blank" => self.open_remove_blank(),
             "page.rotate_dialog" => {
                 if let Some(i) = active {
                     let n = self.session.get(self.views[i].id).map_or(1, |d| d.info.pages.len());

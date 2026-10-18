@@ -2464,3 +2464,9 @@ animation effects	Off	Ki
 	Remove inverted colours	Színinvertálás eltávolítása
 	inverted colours	invertált színek
 	Comments and form fields keep their colours.	A megjegyzések és az űrlapmezők megtartják a színüket.
+	Remove blank pages…	Üres oldalak eltávolítása…
+	Pages with at most this share of dark pixels count as blank	Üresnek számít az az oldal, amelyen a sötét képpontok aránya legfeljebb ennyi
+	Ignore pages with comments or form fields	A megjegyzéseket vagy űrlapmezőket tartalmazó oldalak kihagyása
+	Checking page {d} of {t}…	{d}. oldal ellenőrzése ({t} oldalból)…
+	No blank pages found	Nem található üres oldal
+	A document must keep at least one page: uncheck a page to keep it.	A dokumentumnak legalább egy oldalt meg kell tartania: a megtartáshoz törölje egy oldal jelölését.

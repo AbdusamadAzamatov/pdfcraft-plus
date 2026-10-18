@@ -2465,3 +2465,9 @@ animation effects	Off	オフ
 	Remove inverted colours	色の反転を解除
 	inverted colours	色の反転
 	Comments and form fields keep their colours.	コメントとフォームフィールドの色は変わりません。
+	Remove blank pages…	空白のページを削除…
+	Pages with at most this share of dark pixels count as blank	暗いピクセルの割合がこの値以下のページを空白と見なします
+	Ignore pages with comments or form fields	注釈やフォームフィールドのあるページを除外
+	Checking page {d} of {t}…	ページ {d}/{t} を確認中…
+	No blank pages found	空白のページは見つかりませんでした
+	A document must keep at least one page: uncheck a page to keep it.	文書には少なくとも 1 ページが必要です。残すページのチェックを外してください。

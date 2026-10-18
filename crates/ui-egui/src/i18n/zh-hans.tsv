@@ -2429,3 +2429,9 @@ animation effects	Off	关
 	Remove inverted colours	移除颜色反转
 	inverted colours	颜色反转
 	Comments and form fields keep their colours.	注释和表单域保持原有颜色。
+	Remove blank pages…	删除空白页…
+	Pages with at most this share of dark pixels count as blank	深色像素占比不超过此值的页面视为空白页
+	Ignore pages with comments or form fields	忽略含有注释或表单域的页面
+	Checking page {d} of {t}…	正在检查第 {d} 页，共 {t} 页…
+	No blank pages found	未找到空白页
+	A document must keep at least one page: uncheck a page to keep it.	文档必须至少保留一页：取消勾选要保留的页面。

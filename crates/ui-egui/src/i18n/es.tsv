@@ -2605,3 +2605,9 @@ animation effects	Off	Desactivados
 	Remove inverted colours	Quitar inversión de colores
 	inverted colours	colores invertidos
 	Comments and form fields keep their colours.	Los comentarios y los campos de formulario conservan sus colores.
+	Remove blank pages…	Quitar páginas en blanco…
+	Pages with at most this share of dark pixels count as blank	Las páginas con, como mucho, esta proporción de píxeles oscuros se consideran en blanco
+	Ignore pages with comments or form fields	Omitir las páginas con comentarios o campos de formulario
+	Checking page {d} of {t}…	Revisando la página {d} de {t}…
+	No blank pages found	No se encontraron páginas en blanco
+	A document must keep at least one page: uncheck a page to keep it.	Un documento debe conservar al menos una página: desmarca una página para conservarla.

@@ -261,6 +261,17 @@ pub fn tools() -> Vec<ToolDef> {
             .destructive()
             .cmd("page.delete")
             .with(schema(json!({ "doc": doc(), "pages": pages("to delete") }), &["doc", "pages"])),
+        t("page_find_blank", "Find blank pages", "Find pages that look blank (Organize ▸ Layout ▸ Remove blank pages), in page order. A page is blank when its content paints nothing and it has no annotations or XObjects (structural: true), or when, drawn at 36 dpi in grey, at most `sensitivity` percent of its pixels are ink (luma below 230/255), so scans with a few specks count. sensitivity is a percentage from 0 to 100 (default 0.2; 0 accepts only pages with no ink at all). ignore_annotated (default true) leaves pages with comments or form fields alone (links don't count). Read-only: delete the pages you want with page_delete (one undo step; a document must keep at least one page).")
+            .ro()
+            .cmd("page.remove_blank")
+            .with(schema(
+                json!({
+                    "doc": doc(), "pages": pages("to check (default: all)"),
+                    "sensitivity": { "type": "number", "minimum": 0, "maximum": 100, "description": "Largest share of ink pixels, in percent (default 0.2)." },
+                    "ignore_annotated": { "type": "boolean", "description": "Skip pages with comments or form fields (default true)." }
+                }),
+                &["doc"],
+            )),
         t("page_move", "Move pages", "Move pages so the first of them lands at position `to` (1-based, counted before the move). Undoable.").with(schema(
             json!({ "doc": doc(), "pages": pages("to move"), "to": { "type": "integer", "minimum": 1 } }),
             &["doc", "pages", "to"],

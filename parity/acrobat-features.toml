@@ -2924,6 +2924,18 @@ evidence = ["crates/automation/tests/automation.rs::doc_impose_makes_a_booklet_a
 notes = "Organize ▸ Layout ▸ Poster (tile)…: the print.poster layout (tile scale, overlap, cut marks; at most 1024 sheets per page) as a new unsaved document '<name> (poster).pdf'; same dialog and permission rule as organize.nup-to-pdf. The automation test writes a poster only to check --root confinement; tiling itself is covered by the print.poster tests."
 
 [[feature]]
+id = "organize.remove-blank-pages"
+title = "Remove blank pages"
+area = "D"
+tier = "P2"
+milestone = "M4"
+status = "shipped"
+commands = ["page.remove_blank"]
+tools = ["page_find_blank", "page_delete"]
+evidence = ["crates/engine/src/blank.rs::ink_is_what_reads_darker_than_the_threshold_over_white", "crates/engine/src/blank.rs::an_empty_or_ragged_raster_says_nothing_and_never_panics", "crates/engine/src/tests.rs::find_blank_pages_finds_empty_white_and_specked_pages_by_sensitivity", "crates/automation/tests/automation.rs::page_find_blank_then_page_delete_removes_the_blank_page", "crates/ui-egui/tests/editing.rs::remove_blank_pages_lists_candidates_and_keeps_an_unchecked_one"]
+notes = "Organize ▸ Layout ▸ Remove blank pages…: a page is blank when its content paints nothing (no Do, sh, inline image, text showing, fill or stroke) and it has no annotations or XObjects (structural, not drawn), or when, drawn at 36 dpi and read in grey over white paper, at most the sensitivity share of its pixels has luma below 230/255 (default 0.2%, slider 0–2%; the tool takes 0–100%). Pages with comments or form fields are skipped by default (links and popups don't count); comments are drawn when that is off. A page that can't be drawn, or is drawn only in part, is never a candidate; unreadable or over-64-MiB content falls back to the picture. The search runs on a worker thread with progress and Cancel; the dialog lists the candidates as thumbnails, each checked; changing an option searches again. Remove is one Delete pages undo step; checking every page is refused (a document must keep one page). page_find_blank is read-only; agents remove with page_delete. Decisions: the rendered test uses the displayed file (comment appearances PdfCraft draws included) with reading colours off; whole document only in the dialog (the tool takes pages). Not yet: a page-range choice in the dialog, a preview of the ink found."
+
+[[feature]]
 id = "organize.cut-copy-paste-pages"
 title = "Cut, copy and paste pages"
 area = "D"

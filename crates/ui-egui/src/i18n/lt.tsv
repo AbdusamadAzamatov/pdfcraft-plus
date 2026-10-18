@@ -2716,3 +2716,9 @@ theme	Appearance	Išvaizda
 	Remove inverted colours	Pašalinti spalvų invertavimą
 	inverted colours	invertuotų spalvų
 	Comments and form fields keep their colours.	Komentarai ir formos laukai išlaiko savo spalvas.
+	Remove blank pages…	Pašalinti tuščius puslapius…
+	Pages with at most this share of dark pixels count as blank	Puslapiai, kuriuose tamsių taškų dalis ne didesnė už šią, laikomi tuščiais
+	Ignore pages with comments or form fields	Praleisti puslapius su komentarais ar formos laukais
+	Checking page {d} of {t}…	Tikrinamas {d} puslapis iš {t}…
+	No blank pages found	Tuščių puslapių nerasta
+	A document must keep at least one page: uncheck a page to keep it.	Dokumente turi likti bent vienas puslapis: atžymėkite puslapį, kad jį paliktumėte.

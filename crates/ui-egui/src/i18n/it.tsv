@@ -2677,3 +2677,9 @@ certificate	SHA-256 digest	Impronta SHA-256
 	Remove inverted colours	Rimuovi inversione colori
 	inverted colours	colori invertiti
 	Comments and form fields keep their colours.	Commenti e campi modulo mantengono i loro colori.
+	Remove blank pages…	Rimuovi pagine vuote…
+	Pages with at most this share of dark pixels count as blank	Le pagine con al massimo questa quota di pixel scuri sono considerate vuote
+	Ignore pages with comments or form fields	Ignora le pagine con commenti o campi modulo
+	Checking page {d} of {t}…	Controllo della pagina {d} di {t}…
+	No blank pages found	Nessuna pagina vuota trovata
+	A document must keep at least one page: uncheck a page to keep it.	Un documento deve conservare almeno una pagina: deseleziona una pagina per mantenerla.

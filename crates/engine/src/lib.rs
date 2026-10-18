@@ -14,6 +14,7 @@
 
 pub mod actions;
 pub mod autotag;
+pub mod blank;
 pub mod build_info;
 pub mod camera;
 pub mod camera_clean;
@@ -40,6 +41,7 @@ mod text_preview;
 pub mod word_count;
 pub mod xfa;
 
+pub use blank::{BlankOptions, BlankPage};
 pub use signature_image::{ImageSignaturePreview, SignatureImage};
 pub use signature_scan::{PhotoRect, ScanError, SignaturePhoto, Turn};
 pub use text_preview::TextEditPreview;
