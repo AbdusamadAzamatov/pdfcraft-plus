@@ -209,6 +209,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Poster (tile)…", "maximize", "page.poster", Ready),
                     item("Interleave files…", "arrow-left-right", "page.interleave", Ready),
                     item("Divide pages", "columns-2", "page.divide", Ready),
+                    item("Rotate by angle", "rotate-cw", "page.rotate_angle", Ready),
                 ],
             },
             ToolSection {

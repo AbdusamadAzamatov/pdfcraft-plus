@@ -4809,3 +4809,48 @@ fn read_mode_shortcut_applies_the_open_paragraph() {
     assert!(s.views[0].line_editor.is_none(), "no editor stays open in Read mode");
     assert_eq!(s.session.get(s.views[0].id).unwrap().text_lines(0)[0].text, "Chapter One", "the edit is applied");
 }
+
+/// Organize ▸ Layout ▸ Rotate by angle: the catalog item opens the dialog, OK turns the content
+/// of the chosen pages; a page with a comment swaps OK for Flatten comments and rotate, one undo
+/// step.
+#[test]
+fn rotate_by_angle_dialog_turns_pages_and_offers_flatten_for_comments() {
+    use pdfcraft_engine::{Edit, NewAnnotation, RotateFit, Shape, Style};
+    use pdfcraft_ui_egui::rotate_angle_ui::Scope;
+    let mut h = organize(3);
+    h.get_by_label("Rotate by angle").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::RotateAngle));
+    h.state_mut().rotate_angle_draft.degrees = 30.0;
+    h.state_mut().rotate_angle_draft.scope = Scope::Range(1, 1);
+    h.run_steps(2);
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    let s = h.state();
+    assert_eq!(s.dialog, None);
+    let d = s.session.get(s.views[0].id).unwrap();
+    let (w, h0) = (d.info.pages[0].width, d.info.pages[0].height);
+    assert!((w - 323.2).abs() < 0.2 && (h0 - 359.8).abs() < 0.2, "200×300 turned 30°: {w}×{h0}");
+    assert_eq!(d.info.pages[1].width, 200.0, "page 2 untouched");
+    assert_eq!(d.can_undo(), Some("Rotate page"));
+
+    // A comment on page 2: the dialog offers to flatten first.
+    let shape = Shape::Rectangle { rect: [10.0, 10.0, 50.0, 50.0] };
+    let style = Style::default_for(&shape);
+    h.state_mut().apply_edit(Edit::AddAnnotation(NewAnnotation { page: 1, style, shape, contents: String::new(), author: String::new() }));
+    h.state_mut().run_command("page.rotate_angle");
+    h.run_steps(2);
+    let draft = &mut h.state_mut().rotate_angle_draft;
+    draft.degrees = -12.5;
+    draft.fit = RotateFit::KeepSize;
+    draft.scope = Scope::Range(2, 2);
+    h.run_steps(3);
+    assert!(h.query_by_label("OK").is_none(), "OK would fail on the comment");
+    h.get_by_label("Flatten comments and rotate").click();
+    h.run_steps(3);
+    let s = h.state();
+    let d = s.session.get(s.views[0].id).unwrap();
+    assert_eq!(d.can_undo(), Some("Flatten comments and rotate"));
+    assert!(d.info.annotations.is_empty(), "flattened");
+    assert_eq!((d.info.pages[1].width, d.info.pages[1].height), (200.0, 300.0), "keep page size");
+}

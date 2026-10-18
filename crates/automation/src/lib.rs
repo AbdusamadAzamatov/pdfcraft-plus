@@ -242,6 +242,30 @@ impl Automation {
                 out["rotated"] = json!(n);
                 out
             }
+            "page_rotate_angle" => {
+                let degrees = a.opt_num("degrees")?.ok_or_else(|| ToolError::InvalidArgs("degrees is required: a number from -180 to 180".into()))?;
+                let fit = match a.opt_str("fit")? {
+                    None => pdfcraft_engine::RotateFit::Expand,
+                    Some(f) => pdfcraft_engine::RotateFit::from_name(f)
+                        .ok_or_else(|| ToolError::InvalidArgs(format!("unknown fit {f:?} (expand, keep_size, crop)")))?,
+                };
+                let pages = match a.opt_ints("pages")? {
+                    Some(_) => self.pages(&a, "pages")?,
+                    None => (0..self.doc(&a)?.info.pages.len()).collect(),
+                };
+                let n = pages.len();
+                if n == 0 {
+                    return Err(ToolError::InvalidArgs("pages is empty: list the 1-based pages to rotate, or omit it for all".into()));
+                }
+                let edit = if a.opt_bool("flatten")?.unwrap_or(false) {
+                    Edit::flatten_and_rotate(pages, degrees, fit)
+                } else {
+                    Edit::RotateContent { pages, degrees, fit }
+                };
+                let mut out = self.apply(&a, edit)?;
+                out["rotated"] = json!(n);
+                out
+            }
             "page_enhance_camera" => {
                 let page = self.page(&a)?;
                 let given = a.nums::<8>("corners")?;

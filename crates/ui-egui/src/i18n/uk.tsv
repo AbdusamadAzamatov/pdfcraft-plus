@@ -2474,3 +2474,12 @@ animation effects	Off	Вимкнено
 	Left to right	Зліва направо
 	Right to left	Справа наліво
 	Skip first and last page	Пропустити першу й останню сторінки
+	Rotate by angle	Повернути на кут
+	Angle:	Кут:
+	Fit:	Розміщення:
+	Expand page	Збільшити сторінку
+	Keep page size	Зберегти розмір сторінки
+	Keep page size, crop	Зберегти розмір, обітнути
+	Flatten comments and rotate	Звести коментарі й повернути
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Коментарі й поля форм не можна повернути на цей кут. Щоб повернути ці сторінки, спершу всі коментарі й поля форм документа буде зведено.
+	Rotate by angle…	Повернути на кут…

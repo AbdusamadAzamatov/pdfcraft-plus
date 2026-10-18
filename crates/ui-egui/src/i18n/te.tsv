@@ -2361,3 +2361,12 @@ animation effects	Off	ఆఫ్
 	Left to right	ఎడమ నుండి కుడికి
 	Right to left	కుడి నుండి ఎడమకు
 	Skip first and last page	మొదటి మరియు చివరి పేజీని వదిలివేయి
+	Rotate by angle	కోణంతో తిప్పు
+	Angle:	కోణం:
+	Fit:	సరిపోల్చు:
+	Expand page	పేజీని విస్తరించు
+	Keep page size	పేజీ పరిమాణాన్ని ఉంచు
+	Keep page size, crop	పరిమాణం ఉంచి, క్రాప్ చేయి
+	Flatten comments and rotate	వ్యాఖ్యలను ఫ్లాటెన్ చేసి తిప్పు
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	వ్యాఖ్యలు మరియు ఫారమ్ ఫీల్డ్‌లను ఈ కోణంలో తిప్పలేము. ఈ పేజీలను తిప్పడానికి, ముందుగా పత్రంలోని అన్ని వ్యాఖ్యలు మరియు ఫారమ్ ఫీల్డ్‌లు ఫ్లాటెన్ చేయబడతాయి.
+	Rotate by angle…	కోణంతో తిప్పు…

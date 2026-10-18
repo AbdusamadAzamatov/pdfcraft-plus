@@ -2448,3 +2448,12 @@ animation effects	Off	Kapalı
 	Left to right	Soldan sağa
 	Right to left	Sağdan sola
 	Skip first and last page	İlk ve son sayfayı atla
+	Rotate by angle	Açıyla döndür
+	Angle:	Açı:
+	Fit:	Sığdırma:
+	Expand page	Sayfayı genişlet
+	Keep page size	Sayfa boyutunu koru
+	Keep page size, crop	Boyutu koru, kırp
+	Flatten comments and rotate	Yorumları düzleştir ve döndür
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Yorumlar ve form alanları bu açıyla döndürülemez. Bu sayfaları döndürmek için önce belgedeki tüm yorumlar ve form alanları düzleştirilir.
+	Rotate by angle…	Açıyla döndür…

@@ -2840,6 +2840,18 @@ evidence = ["crates/organize/src/tests.rs::reverse_pages_reorders", "crates/orga
 notes = "Organize Pages ▸ More ▸ Reverse pages, or the command palette: two or more selected pages swap among their own positions, otherwise the whole document reverses. One undo step. Not yet: an entry in the page thumbnails' right-click menu"
 
 [[feature]]
+id = "organize.rotate-any-angle"
+title = "Rotate pages by any angle"
+area = "D"
+tier = "P2"
+milestone = "M4"
+status = "shipped"
+commands = ["page.rotate_angle"]
+tools = ["page_rotate_angle"]
+evidence = ["crates/organize/src/transform/tests.rs::every_fit_keeps_its_promise", "crates/organize/src/transform/tests.rs::forty_five_degrees_on_a_100_point_square_gives_a_141_point_square", "crates/organize/src/transform/tests.rs::quarter_turns_go_through_rotate_and_leave_the_content_alone", "crates/organize/src/transform/tests.rs::a_page_with_comments_or_fields_is_refused_and_left_alone", "crates/organize/src/transform/tests.rs::transform_page_wraps_the_content_and_moves_boxes_and_annotations_exactly", "crates/engine/src/rotate_angle.rs::a_red_pixel_moves_where_the_maths_says", "crates/engine/src/rotate_angle.rs::a_page_with_a_comment_needs_flatten_and_rotate_which_is_one_undo_step", "crates/automation/tests/automation.rs::page_rotate_angle_turns_content_and_refuses_comments_without_flatten", "crates/ui-egui/tests/editing.rs::rotate_by_angle_dialog_turns_pages_and_offers_flatten_for_comments"]
+notes = "Organize ▸ Layout ▸ Rotate by angle: −180…180° in 0.1° steps, clockwise as the page is shown (the page's /Rotate is composed in), about the page centre; all pages, the selection or a range; a live preview turns a still render of the current page. Fit: expand the page (default), keep the page size and scale down, or keep the size and crop. Whole multiples of 90° only change /Rotate (lossless). Other angles wrap the existing content streams in q <m> cm <old crop box> re W n … Q (streams are not rewritten) through pdfcraft_organize::transform_page, which PL7/PL9 reuse; MediaBox and CropBox become the new box, Trim/Bleed/Art their transformed bounding box, link Rects their bounding box and QuadPoints exactly. Pages with comments or form fields (any visible annotation but links and pop-ups) are refused, since appearances can't turn inside an axis-aligned Rect; the dialog then offers Flatten comments and rotate (Edit::Flatten of the whole document, as Edit::Flatten always does, plus the rotation in one undo step; the tool's flatten: true). Needs the Assembly permission, like Rotate pages. Not yet: destinations (bookmarks, links) that point at a spot on a turned page keep their old coordinates; a page with a watermark, 3D or media annotation is refused even after flattening, because flattening keeps those; viewports (/VP) and article beads aren't transformed"
+
+[[feature]]
 id = "organize.divide-pages"
 title = "Divide pages into equal parts"
 area = "D"

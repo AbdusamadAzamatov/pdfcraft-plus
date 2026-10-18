@@ -234,6 +234,17 @@ pub fn tools() -> Vec<ToolDef> {
                 }),
                 &["doc", "degrees"],
             )),
+        t("page_rotate_angle", "Rotate by angle", "Rotate the content of pages (default all) by any angle from -180 to 180 degrees (positive is clockwise as the page is shown; 0.1° steps are typical), about the page centre. fit: expand (default; the page grows to hold the whole turned page), keep_size (the page keeps its size and the content is scaled down to fit) or crop (the page keeps its size and the turned corners are cut off). Whole multiples of 90 only change the page rotation, losslessly, and ignore fit. Any other angle wraps the existing content in a transform (it is not rewritten) and sets the page boxes; it refuses pages with comments or form fields unless flatten is true, which first flattens every comment and form field in the document into the pages. One undo step.")
+            .cmd("page.rotate_angle")
+            .with(schema(
+                json!({
+                    "doc": doc(), "pages": pages("to rotate (default: all)"),
+                    "degrees": { "type": "number", "minimum": -180, "maximum": 180 },
+                    "fit": { "type": "string", "enum": ["expand", "keep_size", "crop"] },
+                    "flatten": { "type": "boolean", "description": "Flatten every comment and form field in the document first, in the same undo step (default false)." },
+                }),
+                &["doc", "degrees"],
+            )),
         t("page_enhance_camera", "Enhance camera image", "Straighten a photographed document (Scan & OCR ▸ Enhance ▸ Camera image): the part of the page inside the four corners (x1, y1, … x4, y4 in top-left-origin points, any order, a convex quadrilateral; when omitted, the document's edges are found automatically, or an error says they could not be) is warped to an upright rectangle that replaces what the page shows, at the page picture's own resolution (at most 600 dpi). mode is how it looks: original, colour (default), greyscale or bw (black and white, stored losslessly). level (0–100, default 0) then cleans the photo up: even lighting so the paper turns white (casts, shadows, dark edges), more contrast, and from 60 no isolated specks; colour ink stays colour. For bw the level is the threshold (higher keeps fainter strokes black). The page's comments, links and bookmarks stay. Undoable.")
             .cmd("ocr.enhance_camera")
             .with(schema(

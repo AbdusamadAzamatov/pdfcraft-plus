@@ -2428,3 +2428,12 @@ animation effects	Off	Wyłączone
 	Left to right	Od lewej do prawej
 	Right to left	Od prawej do lewej
 	Skip first and last page	Pomiń pierwszą i ostatnią stronę
+	Rotate by angle	Obróć o kąt
+	Angle:	Kąt:
+	Fit:	Dopasowanie:
+	Expand page	Powiększ stronę
+	Keep page size	Zachowaj rozmiar strony
+	Keep page size, crop	Zachowaj rozmiar, przytnij
+	Flatten comments and rotate	Spłaszcz komentarze i obróć
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Komentarzy i pól formularza nie można obrócić o ten kąt. Aby obrócić te strony, najpierw zostaną spłaszczone wszystkie komentarze i pola formularza w dokumencie.
+	Rotate by angle…	Obróć o kąt…

@@ -30,6 +30,7 @@ pub mod ocr;
 pub mod optimizer;
 pub mod print_raster;
 pub mod printcheck;
+mod rotate_angle;
 mod scan_colours;
 mod scan_fields;
 pub mod signature_image;
@@ -43,7 +44,7 @@ pub use signature_image::{ImageSignaturePreview, SignatureImage};
 pub use signature_scan::{PhotoRect, ScanError, SignaturePhoto, Turn};
 pub use text_preview::TextEditPreview;
 
-pub use pdfcraft_organize::{BoxSpec, FieldConflicts, PageBox, SplitBy, Transition, TransitionSpec, split_ranges};
+pub use pdfcraft_organize::{BoxSpec, FieldConflicts, PageBox, RotateFit, SplitBy, Transition, TransitionSpec, split_ranges};
 
 /// One file produced by a split: (1-based first page, last page, PDF bytes).
 pub use pdfcraft_organize::LabelStyle;
@@ -1267,6 +1268,15 @@ pub enum Edit {
         pages: Vec<usize>,
         degrees: i64,
     },
+    /// Rotate by angle: turn the content of `pages` by `degrees` (−180…180, clockwise as shown)
+    /// about the page centre. Whole multiples of 90° only change `/Rotate`; any other angle
+    /// wraps the content in a transform and refuses pages with comments or form fields (see
+    /// [`Edit::flatten_and_rotate`]).
+    RotateContent {
+        pages: Vec<usize>,
+        degrees: f64,
+        fit: RotateFit,
+    },
     DeletePages {
         pages: Vec<usize>,
     },
@@ -1948,13 +1958,15 @@ pub const EDIT_LABELS: &[&str] = &[
 /// The names of the batches built below L7, which an interface shows in the same places as
 /// [`EDIT_LABELS`] and so translates the same way. A batch built in the interface itself arrives
 /// already worded in the interface's language.
-pub const BATCH_LABELS: &[&str] = &["Set document title", "Mark differences", "Detect form fields", "Run JavaScript", "Recognize text"];
+pub const BATCH_LABELS: &[&str] =
+    &["Set document title", "Mark differences", "Detect form fields", "Run JavaScript", "Recognize text", "Flatten comments and rotate"];
 
 impl Edit {
     /// Label for the Edit menu and history ("Undo Rotate pages").
     pub fn label(&self) -> Label {
         match self {
             Edit::RotatePages { pages, .. } => plural("Rotate page", "Rotate pages", pages.len()),
+            Edit::RotateContent { pages, .. } => plural("Rotate page", "Rotate pages", pages.len()),
             Edit::DeletePages { pages } => plural("Delete page", "Delete pages", pages.len()),
             Edit::MovePages { pages, .. } => plural("Move page", "Move pages", pages.len()),
             Edit::ReversePages { .. } => Label::of("Reverse pages"),
@@ -2084,6 +2096,16 @@ impl Edit {
             Edit::Batch { label, .. } => Label::with("{batch}", label.as_str()),
         }
     }
+
+    /// Flatten comments and rotate: every comment and form field in the document is flattened
+    /// into its page ([`Edit::Flatten`]), then the content of `pages` turns by `degrees`, as one
+    /// undo step. What Rotate by angle offers when a page has comments or form fields.
+    pub fn flatten_and_rotate(pages: Vec<usize>, degrees: f64, fit: RotateFit) -> Edit {
+        Edit::Batch {
+            label: "Flatten comments and rotate".into(),
+            edits: vec![Edit::Flatten { comments: true, fields: true }, Edit::RotateContent { pages, degrees, fit }],
+        }
+    }
 }
 
 /// What the Edit menu calls a new comment ("Undo Add highlight"). A whole wording for each kind,
@@ -2129,6 +2151,7 @@ fn unrestricted(p: &pdfcraft_cos::Permissions) -> bool {
 fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), EditError> {
     match edit {
         Edit::RotatePages { .. }
+        | Edit::RotateContent { .. }
         | Edit::DeletePages { .. }
         | Edit::MovePages { .. }
         | Edit::ReversePages { .. }
@@ -2341,6 +2364,7 @@ impl EditCtx {
 fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> Result<(), EditError> {
     match edit {
         Edit::RotatePages { pages, degrees } => pdfcraft_organize::rotate_pages(doc, pages, *degrees)?,
+        Edit::RotateContent { pages, degrees, fit } => pdfcraft_organize::rotate_content(doc, pages, *degrees, *fit)?,
         Edit::DeletePages { pages } => pdfcraft_organize::delete_pages(doc, pages)?,
         Edit::MovePages { pages, to } => pdfcraft_organize::move_pages(doc, pages, *to)?,
         Edit::ReversePages { pages } => pdfcraft_organize::reverse_pages(doc, pages)?,

@@ -2452,3 +2452,12 @@ animation effects	Off	オフ
 	Left to right	左から右
 	Right to left	右から左
 	Skip first and last page	最初と最後のページを除く
+	Rotate by angle	角度を指定して回転
+	Angle:	角度:
+	Fit:	フィット:
+	Expand page	ページを拡大
+	Keep page size	ページサイズを維持
+	Keep page size, crop	ページサイズを維持してトリミング
+	Flatten comments and rotate	コメントを統合して回転
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	コメントとフォームフィールドはこの角度では回転できません。これらのページを回転するには、まず文書内のすべてのコメントとフォームフィールドを統合します。
+	Rotate by angle…	角度を指定して回転…

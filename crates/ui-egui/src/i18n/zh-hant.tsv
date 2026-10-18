@@ -2402,3 +2402,12 @@ animation effects	Off	關
 	Left to right	由左至右
 	Right to left	由右至左
 	Skip first and last page	略過第一頁和最後一頁
+	Rotate by angle	依角度旋轉
+	Angle:	角度：
+	Fit:	調整：
+	Expand page	擴大頁面
+	Keep page size	保持頁面大小
+	Keep page size, crop	保持大小並裁切
+	Flatten comments and rotate	平面化註解並旋轉
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	註解和表單欄位無法依此角度旋轉。若要旋轉這些頁面，會先將文件中的所有註解和表單欄位平面化。
+	Rotate by angle…	依角度旋轉…

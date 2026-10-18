@@ -2450,3 +2450,12 @@ animation effects	Off	Өшірулі
 	Left to right	Солдан оңға
 	Right to left	Оңнан солға
 	Skip first and last page	Бірінші және соңғы беттерді өткізіп жіберу
+	Rotate by angle	Бұрыш бойынша бұру
+	Angle:	Бұрыш:
+	Fit:	Сыйғызу:
+	Expand page	Бетті үлкейту
+	Keep page size	Бет өлшемін сақтау
+	Keep page size, crop	Өлшемін сақтап, қиып алу
+	Flatten comments and rotate	Түсініктемелерді жазықтап, бұру
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Түсініктемелер мен пішін өрістерін бұл бұрышқа бұруға болмайды. Бұл беттерді бұру үшін алдымен құжаттағы барлық түсініктемелер мен пішін өрістері жазықталады.
+	Rotate by angle…	Бұрыш бойынша бұру…

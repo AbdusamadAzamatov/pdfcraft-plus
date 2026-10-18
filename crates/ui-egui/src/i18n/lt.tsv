@@ -2703,3 +2703,12 @@ theme	Appearance	Išvaizda
 	Left to right	Iš kairės į dešinę
 	Right to left	Iš dešinės į kairę
 	Skip first and last page	Praleisti pirmą ir paskutinį puslapį
+	Rotate by angle	Pasukti kampu
+	Angle:	Kampas:
+	Fit:	Pritaikymas:
+	Expand page	Padidinti puslapį
+	Keep page size	Išlaikyti puslapio dydį
+	Keep page size, crop	Išlaikyti dydį, apkirpti
+	Flatten comments and rotate	Suplokštinti komentarus ir pasukti
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Komentarų ir formos laukų negalima pasukti šiuo kampu. Kad šie puslapiai būtų pasukti, pirmiausia suplokštinami visi dokumento komentarai ir formos laukai.
+	Rotate by angle…	Pasukti kampu…

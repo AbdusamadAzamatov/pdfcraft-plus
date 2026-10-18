@@ -2592,3 +2592,12 @@ animation effects	Off	Desactivados
 	Left to right	De izquierda a derecha
 	Right to left	De derecha a izquierda
 	Skip first and last page	Omitir la primera y la última página
+	Rotate by angle	Girar por ángulo
+	Angle:	Ángulo:
+	Fit:	Ajuste:
+	Expand page	Ampliar la página
+	Keep page size	Mantener el tamaño de página
+	Keep page size, crop	Mantener el tamaño, recortar
+	Flatten comments and rotate	Acoplar comentarios y girar
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Los comentarios y campos de formulario no pueden girar este ángulo. Para girar estas páginas, primero se acoplan todos los comentarios y campos de formulario del documento.
+	Rotate by angle…	Girar por ángulo…

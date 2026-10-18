@@ -2416,3 +2416,12 @@ animation effects	Off	关
 	Left to right	从左到右
 	Right to left	从右到左
 	Skip first and last page	跳过第一页和最后一页
+	Rotate by angle	按角度旋转
+	Angle:	角度：
+	Fit:	适应：
+	Expand page	扩大页面
+	Keep page size	保持页面大小
+	Keep page size, crop	保持大小并裁剪
+	Flatten comments and rotate	拼合注释并旋转
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	注释和表单域无法按此角度旋转。要旋转这些页面，将先拼合文档中的所有注释和表单域。
+	Rotate by angle…	按角度旋转…

@@ -22,6 +22,7 @@ mod labels;
 mod outline;
 mod pdfx;
 mod prune;
+mod transform;
 mod transition;
 pub mod view;
 mod xmp;
@@ -40,6 +41,7 @@ pub use outline::{
     Bookmark, BookmarkPage, OutlineEntry, OutlineError, add_bookmark, add_bookmark_tree, bookmark_page, bookmarks, delete_bookmark, move_bookmark,
     rename_bookmark, set_bookmark_open, set_bookmark_page, top_level_bookmarks,
 };
+pub use transform::{RotateFit, page_has_drawn_annotations, pages_with_drawn_annotations, rotate_content, rotation_transform, transform_page};
 pub use transition::{TRANSITION_DIRECTIONS, TRANSITION_STYLES, Transition, TransitionSpec, set_transition};
 pub use view::{InitialView, displays_doc_title, initial_view, set_initial_view};
 

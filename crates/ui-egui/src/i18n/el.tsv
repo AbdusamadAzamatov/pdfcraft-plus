@@ -2458,3 +2458,12 @@ animation effects	Off	Ανενεργά
 	Left to right	Από αριστερά προς τα δεξιά
 	Right to left	Από δεξιά προς τα αριστερά
 	Skip first and last page	Παράλειψη πρώτης και τελευταίας σελίδας
+	Rotate by angle	Περιστροφή κατά γωνία
+	Angle:	Γωνία:
+	Fit:	Προσαρμογή:
+	Expand page	Επέκταση σελίδας
+	Keep page size	Διατήρηση μεγέθους σελίδας
+	Keep page size, crop	Διατήρηση μεγέθους, περικοπή
+	Flatten comments and rotate	Ενσωμάτωση σχολίων και περιστροφή
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Τα σχόλια και τα πεδία φορμών δεν περιστρέφονται κατά αυτή τη γωνία. Για να περιστραφούν αυτές οι σελίδες, όλα τα σχόλια και τα πεδία φορμών του εγγράφου ενσωματώνονται πρώτα στο περιεχόμενο.
+	Rotate by angle…	Περιστροφή κατά γωνία…

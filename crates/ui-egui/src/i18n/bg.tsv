@@ -2415,3 +2415,12 @@ animation effects	Off	Изключени
 	Left to right	Отляво надясно
 	Right to left	Отдясно наляво
 	Skip first and last page	Пропускане на първата и последната страница
+	Rotate by angle	Завъртане под ъгъл
+	Angle:	Ъгъл:
+	Fit:	Побиране:
+	Expand page	Разшири страницата
+	Keep page size	Запази размера на страницата
+	Keep page size, crop	Запази размера, изрежи
+	Flatten comments and rotate	Сплескай коментарите и завърти
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Коментарите и полетата на формуляри не могат да се завъртят под този ъгъл. За да се завъртят тези страници, първо се сплескват всички коментари и полета в документа.
+	Rotate by angle…	Завъртане под ъгъл…

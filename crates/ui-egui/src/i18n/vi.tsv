@@ -2705,3 +2705,12 @@ key	Space	Space
 	Left to right	Trái sang phải
 	Right to left	Phải sang trái
 	Skip first and last page	Bỏ qua trang đầu và trang cuối
+	Rotate by angle	Xoay theo góc
+	Angle:	Góc:
+	Fit:	Vừa khít:
+	Expand page	Mở rộng trang
+	Keep page size	Giữ kích thước trang
+	Keep page size, crop	Giữ kích thước, cắt xén
+	Flatten comments and rotate	Làm phẳng bình luận và xoay
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Bình luận và trường biểu mẫu không thể xoay theo góc này. Để xoay các trang này, mọi bình luận và trường biểu mẫu trong tài liệu sẽ được làm phẳng trước.
+	Rotate by angle…	Xoay theo góc…

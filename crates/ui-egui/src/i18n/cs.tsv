@@ -2526,3 +2526,12 @@ animation effects	Off	Vypnuto
 	Left to right	Zleva doprava
 	Right to left	Zprava doleva
 	Skip first and last page	Vynechat první a poslední stránku
+	Rotate by angle	Otočit o úhel
+	Angle:	Úhel:
+	Fit:	Přizpůsobení:
+	Expand page	Zvětšit stránku
+	Keep page size	Zachovat velikost stránky
+	Keep page size, crop	Zachovat velikost, oříznout
+	Flatten comments and rotate	Sloučit komentáře a otočit
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Komentáře a pole formulářů nelze otočit o tento úhel. Aby se tyto stránky otočily, nejprve se všechny komentáře a pole formulářů v dokumentu sloučí se stránkou.
+	Rotate by angle…	Otočit o úhel…

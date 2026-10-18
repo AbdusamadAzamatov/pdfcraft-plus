@@ -2365,3 +2365,12 @@ animation effects	Off	Выкл
 	Left to right	Слева направо
 	Right to left	Справа налево
 	Skip first and last page	Пропустить первую и последнюю страницы
+	Rotate by angle	Повернуть на угол
+	Angle:	Угол:
+	Fit:	Размещение:
+	Expand page	Увеличить страницу
+	Keep page size	Сохранить размер страницы
+	Keep page size, crop	Сохранить размер, обрезать
+	Flatten comments and rotate	Расплющить комментарии и повернуть
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Комментарии и поля форм нельзя повернуть на этот угол. Чтобы повернуть эти страницы, сначала все комментарии и поля форм документа будут расплющены.
+	Rotate by angle…	Повернуть на угол…

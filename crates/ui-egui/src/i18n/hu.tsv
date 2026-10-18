@@ -2451,3 +2451,12 @@ animation effects	Off	Ki
 	Left to right	Balról jobbra
 	Right to left	Jobbról balra
 	Skip first and last page	Első és utolsó oldal kihagyása
+	Rotate by angle	Forgatás adott szöggel
+	Angle:	Szög:
+	Fit:	Illesztés:
+	Expand page	Oldal nagyítása
+	Keep page size	Oldalméret megtartása
+	Keep page size, crop	Oldalméret megtartása, levágás
+	Flatten comments and rotate	Megjegyzések beégetése és forgatás
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	A megjegyzések és űrlapmezők nem forgathatók el ilyen szöggel. Az oldalak forgatásához előbb a dokumentum összes megjegyzése és űrlapmezője beégetésre kerül.
+	Rotate by angle…	Forgatás adott szöggel…

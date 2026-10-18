@@ -47,6 +47,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut split_ready: Option<crate::SplitPlan> = None;
     let mut extract_now = false;
     let mut rotate_now = false;
+    let mut rotate_angle_now: Option<Edit> = None;
     let mut link_now: Option<Edit> = None;
     let mut recover: Option<bool> = None;
     let mut number_now: Option<Edit> = None;
@@ -690,6 +691,17 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 });
                 return;
             }
+            Dialog::RotateAngle => {
+                match crate::rotate_angle_ui::body(ui, app, &t) {
+                    crate::rotate_angle_ui::Outcome::Open => {}
+                    crate::rotate_angle_ui::Outcome::Cancel => close = true,
+                    crate::rotate_angle_ui::Outcome::Apply(edit) => {
+                        rotate_angle_now = Some(*edit);
+                        close = true;
+                    }
+                }
+                return;
+            }
             Dialog::DuplicateField => {
                 let n = app.active_ids().and_then(|(_, id)| app.session.get(id)).map_or(1, |d| d.info.pages.len());
                 let Some(d) = app.duplicate_draft.as_mut() else {
@@ -1302,6 +1314,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     }
     if rotate_now {
         app.rotate_with_draft();
+    }
+    if let Some(edit) = rotate_angle_now {
+        app.apply_edit(edit);
     }
     if import_words {
         app.pick_files(crate::files::FilePurpose::RedactWords, false);

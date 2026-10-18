@@ -57,24 +57,31 @@ fn rect_of(o: Option<&Object>, doc: &Document) -> Option<[f64; 4]> {
     (v.len() == 4 && v.iter().all(|x| x.is_finite())).then(|| [v[0].min(v[2]), v[1].min(v[3]), v[0].max(v[2]), v[1].max(v[3])])
 }
 
-fn intersect(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
+pub(crate) fn intersect(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
     [a[0].max(b[0]), a[1].max(b[1]), a[2].min(b[2]), a[3].min(b[3])]
 }
 
 /// The effective boxes of every page: media, crop, bleed, trim, art.
 pub fn page_boxes(doc: &Document) -> Result<Vec<[[f64; 4]; 5]>, OrganizeError> {
-    Ok(walk(doc)?
-        .iter()
-        .map(|(page, inherited)| {
-            let obj = doc.get(*page);
-            let d = obj.as_dict().cloned().unwrap_or_default();
-            let own = |k: &[u8]| rect_of(d.get(k).or_else(|| inherited.get(k)), doc);
-            let media = own(b"MediaBox").unwrap_or([0.0, 0.0, 612.0, 792.0]);
-            let crop = own(b"CropBox").map(|c| intersect(c, media)).unwrap_or(media);
-            let child = |k: &[u8]| rect_of(d.get(k), doc).map(|c| intersect(c, media)).unwrap_or(crop);
-            [media, crop, child(b"BleedBox"), child(b"TrimBox"), child(b"ArtBox")]
-        })
-        .collect())
+    Ok(walk(doc)?.iter().map(|(page, inherited)| boxes_of(doc, *page, inherited)).collect())
+}
+
+/// The effective boxes of one page (media, crop, bleed, trim, art), given the attributes it
+/// inherits from the page tree.
+pub(crate) fn boxes_of(doc: &Document, page: pdfcraft_cos::ObjRef, inherited: &pdfcraft_cos::Dict) -> [[f64; 4]; 5] {
+    let obj = doc.get(page);
+    let d = obj.as_dict().cloned().unwrap_or_default();
+    let own = |k: &[u8]| rect_of(d.get(k).or_else(|| inherited.get(k)), doc);
+    let media = own(b"MediaBox").unwrap_or([0.0, 0.0, 612.0, 792.0]);
+    let crop = own(b"CropBox").map(|c| intersect(c, media)).unwrap_or(media);
+    let child = |k: &[u8]| rect_of(d.get(k), doc).map(|c| intersect(c, media)).unwrap_or(crop);
+    [media, crop, child(b"BleedBox"), child(b"TrimBox"), child(b"ArtBox")]
+}
+
+/// A page's own box `key`, normalised, when it is a valid rectangle.
+pub(crate) fn own_box(doc: &Document, page: pdfcraft_cos::ObjRef, key: &[u8]) -> Option<[f64; 4]> {
+    let obj = doc.get(page);
+    rect_of(obj.as_dict()?.get(key), doc)
 }
 
 /// Set a box on `pages` (0-based). Margins apply to each page's own media box.

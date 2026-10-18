@@ -103,6 +103,7 @@ mod panels;
 mod pickers;
 pub mod prepare;
 mod print_ui;
+pub mod rotate_angle_ui;
 mod signature_drag;
 pub mod units;
 mod web_print;
@@ -322,6 +323,8 @@ pub enum Dialog {
     /// Organize ▸ Extract (options), Rotate Pages.
     Extract,
     RotatePages,
+    /// Organize ▸ Layout ▸ Rotate by angle.
+    RotateAngle,
     /// Remove Hidden Information and Sanitize Document.
     RemoveHidden,
     Sanitize,
@@ -650,6 +653,7 @@ pub struct PdfCraftApp {
     pub split_draft: SplitDraft,
     pub extract_draft: ExtractDraft,
     pub rotate_draft: RotateDraft,
+    pub rotate_angle_draft: rotate_angle_ui::RotateAngleDraft,
     /// Summarize Comments: sort order.
     pub summary_sort: pdfcraft_engine::SummarySort,
     /// The signing dialogs' state.
@@ -991,6 +995,7 @@ impl PdfCraftApp {
             split_draft: SplitDraft::default(),
             extract_draft: ExtractDraft::default(),
             rotate_draft: RotateDraft::default(),
+            rotate_angle_draft: Default::default(),
             summary_sort: Default::default(),
             sign_draft: None,
             digital_ids: Vec::new(),
@@ -2559,6 +2564,7 @@ impl PdfCraftApp {
                     "protect" => Some(Dialog::Protect),
                     "page-boxes" => Some(Dialog::PageBoxes),
                     "divide-pages" => Some(Dialog::DividePages),
+                    "rotate-angle" => Some(Dialog::RotateAngle),
                     "header-footer" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter)),
                     "watermark" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Watermark)),
                     "background" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Background)),

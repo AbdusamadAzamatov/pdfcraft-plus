@@ -2453,3 +2453,12 @@ animation effects	Off	Aus
 	Left to right	Von links nach rechts
 	Right to left	Von rechts nach links
 	Skip first and last page	Erste und letzte Seite auslassen
+	Rotate by angle	Um Winkel drehen
+	Angle:	Winkel:
+	Fit:	Einpassen:
+	Expand page	Seite vergrößern
+	Keep page size	Seitengröße beibehalten
+	Keep page size, crop	Seitengröße beibehalten, zuschneiden
+	Flatten comments and rotate	Kommentare reduzieren und drehen
+	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Kommentare und Formularfelder lassen sich nicht um diesen Winkel drehen. Um diese Seiten zu drehen, werden zuerst alle Kommentare und Formularfelder des Dokuments reduziert.
+	Rotate by angle…	Um Winkel drehen…

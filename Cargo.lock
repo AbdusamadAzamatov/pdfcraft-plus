@@ -4245,6 +4245,7 @@ dependencies = [
  "pdfcraft-cos",
  "pdfcraft-model",
  "pdfcraft-oracle",
+ "proptest",
  "thiserror 2.0.21",
 ]
 

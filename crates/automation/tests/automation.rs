@@ -6840,3 +6840,46 @@ fn dividing_a_spread_through_tools() {
     assert!(matches!(a.call("page_divide", &json!({ "doc": only_covers, "skip_first_last": true })), Err(ToolError::InvalidArgs(_))));
     assert_eq!(page_text(&mut a, doc).len(), 3, "refusals change nothing");
 }
+
+/// Rotate by angle (PL2): any angle turns the content and grows the page ("expand"); a quarter
+/// turn only changes /Rotate; a page with a comment is refused unless `flatten` is set, which
+/// makes flatten-and-rotate one undo step.
+#[test]
+fn page_rotate_angle_turns_content_and_refuses_comments_without_flatten() {
+    let dir = workdir("rotate-angle");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    let r = ok(&mut a, "page_rotate_angle", json!({ "doc": doc, "pages": [1], "degrees": 30 }));
+    assert_eq!(r["rotated"], 1);
+    let info = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    let page = &info["pages"][0];
+    let (w, h) = (page["width"].as_f64().unwrap(), page["height"].as_f64().unwrap());
+    assert!((w - 323.2).abs() < 0.2 && (h - 359.8).abs() < 0.2, "200×300 turned 30° fits in {w}×{h}");
+    assert_eq!(page["rotation"], 0);
+    assert_eq!(info["pages"][1]["width"].as_f64().unwrap(), 200.0, "other pages untouched");
+    assert_eq!(r["undo"], "Rotate page");
+    // A quarter turn is the lossless /Rotate path, whatever the fit.
+    ok(&mut a, "page_rotate_angle", json!({ "doc": doc, "pages": [2], "degrees": -90, "fit": "crop" }));
+    let info = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    assert_eq!(info["pages"][1]["rotation"], 270);
+    // Keep size: the page stays 200×300.
+    ok(&mut a, "page_rotate_angle", json!({ "doc": doc, "pages": [2], "degrees": 12.5, "fit": "keep_size" }));
+    let info = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    assert_eq!((info["pages"][1]["width"].as_f64().unwrap(), info["pages"][1]["height"].as_f64().unwrap()), (300.0, 200.0));
+    assert!(matches!(err(&mut a, "page_rotate_angle", json!({ "doc": doc, "degrees": 10, "fit": "stretch" })), ToolError::InvalidArgs(_)));
+    assert!(a.call("page_rotate_angle", &json!({ "doc": doc, "degrees": 190 })).is_err(), "out of range");
+    assert!(matches!(err(&mut a, "page_rotate_angle", json!({ "doc": doc, "pages": [], "degrees": 10 })), ToolError::InvalidArgs(_)));
+    // A comment on page 3: refused, then flattened and turned in one step.
+    ok(&mut a, "comment_add", json!({ "doc": doc, "page": 3, "type": "rectangle", "rect": [10, 10, 60, 40], "color": "blue", "width": 3 }));
+    match a.call("page_rotate_angle", &json!({ "doc": doc, "pages": [3], "degrees": 15 })) {
+        Err(ToolError::Failed(m)) => assert!(m.contains("page 3 has comments or form fields; flatten them first"), "{m}"),
+        other => panic!("{other:?}"),
+    }
+    let r = ok(&mut a, "page_rotate_angle", json!({ "doc": doc, "pages": [3], "degrees": 15, "flatten": true }));
+    assert_eq!(r["undo"], "Flatten comments and rotate");
+    let info = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    assert!(info["annotations"].as_array().unwrap().is_empty(), "flattened");
+    assert!(info["pages"][2]["width"].as_f64().unwrap() > 200.0, "turned");
+    assert!(a.call("page_render", &json!({ "doc": doc, "page": 3, "dpi": 36 })).is_ok(), "the turned page renders");
+    let _ = std::fs::remove_dir_all(dir);
+}
