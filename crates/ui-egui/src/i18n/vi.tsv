@@ -2714,3 +2714,7 @@ key	Space	Space
 	Flatten comments and rotate	Làm phẳng bình luận và xoay
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Bình luận và trường biểu mẫu không thể xoay theo góc này. Để xoay các trang này, mọi bình luận và trường biểu mẫu trong tài liệu sẽ được làm phẳng trước.
 	Rotate by angle…	Xoay theo góc…
+	Invert colours	Đảo ngược màu
+	Remove inverted colours	Gỡ đảo ngược màu
+	inverted colours	màu đảo ngược
+	Comments and form fields keep their colours.	Bình luận và trường biểu mẫu giữ nguyên màu.

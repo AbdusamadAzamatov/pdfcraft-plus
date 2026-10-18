@@ -2370,3 +2370,7 @@ animation effects	Off	ఆఫ్
 	Flatten comments and rotate	వ్యాఖ్యలను ఫ్లాటెన్ చేసి తిప్పు
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	వ్యాఖ్యలు మరియు ఫారమ్ ఫీల్డ్‌లను ఈ కోణంలో తిప్పలేము. ఈ పేజీలను తిప్పడానికి, ముందుగా పత్రంలోని అన్ని వ్యాఖ్యలు మరియు ఫారమ్ ఫీల్డ్‌లు ఫ్లాటెన్ చేయబడతాయి.
 	Rotate by angle…	కోణంతో తిప్పు…
+	Invert colours	రంగులను తిరగమార్చు
+	Remove inverted colours	తిరగమార్చిన రంగులను తీసివేయి
+	inverted colours	తిరగమార్చిన రంగులు
+	Comments and form fields keep their colours.	వ్యాఖ్యలు మరియు ఫారమ్ ఫీల్డ్‌లు వాటి రంగులను నిలుపుకుంటాయి.

@@ -2512,6 +2512,18 @@ evidence = ["crates/edit/src/tests.rs::replace_and_remove_restore_the_original_c
 notes = ""
 
 [[feature]]
+id = "edit.invert-colours"
+title = "Invert colours (a dark version for night reading), removable later"
+area = "C"
+tier = "P3"
+milestone = "M5"
+status = "shipped"
+commands = ["edit.invert", "edit.invert.remove"]
+tools = ["doc_invert", "doc_remove_marks"]
+evidence = ["crates/edit/src/tests.rs::invert_colors_is_a_mark_that_adds_and_removes_its_own_group", "crates/edit/src/tests.rs::removing_inverted_colours_keeps_a_group_the_page_already_had", "crates/engine/src/tests.rs::invert_colours_turns_black_text_white_and_red_cyan_on_rgb_and_cmyk_pages", "crates/automation/tests/automation.rs::invert_colours_through_tools_and_remove_it_as_a_mark", "crates/ui-egui/tests/ui_group/marks.rs::invert_colours_dialog_applies_to_a_page_range_and_is_removable"]
+notes = "Compress ▸ Clean up ▸ Invert colours (marks dialog with a page range). Vector and reversible: a full-page white rectangle on top of the page content with an ExtGState /BM /Difference (black text turns white, red cyan, white paper black; text stays text), plus white paper drawn behind the content so the blend has an opaque backdrop in viewers that treat the page group as isolated. A page without /Group gets << /S /Transparency /CS /DeviceRGB /I false /K false >> so the blend is RGB on CMYK pages; the mark stream records /PCAddedGroup so Remove takes away only a group it added. Stored as a MarkKind::ColorFilter page mark (tagged /PCMark /ColorFilter artifact streams), so Remove inverted colours (and doc_remove_marks kind \"invert\") restores the original content; inverting again replaces the inversion instead of stacking. Not inverted: annotations (comments, form fields, links are drawn after the page content) and marks added later on top (e.g. a header added after inverting). A page that already has a /Group keeps it unchanged (never replaced), so on a page whose own group blends in CMYK the difference is computed in CMYK; that case is untested. Verified by rendering RGB and DeviceCMYK pages."
+
+[[feature]]
 id = "edit.decoration-profiles"
 title = "Saved header/footer and watermark settings"
 area = "C"

@@ -2425,3 +2425,7 @@ animation effects	Off	关
 	Flatten comments and rotate	拼合注释并旋转
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	注释和表单域无法按此角度旋转。要旋转这些页面，将先拼合文档中的所有注释和表单域。
 	Rotate by angle…	按角度旋转…
+	Invert colours	反转颜色
+	Remove inverted colours	移除颜色反转
+	inverted colours	颜色反转
+	Comments and form fields keep their colours.	注释和表单域保持原有颜色。

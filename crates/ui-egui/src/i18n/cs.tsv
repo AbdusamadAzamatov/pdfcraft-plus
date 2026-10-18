@@ -2535,3 +2535,7 @@ animation effects	Off	Vypnuto
 	Flatten comments and rotate	Sloučit komentáře a otočit
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Komentáře a pole formulářů nelze otočit o tento úhel. Aby se tyto stránky otočily, nejprve se všechny komentáře a pole formulářů v dokumentu sloučí se stránkou.
 	Rotate by angle…	Otočit o úhel…
+	Invert colours	Invertovat barvy
+	Remove inverted colours	Odebrat invertované barvy
+	inverted colours	invertované barvy
+	Comments and form fields keep their colours.	Komentáře a pole formulářů si ponechají své barvy.

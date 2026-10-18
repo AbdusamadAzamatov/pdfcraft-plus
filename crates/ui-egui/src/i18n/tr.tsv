@@ -2457,3 +2457,7 @@ animation effects	Off	Kapalı
 	Flatten comments and rotate	Yorumları düzleştir ve döndür
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Yorumlar ve form alanları bu açıyla döndürülemez. Bu sayfaları döndürmek için önce belgedeki tüm yorumlar ve form alanları düzleştirilir.
 	Rotate by angle…	Açıyla döndür…
+	Invert colours	Renkleri ters çevir
+	Remove inverted colours	Ters çevrilmiş renkleri kaldır
+	inverted colours	ters çevrilmiş renkler
+	Comments and form fields keep their colours.	Yorumlar ve form alanları renklerini korur.

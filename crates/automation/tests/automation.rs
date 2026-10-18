@@ -6883,3 +6883,33 @@ fn page_rotate_angle_turns_content_and_refuses_comments_without_flatten() {
     assert!(a.call("page_render", &json!({ "doc": doc, "page": 3, "dpi": 36 })).is_ok(), "the turned page renders");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn invert_colours_through_tools_and_remove_it_as_a_mark() {
+    let dir = workdir("invert");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    let pixels = |a: &mut Automation, page: usize| -> Vec<[u8; 4]> {
+        let (_, _, rgba) = a.render_pixels(doc, page, 1.0).unwrap();
+        rgba.as_ref().as_chunks::<4>().0.to_vec()
+    };
+    let before = pixels(&mut a, 2);
+    let dark = before.iter().position(|p| p[..3].iter().all(|c| *c < 60)).expect("the page text is drawn");
+    let paper = before.iter().position(|p| p[..3] == [255, 255, 255]).expect("the page has bare paper");
+    let untouched = pixels(&mut a, 1);
+    ok(&mut a, "doc_invert", json!({ "doc": doc, "pages": [2] }));
+    let after = pixels(&mut a, 2);
+    assert!(after[dark][..3].iter().all(|c| *c > 195), "dark text turns light: {:?}", after[dark]);
+    assert!(after[paper][..3].iter().all(|c| *c < 8), "white paper turns black: {:?}", after[paper]);
+    assert_eq!(pixels(&mut a, 1), untouched, "only the chosen pages are inverted");
+    assert!(page_text(&mut a, doc)[1].contains("Page 2"), "text stays text");
+    ok(&mut a, "doc_save", json!({ "doc": doc, "path": "night.pdf" }));
+    // The saved file is still inverted and can be put back with doc_remove_marks.
+    let copy = ok(&mut a, "doc_open", json!({ "path": "night.pdf" }))["doc"].as_u64().unwrap();
+    assert!(matches!(a.call("doc_remove_marks", &json!({ "doc": copy, "kind": "watermark" })), Err(ToolError::Failed(_))), "not a watermark");
+    ok(&mut a, "doc_remove_marks", json!({ "doc": copy, "kind": "invert" }));
+    let (_, _, restored) = a.render_pixels(copy, 2, 1.0).unwrap();
+    assert_eq!(restored.as_ref().as_chunks::<4>().0.to_vec(), before, "removing the inversion restores the page");
+    assert!(matches!(a.call("doc_remove_marks", &json!({ "doc": copy, "kind": "invert" })), Err(ToolError::Failed(_))), "nothing left to remove");
+    assert!(matches!(a.call("doc_invert", &json!({ "doc": doc, "pages": [9] })), Err(ToolError::InvalidArgs(_))), "a page past the end");
+}

@@ -130,3 +130,44 @@ fn page_range_from_one_to_one_selects_only_the_first_page() {
     assert_eq!(corner(&mut r, 0), vec![255, 255, 217, 255], "page 1 has the background");
     assert_eq!(corner(&mut r, 1), vec![255, 255, 255, 255], "page 2 does not");
 }
+
+/// Compress ▸ Clean up ▸ Invert colours: the marks dialog with a page range; the inversion is
+/// then a mark that Remove inverted colours takes away.
+#[test]
+fn invert_colours_dialog_applies_to_a_page_range_and_is_removable() {
+    let mut h = harness();
+    assert!(!h.state_mut().execute("edit.invert.remove"), "nothing to remove yet");
+    assert!(h.state_mut().execute("edit.invert"));
+    h.run_steps(2);
+    assert_eq!(h.state().dialog, Some(Dialog::Marks(MarkKind::ColorFilter)));
+    h.get_by_label("Invert colours");
+    h.get_by_label("Comments and form fields keep their colours.");
+    h.get_by_label("Pages from").click();
+    h.run_steps(2);
+    h.state_mut().marks_draft.range.from = 2;
+    h.run_steps(3);
+    h.get_by_label("Applies to 2 pages");
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, None);
+    assert_eq!(marks(&h), [MarkKind::ColorFilter]);
+    let corner = |h: &Harness<'static, PdfCraftApp>, page: usize| {
+        let s = h.state();
+        let doc = s.session.get(s.views[0].id).unwrap();
+        let mut r = pdfcraft_render::PageRenderer::new(doc.bytes.clone(), pdfcraft_render::RenderConfig::default());
+        let p = r.render(pdfcraft_render::RenderRequest { page, scale: 1.0, ..Default::default() });
+        assert!(p.error.is_none(), "{:?}", p.error);
+        p.rgba[..4].to_vec()
+    };
+    assert_eq!(corner(&h, 0), vec![255, 255, 255, 255], "page 1 is outside the range");
+    assert_eq!(corner(&h, 1), vec![0, 0, 0, 255], "page 2's white paper turns black");
+    assert_eq!(corner(&h, 2), vec![0, 0, 0, 255], "and page 3's");
+    {
+        let s = h.state();
+        assert_eq!(s.session.get(s.views[0].id).unwrap().can_undo(), Some("Invert colours"));
+    }
+    assert!(h.state_mut().execute("edit.invert.remove"));
+    h.run_steps(2);
+    assert!(marks(&h).is_empty());
+    assert_eq!(corner(&h, 1), vec![255, 255, 255, 255], "removed");
+}

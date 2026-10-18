@@ -6148,3 +6148,84 @@ fn dividing_pages_is_one_undo_step_and_needs_assembly() {
     let locked = s.open("r.pdf", None, bytes, None).unwrap();
     assert_eq!(s.apply(locked, Edit::DividePages { pages: vec![0], cols: 2, rows: 1, rtl: false }), Err(EditError::NotPermitted("page changes")));
 }
+
+/// Two 200×300 pages, each with black text "IIII" (Helvetica 60 pt at 20,200) and a red square
+/// (20–80, 20–80): page 1 painted in DeviceRGB, page 2 in DeviceCMYK.
+fn invert_fixture() -> Vec<u8> {
+    let rgb = "BT /F1 60 Tf 0 0 0 rg 20 200 Td (IIII) Tj ET 1 0 0 rg 20 20 60 60 re f";
+    let cmyk = "BT /F1 60 Tf 0 0 0 1 k 20 200 Td (IIII) Tj ET 0 1 1 0 k 20 20 60 60 re f";
+    let objs: Vec<String> = vec![
+        "<< /Type /Catalog /Pages 2 0 R >>".into(),
+        "<< /Type /Pages /Kids [4 0 R 6 0 R] /Count 2 /MediaBox [0 0 200 300] >>".into(),
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into(),
+        "<< /Type /Page /Parent 2 0 R /Contents 5 0 R /Resources << /Font << /F1 3 0 R >> >> >>".into(),
+        format!("<< /Length {} >>\nstream\n{rgb}\nendstream", rgb.len()),
+        "<< /Type /Page /Parent 2 0 R /Contents 7 0 R /Resources << /Font << /F1 3 0 R >> >> >>".into(),
+        format!("<< /Length {} >>\nstream\n{cmyk}\nendstream", cmyk.len()),
+    ];
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{o}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    out
+}
+
+#[test]
+fn invert_colours_turns_black_text_white_and_red_cyan_on_rgb_and_cmyk_pages() {
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let id = s.open("invert.pdf", None, Arc::new(invert_fixture()), None).unwrap();
+    let near = |got: [u8; 4], want: [u8; 3], what: &str| {
+        assert!(got[..3].iter().zip(want).all(|(g, w)| g.abs_diff(w) <= 8), "{what}: got {got:?}, want {want:?}");
+    };
+    let inverse = |c: [u8; 4]| [255 - c[0], 255 - c[1], 255 - c[2]];
+    // A point inside the first "I" stroke, the red square, and bare paper.
+    let points = [(26, 220), (50, 50), (150, 120)];
+    let [text, red, paper] = points;
+    near(pixel(&s, id, 0, text.0, text.1), [0, 0, 0], "RGB text before");
+    near(pixel(&s, id, 0, red.0, red.1), [255, 0, 0], "RGB red before");
+    // The CMYK page goes through the output profile: dark, reddish and white, not pure.
+    let before: Vec<Vec<[u8; 4]>> = (0..2).map(|page| points.iter().map(|p| pixel(&s, id, page, p.0, p.1)).collect()).collect();
+    assert!(before[1][0][..3].iter().all(|c| *c < 60) && before[1][1][0] > 200 && before[1][1][1] < 60, "CMYK before: {:?}", before[1]);
+    for page in 0..2 {
+        near(pixel(&s, id, page, paper.0, paper.1), [255, 255, 255], "paper before");
+    }
+    // A comment on page 1 keeps its colours: annotations are drawn after the page content.
+    s.apply(id, rect_comment(0, [120.0, 20.0, 180.0, 80.0])).unwrap();
+    s.apply(id, Edit::InvertColors { pages: vec![0, 1] }).unwrap();
+    let d = s.get(id).unwrap();
+    assert_eq!(d.can_undo(), Some("Invert colours"));
+    assert_eq!(d.marks(), [MarkKind::ColorFilter]);
+    assert_eq!(page_texts(&s, id), ["IIII", "IIII"], "text stays text");
+    near(pixel(&s, id, 0, text.0, text.1), [255, 255, 255], "black text turns white");
+    near(pixel(&s, id, 0, red.0, red.1), [0, 255, 255], "red turns cyan");
+    for (page, colours) in before.iter().enumerate() {
+        for (p, colour) in points.iter().zip(colours) {
+            near(pixel(&s, id, page, p.0, p.1), inverse(*colour), &format!("page {page}, point {p:?} is inverted"));
+        }
+        near(pixel(&s, id, page, paper.0, paper.1), [0, 0, 0], "white paper turns black");
+    }
+    near(pixel(&s, id, 0, 150, 50), [255, 0, 0], "the comment is not inverted");
+    // Undo, redo and remove all bring the colours back.
+    s.undo(id).unwrap();
+    near(pixel(&s, id, 1, red.0, red.1), before[1][1][..3].try_into().unwrap(), "undone");
+    s.redo(id).unwrap();
+    near(pixel(&s, id, 1, red.0, red.1), inverse(before[1][1]), "redone");
+    s.apply(id, Edit::RemoveMarks { kind: MarkKind::ColorFilter }).unwrap();
+    assert_eq!(s.get(id).unwrap().can_undo(), Some("Remove inverted colours"));
+    assert!(s.get(id).unwrap().marks().is_empty());
+    for (page, colours) in before.iter().enumerate() {
+        for (p, colour) in points.iter().zip(colours) {
+            near(pixel(&s, id, page, p.0, p.1), colour[..3].try_into().unwrap(), "back after removal");
+        }
+    }
+    assert!(s.apply(id, Edit::InvertColors { pages: vec![] }).is_err(), "no pages is refused");
+    assert!(s.apply(id, Edit::InvertColors { pages: vec![5] }).is_err(), "a missing page is refused");
+}

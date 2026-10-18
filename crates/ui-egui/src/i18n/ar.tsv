@@ -2738,3 +2738,7 @@ certificate	Version	الإصدار
 	Flatten comments and rotate	تسطيح التعليقات والتدوير
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	لا يمكن تدوير التعليقات وحقول النماذج بهذه الزاوية. لتدوير هذه الصفحات، تُسطَّح أولًا كل التعليقات وحقول النماذج في المستند.
 	Rotate by angle…	تدوير بزاوية…
+	Invert colours	عكس الألوان
+	Remove inverted colours	إزالة عكس الألوان
+	inverted colours	ألوان معكوسة
+	Comments and form fields keep their colours.	تحتفظ التعليقات وحقول النماذج بألوانها.

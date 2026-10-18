@@ -2483,3 +2483,7 @@ animation effects	Off	Вимкнено
 	Flatten comments and rotate	Звести коментарі й повернути
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Коментарі й поля форм не можна повернути на цей кут. Щоб повернути ці сторінки, спершу всі коментарі й поля форм документа буде зведено.
 	Rotate by angle…	Повернути на кут…
+	Invert colours	Інвертувати кольори
+	Remove inverted colours	Вилучити інверсію кольорів
+	inverted colours	інверсії кольорів
+	Comments and form fields keep their colours.	Коментарі та поля форм зберігають свої кольори.

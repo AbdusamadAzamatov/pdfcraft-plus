@@ -2460,3 +2460,7 @@ animation effects	Off	Ki
 	Flatten comments and rotate	Megjegyzések beégetése és forgatás
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	A megjegyzések és űrlapmezők nem forgathatók el ilyen szöggel. Az oldalak forgatásához előbb a dokumentum összes megjegyzése és űrlapmezője beégetésre kerül.
 	Rotate by angle…	Forgatás adott szöggel…
+	Invert colours	Színek invertálása
+	Remove inverted colours	Színinvertálás eltávolítása
+	inverted colours	invertált színek
+	Comments and form fields keep their colours.	A megjegyzések és az űrlapmezők megtartják a színüket.

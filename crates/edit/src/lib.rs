@@ -1,5 +1,5 @@
 //! pdfcraft-edit — page content editing (L4). Today: page marks, Acrobat's Header & footer,
-//! Watermark, Background and Bates numbering (execution plan M7.6).
+//! Watermark, Background and Bates numbering (execution plan M7.6), and inverted colours.
 //!
 //! **How marks are stored.** Each mark is one content stream appended to (or, for content behind
 //! the page, prepended to) the page's `/Contents`, drawn in display space (after `/Rotate`) and
@@ -34,6 +34,8 @@ pub enum MarkKind {
     HeaderFooter,
     Watermark,
     Background,
+    /// Inverted colours ([`invert_colors`]): a white overlay blended with `/Difference`.
+    ColorFilter,
 }
 
 impl MarkKind {
@@ -42,6 +44,7 @@ impl MarkKind {
             MarkKind::HeaderFooter => "HeaderFooter",
             MarkKind::Watermark => "Watermark",
             MarkKind::Background => "Background",
+            MarkKind::ColorFilter => "ColorFilter",
         }
     }
 }
@@ -486,6 +489,12 @@ fn place(doc: &mut Document, page: &pdfcraft_model::Page, kind: MarkKind, conten
 /// content appended after an earlier PdfCraft wrapper by another tool (#3084): the stretch of
 /// content that leaves state set is wrapped in q/Q, once.
 fn place_tagged(doc: &mut Document, page: &pdfcraft_model::Page, tag: &str, content: Vec<u8>, behind: bool) -> Result<(), EditError> {
+    place_with(doc, page, tagged(tag), content, behind)
+}
+
+/// [`place_tagged`] with the mark stream's whole dictionary (`dict` carries the `/PCMark` tag
+/// and any private data the mark records about itself).
+fn place_with(doc: &mut Document, page: &pdfcraft_model::Page, dict: Dict, content: Vec<u8>, behind: bool) -> Result<(), EditError> {
     let mut list = contents(doc, page)?;
     let wrap = if behind {
         None
@@ -502,7 +511,7 @@ fn place_tagged(doc: &mut Document, page: &pdfcraft_model::Page, tag: &str, cont
             }
         }
     };
-    let mark = Object::Ref(doc.add(Object::Stream(Stream::flate(tagged(tag), &content))));
+    let mark = Object::Ref(doc.add(Object::Stream(Stream::flate(dict, &content))));
     if behind {
         list.insert(0, mark);
     } else {
@@ -754,9 +763,94 @@ pub fn add_background(doc: &mut Document, pages: &[usize], bg: &Background, repl
     Ok(())
 }
 
+/// The ExtGState name inverted pages use: `/BM /Difference`, fully opaque.
+const INVERT_GS: &str = "PCInvert";
+/// The mark stream entry recording that [`invert_colors`] gave the page its `/Group`.
+const ADDED_GROUP: &[u8] = b"PCAddedGroup";
+
+/// The transparency group [`invert_colors`] gives a page that has none, so the difference
+/// blend happens in RGB on CMYK pages too.
+fn invert_group() -> Dict {
+    let mut g = Dict::new();
+    g.set(b"S".to_vec(), Object::name("Transparency"));
+    g.set(b"CS".to_vec(), Object::name("DeviceRGB"));
+    g.set(b"I".to_vec(), Object::Bool(false));
+    g.set(b"K".to_vec(), Object::Bool(false));
+    g
+}
+
+/// Whether `group` is still exactly the group [`invert_group`] makes.
+fn is_invert_group(doc: &Document, group: &Object) -> bool {
+    let resolved = doc.resolve(group);
+    let Some(d) = resolved.as_dict() else { return false };
+    d.len() == 4
+        && d.name(b"S") == Some(&b"Transparency"[..])
+        && d.name(b"CS") == Some(&b"DeviceRGB"[..])
+        && matches!(d.get(b"I"), Some(Object::Bool(false)))
+        && matches!(d.get(b"K"), Some(Object::Bool(false)))
+}
+
+/// Invert the colours of `pages` (0-based) for reading at night: a full-page white rectangle
+/// drawn on top of the page content with `/BM /Difference` turns every colour beneath into its
+/// complement (black text turns white, red turns cyan), and text stays text. White paper is
+/// drawn behind the content first, so the blend has an opaque backdrop in every viewer. A page
+/// without a `/Group` gets an RGB transparency group (recorded in the mark, so
+/// [`remove_marks`] takes away only a group it added). The result is a
+/// [`MarkKind::ColorFilter`] mark: inverting again replaces it, and removing it restores the
+/// page. Annotations are drawn after the page content, so they keep their colours.
+pub fn invert_colors(doc: &mut Document, pages: &[usize]) -> Result<(), EditError> {
+    let all = page_list(doc);
+    check(pages, all.len())?;
+    // A second overlay would invert the page back: replace the first instead, and invert a
+    // page listed twice once.
+    let mut pages = pages.to_vec();
+    pages.sort_unstable();
+    pages.dedup();
+    remove_marks(doc, &pages, MarkKind::ColorFilter)?;
+    for &i in &pages {
+        let page = page_list(doc).get(i).cloned().ok_or(EditError::NoSuchPage(i))?;
+        let (w, h) = page.display_size(doc);
+        let matrix = page.view_matrix(doc);
+        // The opaque difference state, in the page's own (possibly copied) resources.
+        let mut res = page.dict.get(b"Resources").map(|r| doc.resolve(r)).and_then(|r| r.as_dict().cloned()).unwrap_or_default();
+        let mut gs = res.get(b"ExtGState").map(|g| doc.resolve(g)).and_then(|g| g.as_dict().cloned()).unwrap_or_default();
+        let mut state = Dict::new();
+        state.set(b"Type".to_vec(), Object::name("ExtGState"));
+        state.set(b"BM".to_vec(), Object::name("Difference"));
+        state.set(b"CA".to_vec(), Object::Real(1.0));
+        state.set(b"ca".to_vec(), Object::Real(1.0));
+        gs.set(INVERT_GS.as_bytes().to_vec(), Object::Dict(state));
+        res.set(b"ExtGState".to_vec(), Object::Dict(gs));
+        let add_group = !page.dict.contains(b"Group");
+        doc.update_dict(page.obj, |d| {
+            d.set(b"Resources".to_vec(), Object::Dict(res));
+            if add_group {
+                d.set(b"Group".to_vec(), Object::Dict(invert_group()));
+            }
+        })?;
+        let rect = format!("1 1 1 rg\n0 0 {} {} re f\n", n(w), n(h));
+        let mut paper = begin(MarkKind::ColorFilter, "Background", matrix);
+        paper.push_str(&rect);
+        paper.push_str(END);
+        let page = page_list(doc).get(i).cloned().ok_or(EditError::NoSuchPage(i))?;
+        place(doc, &page, MarkKind::ColorFilter, paper.into_bytes(), true)?;
+        let mut overlay = begin(MarkKind::ColorFilter, "Watermark", matrix);
+        overlay.push_str(&format!("/{INVERT_GS} gs\n{rect}"));
+        overlay.push_str(END);
+        let mut dict = tagged(MarkKind::ColorFilter.tag());
+        if add_group {
+            dict.set(ADDED_GROUP.to_vec(), Object::Bool(true));
+        }
+        let page = page_list(doc).get(i).cloned().ok_or(EditError::NoSuchPage(i))?;
+        place_with(doc, &page, dict, overlay.into_bytes(), false)?;
+    }
+    Ok(())
+}
+
 /// Remove marks of `kind` from `pages`; returns how many were removed. Wrappers left with
 /// nothing after them go too, restoring the original content list; a wrapper that content
-/// after it still relies on (another tool's appended stream) stays.
+/// after it still relies on (another tool's appended stream) stays. Removing inverted colours
+/// also removes the page `/Group` that [`invert_colors`] added (never one the file had).
 pub fn remove_marks(doc: &mut Document, pages: &[usize], kind: MarkKind) -> Result<usize, EditError> {
     let all = page_list(doc);
     check(pages, all.len())?;
@@ -765,6 +859,16 @@ pub fn remove_marks(doc: &mut Document, pages: &[usize], kind: MarkKind) -> Resu
         let page = &all[i];
         let list = contents(doc, page)?;
         let before = list.len();
+        let added_group = kind == MarkKind::ColorFilter
+            && list.iter().any(|o| {
+                stream_tag(doc, o).as_deref() == Some(kind.tag())
+                    && doc.resolve(o).as_dict().is_some_and(|d| matches!(d.get(ADDED_GROUP), Some(Object::Bool(true))))
+            });
+        if added_group && page.dict.get(b"Group").is_some_and(|g| is_invert_group(doc, g)) {
+            doc.update_dict(page.obj, |d| {
+                d.remove(b"Group");
+            })?;
+        }
         let mut kept: Vec<Object> = list.into_iter().filter(|o| stream_tag(doc, o).as_deref() != Some(kind.tag())).collect();
         removed += before - kept.len();
         // Strip only wrapper pairs whose close ends the list (after stripping the pairs after

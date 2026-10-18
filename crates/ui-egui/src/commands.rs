@@ -127,6 +127,7 @@ impl PdfCraftApp {
                         pdfcraft_engine::MarkKind::HeaderFooter => tl!("header or footer"),
                         pdfcraft_engine::MarkKind::Watermark => tl!("watermark"),
                         pdfcraft_engine::MarkKind::Background => tl!("background"),
+                        pdfcraft_engine::MarkKind::ColorFilter => tl!("inverted colours"),
                     };
                     crate::i18n::fmt(tl!("This document has no {kind} to change"), &[("kind", kind)])
                 }
@@ -387,11 +388,17 @@ impl PdfCraftApp {
                 self.marks_draft.focused_box = 5;
                 self.dialog = Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter));
             }
-            "edit.header_footer.remove" | "edit.watermark.remove" | "edit.background.remove" => {
+            // Inverting again replaces an inversion, so there is no separate Update.
+            "edit.invert" => {
+                self.marks_draft.replace = false;
+                self.dialog = Some(Dialog::Marks(pdfcraft_engine::MarkKind::ColorFilter));
+            }
+            "edit.header_footer.remove" | "edit.watermark.remove" | "edit.background.remove" | "edit.invert.remove" => {
                 use pdfcraft_engine::MarkKind as K;
                 let kind = match id {
                     "edit.header_footer.remove" => K::HeaderFooter,
                     "edit.watermark.remove" => K::Watermark,
+                    "edit.invert.remove" => K::ColorFilter,
                     _ => K::Background,
                 };
                 self.apply_edit(Edit::RemoveMarks { kind });

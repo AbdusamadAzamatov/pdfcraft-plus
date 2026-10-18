@@ -341,7 +341,13 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Audit space usage", "gauge", "optimize.audit", Planned("M11")),
                 ],
             },
-            ToolSection { title: "Clean up", items: &[item("Remove hidden information", "eye-off", "protect.remove_hidden", Ready)] },
+            ToolSection {
+                title: "Clean up",
+                items: &[
+                    item("Remove hidden information", "eye-off", "protect.remove_hidden", Ready),
+                    menu_item("Invert colours", "moon", &["edit.invert", "edit.invert.remove"]),
+                ],
+            },
         ],
     },
     ToolGroup {

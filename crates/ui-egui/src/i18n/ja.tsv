@@ -2461,3 +2461,7 @@ animation effects	Off	オフ
 	Flatten comments and rotate	コメントを統合して回転
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	コメントとフォームフィールドはこの角度では回転できません。これらのページを回転するには、まず文書内のすべてのコメントとフォームフィールドを統合します。
 	Rotate by angle…	角度を指定して回転…
+	Invert colours	色を反転
+	Remove inverted colours	色の反転を解除
+	inverted colours	色の反転
+	Comments and form fields keep their colours.	コメントとフォームフィールドの色は変わりません。

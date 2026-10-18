@@ -2424,3 +2424,7 @@ animation effects	Off	Изключени
 	Flatten comments and rotate	Сплескай коментарите и завърти
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Коментарите и полетата на формуляри не могат да се завъртят под този ъгъл. За да се завъртят тези страници, първо се сплескват всички коментари и полета в документа.
 	Rotate by angle…	Завъртане под ъгъл…
+	Invert colours	Обръщане на цветовете
+	Remove inverted colours	Премахване на обърнатите цветове
+	inverted colours	обърнати цветове
+	Comments and form fields keep their colours.	Коментарите и полетата на формуляри запазват цветовете си.

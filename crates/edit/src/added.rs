@@ -949,6 +949,8 @@ pub fn scan_markers(doc: &Document) -> MarkerScan {
                     Some(MarkKind::Watermark)
                 } else if tag == Some(&b"Background"[..]) {
                     Some(MarkKind::Background)
+                } else if tag == Some(&b"ColorFilter"[..]) {
+                    Some(MarkKind::ColorFilter)
                 } else {
                     None
                 };

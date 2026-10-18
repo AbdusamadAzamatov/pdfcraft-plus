@@ -2459,3 +2459,7 @@ animation effects	Off	Өшірулі
 	Flatten comments and rotate	Түсініктемелерді жазықтап, бұру
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Түсініктемелер мен пішін өрістерін бұл бұрышқа бұруға болмайды. Бұл беттерді бұру үшін алдымен құжаттағы барлық түсініктемелер мен пішін өрістері жазықталады.
 	Rotate by angle…	Бұрыш бойынша бұру…
+	Invert colours	Түстерді инверсиялау
+	Remove inverted colours	Түс инверсиясын жою
+	inverted colours	түс инверсиясы
+	Comments and form fields keep their colours.	Пікірлер мен пішін өрістері өз түстерін сақтайды.

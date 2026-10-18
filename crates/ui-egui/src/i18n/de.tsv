@@ -2462,3 +2462,7 @@ animation effects	Off	Aus
 	Flatten comments and rotate	Kommentare reduzieren und drehen
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Kommentare und Formularfelder lassen sich nicht um diesen Winkel drehen. Um diese Seiten zu drehen, werden zuerst alle Kommentare und Formularfelder des Dokuments reduziert.
 	Rotate by angle…	Um Winkel drehen…
+	Invert colours	Farben umkehren
+	Remove inverted colours	Farbumkehr entfernen
+	inverted colours	Farbumkehr
+	Comments and form fields keep their colours.	Kommentare und Formularfelder behalten ihre Farben.

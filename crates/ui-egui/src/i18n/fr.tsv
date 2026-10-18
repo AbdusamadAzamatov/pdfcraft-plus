@@ -2461,3 +2461,7 @@ animation effects	Off	Désactivés
 	Flatten comments and rotate	Aplatir les commentaires et pivoter
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Les commentaires et champs de formulaire ne peuvent pas pivoter de cet angle. Pour pivoter ces pages, tous les commentaires et champs de formulaire du document sont d’abord aplatis.
 	Rotate by angle…	Pivoter selon un angle…
+	Invert colours	Inverser les couleurs
+	Remove inverted colours	Supprimer l’inversion des couleurs
+	inverted colours	couleurs inversées
+	Comments and form fields keep their colours.	Les commentaires et les champs de formulaire gardent leurs couleurs.

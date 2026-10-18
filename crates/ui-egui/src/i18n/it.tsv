@@ -2673,3 +2673,7 @@ certificate	SHA-256 digest	Impronta SHA-256
 	Flatten comments and rotate	Appiattisci commenti e ruota
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Commenti e campi modulo non possono ruotare di questo angolo. Per ruotare queste pagine, tutti i commenti e i campi modulo del documento vengono prima appiattiti.
 	Rotate by angle…	Ruota di un angolo…
+	Invert colours	Inverti colori
+	Remove inverted colours	Rimuovi inversione colori
+	inverted colours	colori invertiti
+	Comments and form fields keep their colours.	Commenti e campi modulo mantengono i loro colori.

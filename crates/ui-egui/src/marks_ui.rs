@@ -1,6 +1,7 @@
 //! Add Header and Footer, Add Watermark and Add Background dialogs (Acrobat: Edit a PDF ▸ …;
 //! dialog snapshots d13, d14, d12d). Each has the shared Page Range Options and a schematic
-//! preview of the current page. "Update" opens the same dialog in replace mode.
+//! preview of the current page. "Update" opens the same dialog in replace mode. Invert colours
+//! uses the same dialog for its page range (it has no other options).
 
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Stroke, pos2, vec2};
 use pdfcraft_engine::{Background, Edit, HeaderFooter, MarkKind, Watermark};
@@ -154,6 +155,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
         MarkKind::HeaderFooter => crate::i18n::fmt(tl!("{verb} Header and Footer"), &[("verb", verb)]),
         MarkKind::Watermark => crate::i18n::fmt(tl!("{verb} Watermark"), &[("verb", verb)]),
         MarkKind::Background => crate::i18n::fmt(tl!("{verb} Background"), &[("verb", verb)]),
+        MarkKind::ColorFilter => tl!("Invert colours").to_string(),
     };
     ui.label(egui::RichText::new(title).font(theme::semibold(18.0)));
     ui.add_space(8.0);
@@ -299,6 +301,9 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                 }
             });
         }
+        MarkKind::ColorFilter => {
+            ui.label(tl!("Comments and form fields keep their colours."));
+        }
     }
     ui.add_space(8.0);
     ui.label(egui::RichText::new(tl!("Page Range Options")).font(theme::semibold(12.5)));
@@ -364,6 +369,13 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
             MarkKind::Background => {
                 p.rect_filled(r, CornerRadius::ZERO, rgb32(bg.color).gamma_multiply(bg.opacity as f32));
             }
+            MarkKind::ColorFilter => {
+                p.rect_filled(r, CornerRadius::ZERO, Color32::BLACK);
+                for k in 1..=6 {
+                    let y = r.top() + r.height() * k as f32 / 8.0;
+                    p.line_segment([pos2(r.left() + r.width() * 0.12, y), pos2(r.right() - r.width() * 0.12, y)], Stroke::new(2.0, Color32::WHITE));
+                }
+            }
         });
         ui.vertical(|ui| {
             ui.label(
@@ -404,6 +416,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, kind: M
                     }
                 }
                 MarkKind::Background => !d.use_file || d.file.is_some(),
+                MarkKind::ColorFilter => true,
             }
             && !d.range.pages(count).is_empty();
         if ui.add_enabled_ui(ready, |ui| widgets::pill_button(ui, tl!("OK"), true)).inner.clicked() {
@@ -439,7 +452,7 @@ fn undrawable(kind: MarkKind, d: &MarksDraft) -> Option<char> {
     match kind {
         MarkKind::HeaderFooter => d.hf.first_undrawable(),
         MarkKind::Watermark if !d.use_file => d.wm.first_undrawable(),
-        MarkKind::Watermark | MarkKind::Background => None,
+        MarkKind::Watermark | MarkKind::Background | MarkKind::ColorFilter => None,
     }
 }
 
@@ -489,6 +502,7 @@ pub fn edit(d: &MarksDraft, kind: MarkKind, count: usize) -> Edit {
             Edit::AddWatermark { pages, settings: wm, replace: d.replace, file: mark_file(d) }
         }
         MarkKind::Background => Edit::AddBackground { pages, settings: d.bg.clone(), replace: d.replace, file: mark_file(d) },
+        MarkKind::ColorFilter => Edit::InvertColors { pages },
     }
 }
 

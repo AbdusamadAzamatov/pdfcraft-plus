@@ -2437,3 +2437,7 @@ animation effects	Off	Wyłączone
 	Flatten comments and rotate	Spłaszcz komentarze i obróć
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Komentarzy i pól formularza nie można obrócić o ten kąt. Aby obrócić te strony, najpierw zostaną spłaszczone wszystkie komentarze i pola formularza w dokumencie.
 	Rotate by angle…	Obróć o kąt…
+	Invert colours	Odwróć kolory
+	Remove inverted colours	Usuń odwrócenie kolorów
+	inverted colours	odwrócone kolory
+	Comments and form fields keep their colours.	Komentarze i pola formularzy zachowują swoje kolory.

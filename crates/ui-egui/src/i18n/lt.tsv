@@ -2712,3 +2712,7 @@ theme	Appearance	Išvaizda
 	Flatten comments and rotate	Suplokštinti komentarus ir pasukti
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Komentarų ir formos laukų negalima pasukti šiuo kampu. Kad šie puslapiai būtų pasukti, pirmiausia suplokštinami visi dokumento komentarai ir formos laukai.
 	Rotate by angle…	Pasukti kampu…
+	Invert colours	Invertuoti spalvas
+	Remove inverted colours	Pašalinti spalvų invertavimą
+	inverted colours	invertuotų spalvų
+	Comments and form fields keep their colours.	Komentarai ir formos laukai išlaiko savo spalvas.

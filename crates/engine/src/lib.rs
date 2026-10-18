@@ -286,6 +286,7 @@ fn scope_of(edit: &Edit) -> Scope {
         | Edit::AddHeaderFooter { .. }
         | Edit::AddWatermark { .. }
         | Edit::AddBackground { .. }
+        | Edit::InvertColors { .. }
         | Edit::RemoveMarks { .. } => Scope::Content,
         Edit::Batch { edits, .. } => {
             let mut scopes = edits.iter().map(scope_of);
@@ -1654,6 +1655,11 @@ pub enum Edit {
         replace: bool,
         file: Option<MarkFile>,
     },
+    /// Invert the colours of `pages` (0-based) for reading at night: a removable
+    /// [`MarkKind::ColorFilter`] mark (see [`pdfcraft_edit::invert_colors`]).
+    InvertColors {
+        pages: Vec<usize>,
+    },
     /// Remove every mark of a kind from every page.
     RemoveMarks {
         kind: MarkKind,
@@ -2069,6 +2075,8 @@ impl Edit {
             Edit::RemoveMarks { kind: MarkKind::HeaderFooter } => Label::of("Remove header & footer"),
             Edit::RemoveMarks { kind: MarkKind::Watermark } => Label::of("Remove watermark"),
             Edit::RemoveMarks { kind: MarkKind::Background } => Label::of("Remove background"),
+            Edit::InvertColors { .. } => Label::of("Invert colours"),
+            Edit::RemoveMarks { kind: MarkKind::ColorFilter } => Label::of("Remove inverted colours"),
             Edit::AddText { .. } => Label::of("Add text"),
             Edit::AddImage { .. } => Label::of("Add image"),
             Edit::UpdateContent { .. } => Label::of("Edit content"),
@@ -2218,6 +2226,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::AddHeaderFooter { .. }
         | Edit::AddWatermark { .. }
         | Edit::AddBackground { .. }
+        | Edit::InvertColors { .. }
         | Edit::RemoveMarks { .. }
         | Edit::AddField { .. }
         | Edit::ApplyRedactions { .. }
@@ -2626,6 +2635,12 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
                 s.source = Some(mark_source(doc, f)?);
             }
             pdfcraft_edit::add_background(doc, pages, &s, *replace)?
+        }
+        Edit::InvertColors { pages } => {
+            if pages.is_empty() {
+                return Err(EditError::Edit(pdfcraft_edit::EditError::Invalid("choose at least one page to invert".into())));
+            }
+            pdfcraft_edit::invert_colors(doc, pages)?
         }
         Edit::RemoveMarks { kind } => {
             let n = pdfcraft_model::pages(doc).len();
@@ -4079,7 +4094,14 @@ impl Session {
             ) || matches!(e, Edit::MoveObjects { objects, .. } if objects.iter().any(|o| o.kind == ObjectKind::Added))
         });
         let touches_marks = edit.is_none_or(|e| {
-            matches!(e, Edit::AddHeaderFooter { .. } | Edit::AddWatermark { .. } | Edit::AddBackground { .. } | Edit::RemoveMarks { .. })
+            matches!(
+                e,
+                Edit::AddHeaderFooter { .. }
+                    | Edit::AddWatermark { .. }
+                    | Edit::AddBackground { .. }
+                    | Edit::InvertColors { .. }
+                    | Edit::RemoveMarks { .. }
+            )
         });
         (touches_added, touches_marks)
     }

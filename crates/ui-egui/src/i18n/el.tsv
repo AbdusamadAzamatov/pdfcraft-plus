@@ -2467,3 +2467,7 @@ animation effects	Off	Ανενεργά
 	Flatten comments and rotate	Ενσωμάτωση σχολίων και περιστροφή
 	Comments and form fields can't turn by this angle. To rotate these pages, every comment and form field in the document is flattened first.	Τα σχόλια και τα πεδία φορμών δεν περιστρέφονται κατά αυτή τη γωνία. Για να περιστραφούν αυτές οι σελίδες, όλα τα σχόλια και τα πεδία φορμών του εγγράφου ενσωματώνονται πρώτα στο περιεχόμενο.
 	Rotate by angle…	Περιστροφή κατά γωνία…
+	Invert colours	Αντιστροφή χρωμάτων
+	Remove inverted colours	Κατάργηση αντιστροφής χρωμάτων
+	inverted colours	αντεστραμμένα χρώματα
+	Comments and form fields keep their colours.	Τα σχόλια και τα πεδία φόρμας διατηρούν τα χρώματά τους.

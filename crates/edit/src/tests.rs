@@ -507,7 +507,12 @@ fn combined_marker_scan_matches_the_independent_scans() {
     assert_marker_scan_matches_legacy(&empty, "empty page", &[], 0);
     assert_marker_scan_matches_legacy(&fixture(), "ordinary streams and a page without contents", &[], 0);
 
-    for (tag, kind) in [("HeaderFooter", MarkKind::HeaderFooter), ("Watermark", MarkKind::Watermark), ("Background", MarkKind::Background)] {
+    for (tag, kind) in [
+        ("HeaderFooter", MarkKind::HeaderFooter),
+        ("Watermark", MarkKind::Watermark),
+        ("Background", MarkKind::Background),
+        ("ColorFilter", MarkKind::ColorFilter),
+    ] {
         let mut doc = fixture();
         let marker = tagged_stream(&mut doc, tag, None);
         set_page_contents(&mut doc, marker, None);
@@ -4798,4 +4803,69 @@ fn flattening_comments_keeps_annotations_that_are_not_comments() {
     assert_eq!(flatten(&mut doc, &[0], false, true).unwrap(), 1, "the widget");
     let without_widget: Vec<&str> = all.iter().copied().filter(|s| *s != "Widget").collect();
     assert_eq!(left(&reopen(&doc)), without_widget, "flattening fields touches no annotation that isn't a widget");
+}
+
+/// The page's `/Group`, if any, as a dictionary.
+fn page_group(doc: &Document, page: usize) -> Option<Dict> {
+    let p = &pdfcraft_model::pages(doc)[page];
+    p.dict.get(b"Group").map(|g| doc.resolve(g).as_dict().cloned().unwrap())
+}
+
+#[test]
+fn invert_colors_is_a_mark_that_adds_and_removes_its_own_group() {
+    let mut doc = fixture();
+    let original: Vec<Vec<String>> = (0..3).map(|i| streams(&doc, i)).collect();
+    invert_colors(&mut doc, &[0, 1, 2]).unwrap();
+    let doc2 = reopen(&doc);
+    assert_eq!(marks_present(&doc2), [MarkKind::ColorFilter]);
+    for i in 0..3 {
+        let s = streams(&doc2, i);
+        // White paper behind, the content (wrapped where it leaves state set), the overlay on top.
+        assert!(s[0].contains("/PCMark /ColorFilter") && s[0].contains("1 1 1 rg") && !s[0].contains("gs"), "{s:?}");
+        let top = s.last().unwrap();
+        assert!(top.contains("/PCMark /ColorFilter") && top.contains("/PCInvert gs") && top.contains("re f"), "{top}");
+        let group = page_group(&doc2, i).expect("a page without a group gets one");
+        assert_eq!(group.name(b"S"), Some(&b"Transparency"[..]));
+        assert_eq!(group.name(b"CS"), Some(&b"DeviceRGB"[..]));
+        let p = &pdfcraft_model::pages(&doc2)[i];
+        let res = doc2.resolve(p.dict.get(b"Resources").unwrap()).as_dict().cloned().unwrap();
+        let gs = doc2.resolve(res.get(b"ExtGState").unwrap()).as_dict().cloned().unwrap();
+        let state = doc2.resolve(gs.get(b"PCInvert").unwrap()).as_dict().cloned().unwrap();
+        assert_eq!(state.name(b"BM"), Some(&b"Difference"[..]));
+    }
+    // The rotated page's overlay covers its display space.
+    assert!(streams(&doc2, 1).last().unwrap().contains("0 1 -1 0 600 0 cm"));
+    // Inverting again replaces the overlay instead of inverting the page back.
+    invert_colors(&mut doc, &[0, 0]).unwrap();
+    assert_eq!(streams(&doc, 0).iter().filter(|s| s.contains("/PCMark /ColorFilter")).count(), 2, "one paper, one overlay");
+    // Removing restores the original content and takes away the group it added.
+    assert_eq!(remove_marks(&mut doc, &[0, 1, 2], MarkKind::ColorFilter).unwrap(), 6);
+    let doc = reopen(&doc);
+    for (i, original) in original.iter().enumerate() {
+        assert_eq!(&streams(&doc, i), original, "page {i} is back to its original content");
+        assert!(page_group(&doc, i).is_none(), "page {i}: the added group is gone");
+    }
+    assert!(marks_present(&doc).is_empty());
+}
+
+#[test]
+fn removing_inverted_colours_keeps_a_group_the_page_already_had() {
+    let mut doc = fixture();
+    let page = pdfcraft_model::pages(&doc)[0].obj;
+    let mut own = Dict::new();
+    own.set(b"S".to_vec(), Object::name("Transparency"));
+    own.set(b"CS".to_vec(), Object::name("DeviceCMYK"));
+    doc.update_dict(page, |d| d.set(b"Group".to_vec(), Object::Dict(own.clone()))).unwrap();
+    invert_colors(&mut doc, &[0]).unwrap();
+    assert_eq!(page_group(&doc, 0), Some(own.clone()), "an existing group is never replaced");
+    remove_marks(&mut doc, &[0], MarkKind::ColorFilter).unwrap();
+    assert_eq!(page_group(&reopen(&doc), 0), Some(own), "nor removed");
+    // Even one identical to the group inversion adds stays when the file had it first.
+    let mut doc = fixture();
+    let page = pdfcraft_model::pages(&doc)[0].obj;
+    doc.update_dict(page, |d| d.set(b"Group".to_vec(), Object::Dict(invert_group()))).unwrap();
+    invert_colors(&mut doc, &[0]).unwrap();
+    remove_marks(&mut doc, &[0], MarkKind::ColorFilter).unwrap();
+    assert_eq!(page_group(&doc, 0), Some(invert_group()));
+    assert_eq!(invert_colors(&mut doc, &[3]), Err(EditError::NoSuchPage(3)));
 }
