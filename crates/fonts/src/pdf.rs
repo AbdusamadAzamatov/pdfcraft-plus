@@ -116,14 +116,25 @@ pub fn embedded_sfnt_within(doc: &Document, font: &Dict, budget: &mut DecodeBudg
         if face.charmap().mappings().next().is_some() {
             return Some(bytes);
         }
+        let metrics = Metrics::from_dict(doc, font);
+        if metrics.composite {
+            // Composite subsets (Word, DevExpress) often carry no cmap table at all: the content
+            // names glyphs by CID. Give the editor's copy one from `/ToUnicode` and
+            // `/CIDToGIDMap`, so the paragraph is drawn in its own face while it is edited.
+            let glyphs = face.maxp().map_or(0, |m| u32::from(m.num_glyphs()));
+            let mappings = descendant.as_ref().map(|d| composite_editor_mappings(doc, d, &metrics, glyphs)).unwrap_or_default();
+            if !mappings.is_empty()
+                && append_editor_cmap(&mut bytes, &mappings).is_some()
+                && skrifa::FontRef::new(&bytes).is_ok_and(|font| font.charmap().mappings().next().is_some())
+            {
+                return Some(bytes);
+            }
+            continue;
+        }
         // Some PDF generators keep a Mac format-6 code→glyph cmap. egui accepts Unicode
         // format-4/12 cmaps. Combine the PDF's Unicode meanings with the source glyph IDs;
         // only this in-memory copy gets a new cmap, never the working PDF or a font asset.
         let Ok(cmap) = face.cmap() else { continue };
-        let metrics = Metrics::from_dict(doc, font);
-        if metrics.composite {
-            continue;
-        }
         let mut mappings = std::collections::BTreeMap::new();
         for code in 0..=255 {
             let Some(text) = metrics.unicode.text(code) else { continue };
@@ -142,6 +153,37 @@ pub fn embedded_sfnt_within(doc: &Document, font: &Dict, budget: &mut DecodeBudg
         }
     }
     None
+}
+
+/// Unicode character → glyph id for a composite font over an embedded TrueType program whose
+/// codes are its CIDs (no embedded code → CID CMap): each CID's single-character `/ToUnicode`
+/// meaning, through `/CIDToGIDMap` (`/Identity` or a stream). Glyphs past the program's count
+/// and `.notdef` are left out; the first CID meaning a character wins.
+fn composite_editor_mappings(doc: &Document, descendant: &Dict, metrics: &Metrics, glyphs: u32) -> std::collections::BTreeMap<u32, u32> {
+    let mut mappings = std::collections::BTreeMap::new();
+    if !metrics.cid_map.is_empty() || glyphs == 0 {
+        return mappings;
+    }
+    let mut add = |cid: u32, gid: u32| {
+        if gid == 0 || gid >= glyphs {
+            return;
+        }
+        if let Some(ch) = metrics.unicode.text(cid).as_deref().and_then(only_char) {
+            mappings.entry(u32::from(ch)).or_insert(gid);
+        }
+    };
+    match descendant.get(b"CIDToGIDMap").map(|o| doc.resolve(o)).as_deref() {
+        None | Some(Object::Name(_)) => (0..glyphs.min(0x1_0000)).for_each(|cid| add(cid, cid)),
+        Some(Object::Stream(map)) => {
+            let Ok(map) = map.decoded_within(1 << 17) else { return mappings };
+            for (cid, gid) in map.as_chunks::<2>().0.iter().enumerate() {
+                // At most 65 536 entries fit in the 128 KiB read, so the index fits a u32.
+                add(cid as u32, u32::from(u16::from_be_bytes(*gid)));
+            }
+        }
+        Some(_) => {}
+    }
+    mappings
 }
 
 /// The CIDs (below 65 536) of a Type 0 font over an embedded TrueType program whose glyph has
@@ -214,29 +256,18 @@ fn embedded_widths(doc: &Document, font: &Dict, m: &mut Metrics) {
     }
 }
 
-/// Replace an existing cmap directory entry with a bounded Unicode format-12 table.
-/// Checked ranges prevent damaged sfnt offsets from indexing outside the source program.
+/// Give the editor's copy of a program a bounded Unicode format-12 cmap: the existing cmap table
+/// is replaced, or one is added when the program has none (composite subsets often don't). The
+/// table directory is rebuilt from the program's own tables. Checked ranges keep damaged sfnt
+/// offsets from indexing outside the source program.
 fn append_editor_cmap(bytes: &mut Vec<u8>, mappings: &std::collections::BTreeMap<u32, u32>) -> Option<()> {
     if mappings.len() > 65536 {
         return None;
     }
     let count = u16::from_be_bytes(bytes.get(4..6)?.try_into().ok()?) as usize;
-    if count > 256 {
+    if count == 0 || count > 256 {
         return None;
     }
-    let mut entry = None;
-    let mut head = None;
-    for i in 0..count {
-        let at = 12 + i * 16;
-        let record = bytes.get(at..at + 16)?;
-        if record.get(..4)? == b"cmap" {
-            entry = Some(at);
-        }
-        if record.get(..4)? == b"head" {
-            head = Some(u32::from_be_bytes(record.get(8..12)?.try_into().ok()?) as usize);
-        }
-    }
-    let entry = entry?;
     let mut cmap = Vec::with_capacity(28 + mappings.len() * 12);
     cmap.extend_from_slice(&[0, 0, 0, 1, 0, 3, 0, 10, 0, 0, 0, 12, 0, 12, 0, 0]);
     cmap.extend_from_slice(&(16_u32 + u32::try_from(mappings.len()).ok()? * 12).to_be_bytes());
@@ -247,10 +278,25 @@ fn append_editor_cmap(bytes: &mut Vec<u8>, mappings: &std::collections::BTreeMap
         cmap.extend_from_slice(&ch.to_be_bytes());
         cmap.extend_from_slice(&gid.to_be_bytes());
     }
-    while !bytes.len().is_multiple_of(4) {
-        bytes.push(0);
+    let mut tables: Vec<([u8; 4], Vec<u8>)> = Vec::with_capacity(count + 1);
+    for i in 0..count {
+        let at = 12 + i * 16;
+        let record = bytes.get(at..at + 16)?;
+        let tag: [u8; 4] = record.get(..4)?.try_into().ok()?;
+        if &tag == b"cmap" {
+            continue;
+        }
+        let offset = u32::from_be_bytes(record.get(8..12)?.try_into().ok()?) as usize;
+        let length = u32::from_be_bytes(record.get(12..16)?.try_into().ok()?) as usize;
+        let mut data = bytes.get(offset..offset.checked_add(length)?)?.to_vec();
+        if &tag == b"head" {
+            // checkSumAdjustment is recomputed for the whole file below.
+            data.get_mut(8..12)?.fill(0);
+        }
+        tables.push((tag, data));
     }
-    let offset = u32::try_from(bytes.len()).ok()?;
+    tables.push((*b"cmap", cmap));
+    tables.sort_by_key(|t| t.0);
     let checksum = |data: &[u8]| {
         data.chunks(4).fold(0_u32, |sum, c| {
             let mut word = [0; 4];
@@ -260,15 +306,35 @@ fn append_editor_cmap(bytes: &mut Vec<u8>, mappings: &std::collections::BTreeMap
             sum.wrapping_add(u32::from_be_bytes(word))
         })
     };
-    bytes.get_mut(entry + 4..entry + 8)?.copy_from_slice(&checksum(&cmap).to_be_bytes());
-    bytes.get_mut(entry + 8..entry + 12)?.copy_from_slice(&offset.to_be_bytes());
-    bytes.get_mut(entry + 12..entry + 16)?.copy_from_slice(&u32::try_from(cmap.len()).ok()?.to_be_bytes());
-    bytes.extend_from_slice(&cmap);
-    if let Some(head) = head {
-        bytes.get_mut(head.checked_add(8)?..head.checked_add(12)?)?.fill(0);
-        let adjustment = 0xb1b0afba_u32.wrapping_sub(checksum(bytes));
-        bytes.get_mut(head + 8..head + 12)?.copy_from_slice(&adjustment.to_be_bytes());
+    let n = u16::try_from(tables.len()).ok()?;
+    let entry_selector = 15 - n.leading_zeros() as u16;
+    let search_range = (1_u16 << entry_selector).checked_mul(16)?;
+    let mut out = Vec::with_capacity(bytes.len() + mappings.len() * 12 + 64);
+    out.extend_from_slice(bytes.get(..4)?);
+    for v in [n, search_range, entry_selector, n.checked_mul(16)?.checked_sub(search_range)?] {
+        out.extend_from_slice(&v.to_be_bytes());
     }
+    let mut offset = 12 + usize::from(n) * 16;
+    let mut head = None;
+    for (tag, data) in &tables {
+        out.extend_from_slice(tag);
+        out.extend_from_slice(&checksum(data).to_be_bytes());
+        out.extend_from_slice(&u32::try_from(offset).ok()?.to_be_bytes());
+        out.extend_from_slice(&u32::try_from(data.len()).ok()?.to_be_bytes());
+        if tag == b"head" {
+            head = Some(offset);
+        }
+        offset = offset.checked_add(data.len().next_multiple_of(4))?;
+    }
+    for (_, data) in &tables {
+        out.extend_from_slice(data);
+        out.resize(out.len().next_multiple_of(4), 0);
+    }
+    if let Some(head) = head {
+        let adjustment = 0xb1b0afba_u32.wrapping_sub(checksum(&out));
+        out.get_mut(head.checked_add(8)?..head.checked_add(12)?)?.copy_from_slice(&adjustment.to_be_bytes());
+    }
+    *bytes = out;
     Some(())
 }
 
@@ -1526,6 +1592,59 @@ mod tests {
         assert_eq!(source.decoded().unwrap(), subset, "only an in-memory editor copy is adapted");
         let mut broken = vec![0; 16];
         assert!(append_editor_cmap(&mut broken, &std::collections::BTreeMap::from([(65, 1)])).is_none());
+    }
+
+    /// A Word or DevExpress composite subset has no cmap table: the content names glyphs by CID.
+    /// The editor's copy gets one from `/ToUnicode` through `/CIDToGIDMap`, so an edited paragraph
+    /// keeps its own face on screen instead of the interface font.
+    #[test]
+    fn a_composite_subset_without_a_cmap_gets_one_for_the_editor() {
+        use skrifa::MetadataProvider as _;
+        let original = include_bytes!("../../../assets/fonts/Inter-Regular.ttf");
+        let face = skrifa::FontRef::new(original).unwrap();
+        let (omega, a) = (face.charmap().map('Ω').unwrap().to_u32(), face.charmap().map('A').unwrap().to_u32());
+        // Hide the cmap table, as a subsetter that drops it leaves the program.
+        let mut subset = original.to_vec();
+        let count = u16::from_be_bytes(subset[4..6].try_into().unwrap()) as usize;
+        let entry = (0..count).map(|i| 12 + i * 16).find(|i| &subset[*i..*i + 4] == b"cmap").unwrap();
+        subset[entry..entry + 4].copy_from_slice(b"zzzz");
+        assert!(!skrifa::FontRef::new(&subset).unwrap().charmap().has_map(), "no cmap left");
+        for identity in [true, false] {
+            let mut doc = Document::new_empty();
+            let program = doc.add(Object::Stream(Stream::flate(Dict::new(), &subset)));
+            let mut descriptor = Dict::new();
+            descriptor.set(b"FontFile2".to_vec(), Object::Ref(program));
+            // CIDs 1 and 2 through a map stream, or the glyph ids themselves through /Identity.
+            let (cid_omega, cid_a, map) = if identity {
+                (omega, a, Object::name("Identity"))
+            } else {
+                let mut gids = vec![0_u8, 0];
+                gids.extend_from_slice(&u16::try_from(omega).unwrap().to_be_bytes());
+                gids.extend_from_slice(&u16::try_from(a).unwrap().to_be_bytes());
+                (1, 2, Object::Ref(doc.add(Object::Stream(Stream::flate(Dict::new(), &gids)))))
+            };
+            let descendant =
+                font(&mut doc, vec![("Subtype", Object::name("CIDFontType2")), ("FontDescriptor", Object::Dict(descriptor)), ("CIDToGIDMap", map)]);
+            let cmap = format!("2 beginbfchar <{cid_omega:04X}> <03A9> <{cid_a:04X}> <0041> endbfchar");
+            let unicode = doc.add(Object::Stream(Stream::flate(Dict::new(), cmap.as_bytes())));
+            let source = font(
+                &mut doc,
+                vec![
+                    ("Subtype", Object::name("Type0")),
+                    ("BaseFont", Object::name("ABCDEF+Inter")),
+                    ("Encoding", Object::name("Identity-H")),
+                    ("DescendantFonts", Object::Array(vec![Object::Dict(descendant)])),
+                    ("ToUnicode", Object::Ref(unicode)),
+                ],
+            );
+            let editor = embedded_sfnt(&doc, &source).expect("the editor gets the program");
+            let face = skrifa::FontRef::new(&editor).unwrap();
+            assert_eq!(face.charmap().map('Ω').map(|g| g.to_u32()), Some(omega), "identity {identity}");
+            assert_eq!(face.charmap().map('A').map(|g| g.to_u32()), Some(a), "identity {identity}");
+            assert_eq!(face.charmap().map('B'), None, "only what /ToUnicode names");
+            let Object::Stream(stored) = doc.resolve(&Object::Ref(program)).as_ref().clone() else { panic!("source stream") };
+            assert_eq!(stored.decoded().unwrap(), subset, "only the editor's in-memory copy changes");
+        }
     }
 
     fn metrics_with_flags(flags: Option<Object>) -> Metrics {
