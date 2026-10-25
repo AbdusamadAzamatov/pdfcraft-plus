@@ -4,19 +4,56 @@
 //! colours off, the print's own colours), made into an image-only document, and that document
 //! is imposed on the paper like any other. The print is no longer searchable text.
 
+use std::sync::Arc;
+
+use pdfcraft_cos::{Object, SaveOptions, write_full};
 use pdfcraft_create::ImageResolution;
 use pdfcraft_print::Raster;
 use pdfcraft_render::{PRINT_TAG, PageRenderer, RenderRequest};
 
 use crate::Document;
-use crate::export::encode_png;
+use crate::export::{ExportSource, encode_png};
+
+/// Widgets stay interactive when replacing page content. Omit them from this render-only copy
+/// so their current values cannot survive underneath later field edits.
+fn without_widgets(src: &ExportSource, pages: &[usize]) -> Result<Option<Arc<Vec<u8>>>, String> {
+    let mut copy = pdfcraft_cos::Document::open_with_password(src.bytes.clone(), src.config.password.as_deref()).map_err(|e| e.to_string())?;
+    let refs = pdfcraft_organize::pages(&copy).map_err(|e| e.to_string())?;
+    let mut changed = false;
+    for &page in pages {
+        let reference = refs.get(page).ok_or_else(|| format!("page {} does not exist", page.saturating_add(1)))?.obj;
+        let object = copy.get(reference);
+        let Some(annots) = object.as_dict().and_then(|d| d.get(b"Annots")).map(|a| copy.resolve(a)) else { continue };
+        let Some(annots) = annots.as_array() else { continue };
+        let kept: Vec<Object> =
+            annots.iter().filter(|a| copy.resolve(a).as_dict().and_then(|d| d.name(b"Subtype")) != Some(b"Widget")).cloned().collect();
+        if kept.len() != annots.len() {
+            copy.update_dict(reference, |dict| {
+                dict.set(b"Annots".to_vec(), Object::Array(kept));
+            })
+            .map_err(|e| e.to_string())?;
+            changed = true;
+        }
+    }
+    if !changed {
+        return Ok(None);
+    }
+    // Only the temporary renderer input is unencrypted; source security and fields are untouched.
+    copy.remove_encryption();
+    write_full(&copy, &SaveOptions::default()).map(|bytes| Some(Arc::new(bytes))).map_err(|e| e.to_string())
+}
 
 /// `doc`'s pages `pages` (0-based, each once, in the order given) as an image-only PDF, one
 /// page per entry, the size of the source page as displayed. Pages too large for the renderer
 /// at `raster.dpi` render at the largest resolution it allows.
-pub fn rasterize(doc: &Document, pages: &[usize], raster: &Raster, hide_comments: bool) -> Result<Vec<u8>, String> {
+/// Print includes widgets; replacing page content excludes them because they stay interactive.
+pub fn rasterize(doc: &Document, pages: &[usize], raster: &Raster, hide_comments: bool, include_widgets: bool) -> Result<Vec<u8>, String> {
     let dpi = raster.dpi.clamp(72.0, 600.0);
-    let src = doc.export_source();
+    let mut src = doc.export_source();
+    if !include_widgets && let Some(bytes) = without_widgets(&src, pages)? {
+        src.bytes = bytes;
+        src.config.password = None;
+    }
     let mut config = src.config.clone();
     config.hide_comments = hide_comments;
     let mut renderer = PageRenderer::new(src.bytes, config);

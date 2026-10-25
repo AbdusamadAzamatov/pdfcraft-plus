@@ -6458,6 +6458,48 @@ fn rasterize_pages_refuses_bad_options_and_restricted_documents() {
     assert_eq!(s.rasterize_pages(r, &[0], options), Err(EditError::NotPermitted("changes to the document")));
 }
 
+/// A live field must not also be baked into the page image: clearing it afterwards must leave
+/// no old value behind, including after saving, with either comment mode and encrypted input.
+#[test]
+fn rasterize_pages_keeps_live_fields_without_baking_the_old_value() {
+    for encrypted in [false, true] {
+        for burn_comments in [false, true] {
+            let mut s = Session::new();
+            let mut id = s.open("form.pdf", None, Arc::new(form_fixture()), None).unwrap();
+            s.apply(id, Edit::SetFieldValue { name: "name".into(), value: FieldValue::Text("OLD_VALUE_123456".into()) }).unwrap();
+            if encrypted {
+                s.apply(
+                    id,
+                    Edit::Protect(Protection {
+                        open_password: Some("open".into()),
+                        permissions_password: Some("owner".into()),
+                        ..Default::default()
+                    }),
+                )
+                .unwrap();
+                let bytes = s.save_bytes(id).unwrap();
+                id = s.open("encrypted.pdf", None, bytes, Some("owner")).unwrap();
+            }
+            let has_old_ink = |s: &Session, id| {
+                let (w, _, rgba) = shown_without_comments(s, id, 0);
+                (33..47).any(|y| (90..175).any(|x| rgba[((y * w + x) * 4) as usize] < 200))
+            };
+            assert!(has_old_ink(&s, id), "the control value must be visibly drawn");
+            s.rasterize_pages(id, &[0], rasterize::RasterizeOptions { dpi: 72.0, burn_comments, ..Default::default() }).unwrap();
+            assert_eq!(s.get(id).unwrap().form.len(), 2, "the fields remain interactive");
+            s.apply(id, Edit::SetFieldValue { name: "name".into(), value: FieldValue::Text(String::new()) }).unwrap();
+            assert!(!has_old_ink(&s, id), "the old value was burned into the picture (encrypted={encrypted}, burn={burn_comments})");
+            let bytes = s.save_bytes(id).unwrap();
+            let reopened = s.open("saved.pdf", None, bytes, encrypted.then_some("owner")).unwrap();
+            assert!(!has_old_ink(&s, reopened), "the saved PDF must not retain the old value");
+            s.undo(id).unwrap();
+            assert!(has_old_ink(&s, id), "undo restores the field value");
+            s.undo(id).unwrap();
+            assert!(s.get(id).unwrap().page_images(0).is_empty(), "undo rasterization restores page content");
+        }
+    }
+}
+
 /// Compress ▸ Clean up ▸ Convert to grayscale (CU3): one undo step that turns a red background
 /// gray, reports what it converted, survives a save (a full rewrite) and is refused in signed
 /// documents with the optimizer's message; with nothing in colour it says so.

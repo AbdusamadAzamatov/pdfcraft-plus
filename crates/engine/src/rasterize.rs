@@ -2,8 +2,8 @@
 //! itself, for printers that mishandle vector content or to stop its text being copied. The text
 //! is no longer searchable afterwards (Recognize text can add it back).
 //!
-//! The pictures come from [`crate::print_raster::rasterize`] (the pages as the viewer shows them,
-//! over white, optionally grey), and [`Edit::RasterizePages`] puts them in place in one undo step:
+//! The pictures come from [`crate::print_raster::rasterize`] (page content over white, optionally
+//! grey, excluding live widgets), and [`Edit::RasterizePages`] puts them in place in one undo step:
 //! [`pdfcraft_organize::replace_pages`] swaps each page's contents and resources for its picture
 //! (the page's links, comments, form fields and the bookmarks pointing at it stay), then the page
 //! gets its own boxes and `/Rotate` back and the picture is drawn over its visible area, so the
@@ -79,7 +79,7 @@ impl Session {
         distinct.sort_unstable();
         distinct.dedup();
         let raster = Raster { dpi: options.dpi, grayscale: options.grayscale };
-        let bytes = crate::guard(|| crate::print_raster::rasterize(doc, &distinct, &raster, !options.burn_comments))
+        let bytes = crate::guard(|| crate::print_raster::rasterize(doc, &distinct, &raster, !options.burn_comments, false))
             .map_err(EditError::Print)?
             .map_err(|e| EditError::Print(format!("the pages could not be drawn as pictures: {e}")))?;
         Ok(Edit::RasterizePages { pages: distinct, bytes: Arc::new(bytes), burn_comments: options.burn_comments })
