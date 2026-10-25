@@ -4818,7 +4818,7 @@ fn rotate_by_angle_dialog_turns_pages_and_offers_flatten_for_comments() {
     use pdfcraft_engine::{Edit, NewAnnotation, RotateFit, Shape, Style};
     use pdfcraft_ui_egui::rotate_angle_ui::Scope;
     let mut h = organize(3);
-    h.get_by_label("Rotate by angle").click();
+    h.get_by_label("Rotate by angle…").click();
     h.run_steps(3);
     assert_eq!(h.state().dialog, Some(Dialog::RotateAngle));
     h.state_mut().rotate_angle_draft.degrees = 30.0;
@@ -4918,7 +4918,17 @@ fn remove_blank_pages_lists_candidates_and_keeps_an_unchecked_one() {
 fn change_page_size_dialog_resizes_pages_and_only_those_of_another_size() {
     use pdfcraft_ui_egui::resize_ui::{Scope, Target};
     let mut h = organize(3);
-    h.get_by_label("Change page size").click();
+    // The Layout list is long enough to scroll in the test window: wheel the panel down.
+    let over = h.get_by_label("Crop pages").rect().center();
+    h.event(egui::Event::PointerMoved(over));
+    h.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::vec2(0.0, -600.0),
+        phase: egui::TouchPhase::Move,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.run_steps(8);
+    h.get_by_label("Change page size…").click();
     h.run_steps(3);
     assert_eq!(h.state().dialog, Some(Dialog::ResizePages));
     h.state_mut().resize_draft.scope = Scope::Range(1, 1);

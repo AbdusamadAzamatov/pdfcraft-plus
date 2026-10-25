@@ -880,6 +880,9 @@ fn an_earlier_revision_opens_from_document_properties() {
     h.run_steps(2);
     // Let the dialog finish centering before the revision button is clicked.
     h.run_steps(2);
+    // The Advanced tab is now taller than the test window: scroll the button into view.
+    h.get_by_label("View revision 1").scroll_to_me();
+    h.run_steps(20);
     h.get_by_label("View revision 1").click();
     h.run_steps(3);
     let s = h.state();
