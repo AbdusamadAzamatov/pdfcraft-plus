@@ -2,7 +2,7 @@
 //! itself, for printers that mishandle vector content or to stop its text being copied. The text
 //! is no longer searchable afterwards (Recognize text can add it back).
 //!
-//! The pictures come from [`crate::print_raster::rasterize`] (page content over white, optionally
+//! The pictures come from [`crate::print_raster::rasterize_page_content`] (page content over white, optionally
 //! grey, excluding live widgets), and [`Edit::RasterizePages`] puts them in place in one undo step:
 //! [`pdfcraft_organize::replace_pages`] swaps each page's contents and resources for its picture
 //! (the page's links, comments, form fields and the bookmarks pointing at it stay), then the page
@@ -79,7 +79,7 @@ impl Session {
         distinct.sort_unstable();
         distinct.dedup();
         let raster = Raster { dpi: options.dpi, grayscale: options.grayscale };
-        let bytes = crate::guard(|| crate::print_raster::rasterize(doc, &distinct, &raster, !options.burn_comments, false))
+        let bytes = crate::guard(|| crate::print_raster::rasterize_page_content(doc, &distinct, &raster, options.burn_comments))
             .map_err(EditError::Print)?
             .map_err(|e| EditError::Print(format!("the pages could not be drawn as pictures: {e}")))?;
         Ok(Edit::RasterizePages { pages: distinct, bytes: Arc::new(bytes), burn_comments: options.burn_comments })
@@ -141,7 +141,7 @@ fn num(v: f64) -> String {
 }
 
 /// Apply [`Edit::RasterizePages`]: `bytes` is an image-only PDF with one page per entry of
-/// `pages` (0-based, distinct), in order, as [`crate::print_raster::rasterize`] makes it.
+/// `pages` (0-based, distinct), in order, as [`crate::print_raster::rasterize_page_content`] makes it.
 pub(crate) fn apply(doc: &mut pdfcraft_cos::Document, pages: &[usize], bytes: &Arc<Vec<u8>>, burn_comments: bool) -> Result<(), EditError> {
     let src = crate::open_source("rasterized pages.pdf", bytes)?;
     let pictures = pdfcraft_organize::page_count(&src)?;

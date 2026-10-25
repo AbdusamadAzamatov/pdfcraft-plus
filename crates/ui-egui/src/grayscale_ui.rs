@@ -17,6 +17,7 @@ fn kind_label(kind: KeptKind) -> &'static str {
         KeptKind::OtherColor => tl!("Other colours"),
         KeptKind::Image => tl!("Images"),
         KeptKind::InlineImage => tl!("Inline images"),
+        KeptKind::PageContent => tl!("Page content"),
     }
 }
 

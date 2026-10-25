@@ -7,6 +7,8 @@ use crate::{PdfCraftApp, icons};
 
 /// Horizontal and vertical inset of a single-line field.
 const FIELD_MARGIN: egui::Margin = egui::Margin::symmetric(10, 6);
+/// Where text starts inside a [`line`] or [`block`] field, so plain values beside fields can line up with it.
+pub(crate) const FIELD_TEXT_INSET: f32 = FIELD_MARGIN.left as f32;
 /// Outer height of a single-line field, including its inset.
 const FIELD_MIN_HEIGHT: f32 = 30.0;
 /// Padding inside every modal.
@@ -130,6 +132,12 @@ pub fn mode_tab(ui: &mut egui::Ui, label: &str, active: bool) -> Response {
 
 /// Rounded pill button; `primary` fills with the accent.
 pub fn pill_button(ui: &mut egui::Ui, label: &str, primary: bool) -> Response {
+    pill_button_marked(ui, label, primary, false)
+}
+
+/// [`pill_button`] that, when `marked`, is the keyboard's choice: it takes egui focus (so
+/// assistive tech follows it) and shows a ring in the accent colour around the pill.
+pub fn pill_button_marked(ui: &mut egui::Ui, label: &str, primary: bool, marked: bool) -> Response {
     let t = Tokens::get(ui.ctx());
     let font = theme::medium(12.5);
     let w = ui.fonts_mut(|f| f.layout_no_wrap(label.to_owned(), font.clone(), t.text).size().x);
@@ -142,6 +150,10 @@ pub fn pill_button(ui: &mut egui::Ui, label: &str, primary: bool) -> Response {
         (press.fill(t.card, t.hover, t.pressed), Stroke::new(1.0, t.border), t.text)
     };
     ui.painter().rect(rect, CornerRadius::same(14), fill, stroke, egui::StrokeKind::Inside);
+    if marked {
+        resp.request_focus();
+        ui.painter().rect_stroke(rect.expand(2.0), CornerRadius::same(16), Stroke::new(2.0, t.accent), egui::StrokeKind::Outside);
+    }
     ui.painter().text(rect.translate(press.offset()).center(), Align2::CENTER_CENTER, label, font, text);
     theme::hand(resp)
 }

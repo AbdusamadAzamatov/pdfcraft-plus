@@ -1,66 +1,64 @@
 //! Print as image (Acrobat's Advanced Print Setup ▸ Print As Image): every page
 //! sent to the printer as a picture at a chosen resolution, for printers that skip text,
 //! shading or transparency. The pages are rendered the way the viewer shows them (reading
-//! colours off, the print's own colours), made into an image-only document, and that document
-//! is imposed on the paper like any other. The print is no longer searchable text.
+//! colours off, the print's own colours) with only what the print's content choice keeps, made
+//! into an image-only document, and that document is imposed on the paper like any other. The
+//! print is no longer searchable text.
 
-use std::sync::Arc;
-
-use pdfcraft_cos::{Object, SaveOptions, write_full};
+use pdfcraft_cos::{Object, SaveOptions, write_incremental};
 use pdfcraft_create::ImageResolution;
-use pdfcraft_print::Raster;
+use pdfcraft_print::{Content, Raster};
 use pdfcraft_render::{PRINT_TAG, PageRenderer, RenderRequest};
 
-use crate::Document;
-use crate::export::{ExportSource, encode_png};
-
-/// Widgets stay interactive when replacing page content. Omit them from this render-only copy
-/// so their current values cannot survive underneath later field edits.
-fn without_widgets(src: &ExportSource, pages: &[usize]) -> Result<Option<Arc<Vec<u8>>>, String> {
-    let mut copy = pdfcraft_cos::Document::open_with_password(src.bytes.clone(), src.config.password.as_deref()).map_err(|e| e.to_string())?;
-    let refs = pdfcraft_organize::pages(&copy).map_err(|e| e.to_string())?;
-    let mut changed = false;
-    for &page in pages {
-        let reference = refs.get(page).ok_or_else(|| format!("page {} does not exist", page.saturating_add(1)))?.obj;
-        let object = copy.get(reference);
-        let Some(annots) = object.as_dict().and_then(|d| d.get(b"Annots")).map(|a| copy.resolve(a)) else { continue };
-        let Some(annots) = annots.as_array() else { continue };
-        let kept: Vec<Object> =
-            annots.iter().filter(|a| copy.resolve(a).as_dict().and_then(|d| d.name(b"Subtype")) != Some(b"Widget")).cloned().collect();
-        if kept.len() != annots.len() {
-            copy.update_dict(reference, |dict| {
-                dict.set(b"Annots".to_vec(), Object::Array(kept));
-            })
-            .map_err(|e| e.to_string())?;
-            changed = true;
-        }
-    }
-    if !changed {
-        return Ok(None);
-    }
-    // Only the temporary renderer input is unencrypted; source security and fields are untouched.
-    copy.remove_encryption();
-    write_full(&copy, &SaveOptions::default()).map(|bytes| Some(Arc::new(bytes))).map_err(|e| e.to_string())
-}
+use crate::export::encode_png;
+use crate::{Document, guard};
 
 /// `doc`'s pages `pages` (0-based, each once, in the order given) as an image-only PDF, one
-/// page per entry, the size of the source page as displayed. Pages too large for the renderer
-/// at `raster.dpi` render at the largest resolution it allows.
-/// Print includes widgets; replacing page content excludes them because they stay interactive.
-pub fn rasterize(doc: &Document, pages: &[usize], raster: &Raster, hide_comments: bool, include_widgets: bool) -> Result<Vec<u8>, String> {
-    let dpi = raster.dpi.clamp(72.0, 600.0);
-    let mut src = doc.export_source();
-    if !include_widgets && let Some(bytes) = without_widgets(&src, pages)? {
-        src.bytes = bytes;
-        src.config.password = None;
-    }
+/// page per entry, the size of the source page as displayed, drawing what `content` prints.
+/// Pages too large for the renderer at `raster.dpi` render at the largest resolution it allows.
+pub fn rasterize(doc: &Document, pages: &[usize], raster: &Raster, content: Content) -> Result<Vec<u8>, String> {
+    let src = doc.export_source();
     let mut config = src.config.clone();
-    config.hide_comments = hide_comments;
-    let mut renderer = PageRenderer::new(src.bytes, config);
+    // The copy below holds only what prints, so the viewer's own comment hiding plays no part.
+    config.hide_comments = false;
+    let printed = guard(|| -> Result<Vec<u8>, String> {
+        let mut cos = pdfcraft_cos::Document::open_with_password(src.bytes.clone(), config.password.as_deref()).map_err(|e| e.to_string())?;
+        pdfcraft_print::keep_printed(&mut cos, content);
+        write_incremental(&cos, &SaveOptions::default()).map_err(|e| e.to_string())
+    })??;
+    images_pdf(std::sync::Arc::new(printed), config, &src.sizes, pages, raster)
+}
+
+/// Rasterize pages (Compress ▸ Clean up): `pages` as their page content shows on screen, with
+/// the comments when `comments` is set. Form field widgets are left out: the fields stay live on
+/// the replaced pages, so a value drawn into the picture would show under any later value.
+pub fn rasterize_page_content(doc: &Document, pages: &[usize], raster: &Raster, comments: bool) -> Result<Vec<u8>, String> {
+    let src = doc.export_source();
+    let mut config = src.config.clone();
+    config.hide_comments = !comments;
+    let shown = guard(|| -> Result<Vec<u8>, String> {
+        let mut cos = pdfcraft_cos::Document::open_with_password(src.bytes.clone(), config.password.as_deref()).map_err(|e| e.to_string())?;
+        for page in pdfcraft_model::pages(&cos).into_iter().enumerate().filter(|(i, _)| pages.contains(i)).map(|(_, p)| p) {
+            let annots = page.dict.get(b"Annots").and_then(|a| cos.resolve(a).as_array().cloned()).unwrap_or_default();
+            let kept: Vec<Object> = annots.iter().filter(|a| cos.resolve(a).as_dict().and_then(|d| d.name(b"Subtype")) != Some(b"Widget")).cloned().collect();
+            if kept.len() != annots.len() {
+                cos.update_dict(page.obj, |d| d.set(b"Annots".to_vec(), Object::Array(kept))).map_err(|e| e.to_string())?;
+            }
+        }
+        write_incremental(&cos, &SaveOptions::default()).map_err(|e| e.to_string())
+    })??;
+    images_pdf(std::sync::Arc::new(shown), config, &src.sizes, pages, raster)
+}
+
+/// An image-only PDF of `pages` of `bytes`, one picture per page at `raster`'s resolution (lower
+/// for a page too large for the renderer), each page the size of its source page.
+fn images_pdf(bytes: std::sync::Arc<Vec<u8>>, config: pdfcraft_render::RenderConfig, sizes: &[(f32, f32)], pages: &[usize], raster: &Raster) -> Result<Vec<u8>, String> {
+    let dpi = raster.dpi.clamp(72.0, 600.0);
+    let mut renderer = PageRenderer::new(bytes, config);
     let mut images: Vec<(String, Vec<u8>)> = Vec::with_capacity(pages.len());
     let mut used: Option<f64> = None;
     for &page in pages {
-        let (w, h) = src.sizes.get(page).copied().ok_or_else(|| format!("page {} does not exist", page + 1))?;
+        let (w, h) = sizes.get(page).copied().ok_or_else(|| format!("page {} does not exist", page + 1))?;
         let scale = pdfcraft_render::effective_scale(w, h, (dpi / 72.0) as f32);
         let page_dpi = f64::from(scale) * 72.0;
         // Every page of the image document shares one resolution, so its pages keep the

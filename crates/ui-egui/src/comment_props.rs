@@ -28,8 +28,7 @@ pub struct PropsDraft {
     pub make_default: bool,
 }
 
-const ICONS: [NoteIcon; 7] =
-    [NoteIcon::Comment, NoteIcon::Note, NoteIcon::Help, NoteIcon::Insert, NoteIcon::Key, NoteIcon::NewParagraph, NoteIcon::Paragraph];
+const ICONS: [NoteIcon; 14] = NoteIcon::ALL;
 
 /// The name shown in the line-ending combo. [`LineEnding::name`] stays the PDF `/LE` token.
 fn ending_label(ending: LineEnding) -> &'static str {
@@ -99,7 +98,7 @@ impl PdfCraftApp {
     pub fn make_props_default(&mut self, page: usize, index: usize, p: &CommentProps) {
         let Some((_, id)) = self.active_ids() else { return };
         let Some(doc) = self.session.get(id) else { return };
-        let Some(a) = doc.info.annotations.iter().find(|a| a.page == page && a.index == index && a.in_reply_to.is_none()) else { return };
+        let Some(a) = doc.info.annotations.iter().find(|a| a.page == page && a.index == index && !a.is_reply()) else { return };
         let Some(tool) = crate::comments::tool_for_default(a, p.endings.as_deref()) else { return };
         let mut style = self.comment_prefs.style(tool);
         if let Some(c) = p.color {
@@ -109,8 +108,7 @@ impl PdfCraftApp {
             style.fill = p.fill;
         }
         self.comment_prefs.set_style(tool, style);
-        // Opacity and width go through the clamping setters: the dialog allows 0% opacity, and a
-        // default that draws invisible comments can't be found again.
+        // Keep invisible defaults out of tools where a zero stroke would make them disappear.
         self.comment_prefs.set_opacity(tool, p.opacity);
         if let Some(w) = p.width {
             self.comment_prefs.set_width(tool, w);
@@ -169,12 +167,11 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
         .and_then(|(_, id)| app.session.get(id))
         .zip(app.comment_props.as_ref())
         .map(|(doc, d)| {
-            let me = doc.info.annotations.iter().find(|a| a.page == d.page && a.index == d.index && a.in_reply_to.is_none());
-            let nm = me.and_then(|a| a.name.clone());
+            let me = doc.info.annotations.iter().find(|a| a.page == d.page && a.index == d.index && !a.is_reply());
             doc.info
                 .annotations
                 .iter()
-                .filter(|r| r.state.is_some() && nm.is_some() && r.in_reply_to == nm)
+                .filter(|r| r.state.is_some() && me.is_some_and(|a| r.replies_to(a)))
                 .map(|r| (r.state.clone().unwrap_or_default(), r.author.clone().unwrap_or_default(), r.modified.clone().unwrap_or_default()))
                 .collect()
         })
@@ -182,7 +179,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
     let default_tool = app.comment_props.as_ref().and_then(|d| {
         let (_, id) = app.active_ids()?;
         let doc = app.session.get(id)?;
-        let a = doc.info.annotations.iter().find(|a| a.page == d.page && a.index == d.index && a.in_reply_to.is_none())?;
+        let a = doc.info.annotations.iter().find(|a| a.page == d.page && a.index == d.index && !a.is_reply())?;
         crate::comments::tool_for_default(a, d.edited.endings.as_deref())
     });
     let Some(d) = app.comment_props.as_mut() else { return (false, true) };
@@ -240,9 +237,10 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
                         e.opacity = pct / 100.0;
                     }
                     ui.end_row();
+                    let min_width = if e.font_size.is_some() { 0.0 } else { 0.5 };
                     if let Some(w) = e.width.as_mut() {
                         ui.label(tl!("Thickness"));
-                        ui.add(egui::Slider::new(w, 0.5..=12.0).step_by(0.5).suffix(" pt"));
+                        ui.add(egui::Slider::new(w, min_width..=12.0).step_by(0.5).suffix(" pt"));
                         ui.end_row();
                     }
                     if let Some(ends) = e.endings.as_mut() {

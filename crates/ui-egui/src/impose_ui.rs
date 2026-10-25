@@ -66,7 +66,7 @@ impl PdfCraftApp {
                 selected,
                 which,
                 printer: None,
-                duplex: pdfcraft_engine::print::spool::Duplex::Off,
+                duplex: Some(pdfcraft_engine::print::spool::Duplex::Off),
                 as_image: false,
                 ..keep.print
             },

@@ -28,7 +28,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use pdfcraft_content::{Op, Pieces, num, write_op};
-use pdfcraft_cos::{Dict, Document, ObjRef, Object, PdfString, Stream};
+use pdfcraft_cos::{DecodeBudget, Dict, Document, ObjRef, Object, PdfString, Stream};
 
 use crate::images::{content_bytes_list, is_dct, jpeg_retain};
 use crate::{OptimizeError, images::page_resources};
@@ -55,6 +55,8 @@ pub enum KeptKind {
     Image,
     /// Inline images that could not be converted.
     InlineImage,
+    /// Page content that could not be decoded within the size limits, left as it was.
+    PageContent,
 }
 
 impl KeptKind {
@@ -68,6 +70,7 @@ impl KeptKind {
             KeptKind::OtherColor => "other_color",
             KeptKind::Image => "image",
             KeptKind::InlineImage => "inline_image",
+            KeptKind::PageContent => "page_content",
         }
     }
 }
@@ -115,6 +118,7 @@ impl GrayReport {
                     KeptKind::OtherColor => ("other colour", "other colours"),
                     KeptKind::Image => ("image", "images"),
                     KeptKind::InlineImage => ("inline image", "inline images"),
+                    KeptKind::PageContent => ("page content", "page contents"),
                 };
                 let what = if k.count == 1 { one } else { many };
                 let verb = if k.count == 1 { "kept its colour" } else { "kept their colour" };
@@ -272,7 +276,10 @@ impl Gray<'_> {
                 Object::Array(a) => a.iter().filter_map(Object::as_ref).collect(),
                 _ => Vec::new(),
             };
-            let datas = content_bytes_list(self.doc, &refs);
+            let Some(datas) = content_bytes_list(self.doc, &refs, &mut DecodeBudget::page()) else {
+                self.keep(KeptKind::PageContent, number);
+                return Ok(());
+            };
             let pieces = Pieces::join(&datas);
             let edits = self.content(pieces.data(), &resources, number, 0, false);
             if !edits.is_empty() {
