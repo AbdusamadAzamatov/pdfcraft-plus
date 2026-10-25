@@ -161,7 +161,11 @@ fn layout_of(a: &Args, layout: &str) -> Result<Layout> {
         "shrink" => Layout::Size(SizeMode::Shrink),
         "custom" => Layout::Size(SizeMode::Custom(a.opt_num("scale")?.ok_or_else(|| bad("custom needs scale (percent)"))?)),
         "multiple" => {
-            let per = a.opt_int("per_sheet")?.unwrap_or(2).clamp(1, 256) as usize;
+            let per = a.opt_int("per_sheet")?.unwrap_or(2);
+            if !(1..=256).contains(&per) {
+                return Err(bad(format!("per_sheet must be from 1 to 256 (got {per})")));
+            }
+            let per = per as usize;
             let order = match a.opt_str("order")?.unwrap_or("horizontal") {
                 "horizontal" => PageOrder::Horizontal,
                 "horizontal-reversed" => PageOrder::HorizontalReversed,
@@ -189,7 +193,11 @@ fn layout_of(a: &Args, layout: &str) -> Result<Layout> {
                 "back" => BookletSubset::BackOnly,
                 s => return Err(bad(format!("unknown booklet_subset {s:?}"))),
             },
-            binding: if a.opt_str("binding")? == Some("right") { Binding::Right } else { Binding::Left },
+            binding: match a.opt_str("binding")? {
+                None | Some("left") => Binding::Left,
+                Some("right") => Binding::Right,
+                Some(other) => return Err(bad(format!("unknown binding {other:?} (left or right)"))),
+            },
         },
         "poster" => Layout::Poster {
             scale: a.opt_num("scale")?.unwrap_or(200.0),

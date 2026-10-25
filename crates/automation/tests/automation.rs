@@ -6818,6 +6818,40 @@ fn doc_impose_makes_a_booklet_as_a_new_document_and_writes_inside_the_root() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn nup_refuses_invalid_counts_instead_of_silently_clamping_them() {
+    let dir = workdir("nup-invalid-counts");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].clone();
+    let before = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    for tool in ["doc_impose", "doc_print"] {
+        for count in [-1, 0, 257, i64::MAX] {
+            let output = format!("{tool}-{count}.pdf");
+            let mut args = json!({ "doc": doc, "layout": "multiple", "per_sheet": count });
+            args[if tool == "doc_impose" { "out" } else { "path" }] = json!(output);
+            let error = a.call(tool, &args).unwrap_err();
+            assert!(matches!(&error, ToolError::InvalidArgs(message) if message.contains("per_sheet")), "{error}");
+            assert!(!dir.join(output).exists(), "invalid settings must not write a different layout");
+            assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc })), before);
+        }
+    }
+}
+
+#[test]
+fn booklet_refuses_unknown_binding_instead_of_silently_using_left() {
+    let dir = workdir("booklet-invalid-binding");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].clone();
+    for tool in ["doc_impose", "doc_print"] {
+        let output = format!("{tool}-invalid.pdf");
+        let mut args = json!({ "doc": doc, "layout": "booklet", "binding": "sideways" });
+        args[if tool == "doc_impose" { "out" } else { "path" }] = json!(output);
+        let error = a.call(tool, &args).unwrap_err();
+        assert!(matches!(&error, ToolError::InvalidArgs(message) if message.contains("binding")), "{error}");
+        assert!(!dir.join(output).exists());
+    }
+}
+
 /// organize.interleave through doc_combine: a 3-page A and a 2-page B whose pages print their
 /// names; B reversed (a duplex scan's backs) gives A1 B2 A2 B1 A3, each file copied once with one
 /// bookmark. per_turn, ranges and the argument errors (with groups, bad shapes) are checked too.
