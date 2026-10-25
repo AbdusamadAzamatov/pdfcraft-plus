@@ -2800,3 +2800,7 @@ certificate	Version	الإصدار
 	Straighten	تقويم
 	Pages with comments or form fields are left as they are	تُترك الصفحات التي تحتوي على تعليقات أو حقول نماذج كما هي
 	Straighten pages	تقويم الصفحات
+	Remove restrictions	إزالة القيود
+	Remove restrictions…	إزالة القيود…
+	I have the right to edit this file	لدي الحق في تعديل هذا الملف
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	لهذه النسخة المتفرعة فقط. يزيل الحماية دون كلمة مرور الأذونات. يعيد الحفظ كتابة الملف دون تشفير.

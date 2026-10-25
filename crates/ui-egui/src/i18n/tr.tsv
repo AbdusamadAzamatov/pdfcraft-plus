@@ -2519,3 +2519,7 @@ animation effects	Off	Kapalı
 	Straighten	Düzelt
 	Pages with comments or form fields are left as they are	Yorum veya form alanı içeren sayfalar olduğu gibi bırakılır
 	Straighten pages	Sayfaları düzelt
+	Remove restrictions	Kısıtlamaları kaldır
+	Remove restrictions…	Kısıtlamaları kaldır…
+	I have the right to edit this file	Bu dosyayı düzenleme hakkım var
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Yalnızca bu çatallanmada. İzin parolası olmadan güvenliği kaldırır. Kaydetme işlemi dosyayı şifrelenmemiş olarak yeniden yazar.

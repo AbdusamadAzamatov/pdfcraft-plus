@@ -720,9 +720,10 @@ impl Document {
         self.security.as_deref()
     }
 
-    /// What the opening password allows (`None` for unencrypted documents: everything).
+    /// What the current output security allows, including pending protection changes.
+    /// `None` for unencrypted output: everything. The input handler still decrypts lazy reads.
     pub fn permissions(&self) -> Option<pdfcraft_crypt::Permissions> {
-        self.security().map(|s| s.permissions())
+        self.output_handler().map(|s| s.permissions())
     }
 
     /// Make the next save a full rewrite: earlier revisions (which still hold what an edit

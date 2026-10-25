@@ -82,3 +82,89 @@ fn editing_restrictions_via_advanced_options() {
     // Remove security is disabled for nobody here: this session set it.
     assert!(h.state().session.get(id).unwrap().allows_security_change());
 }
+
+fn restricted_harness() -> Harness<'static, PdfCraftApp> {
+    use pdfcraft_engine::{Edit, Protection, Session};
+    let mut author = Session::new();
+    let id = author.open("source.pdf", None, std::sync::Arc::new(FIXTURE.to_vec()), None).unwrap();
+    author.apply(id, Edit::Protect(Protection { permissions_password: Some("owner".into()), ..Default::default() })).unwrap();
+    let bytes = author.save_bytes(id).unwrap();
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("restricted.pdf", None, bytes.as_ref().clone()).unwrap();
+        app
+    });
+    h.run_steps(4);
+    h
+}
+
+#[test]
+fn removing_restrictions_requires_fresh_rights_confirmation_and_is_undoable() {
+    let mut h = restricted_harness();
+    let id = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().execute("protect.remove_restrictions"));
+    h.run_steps(4);
+    assert!(h.query_all_by_label("restricted.pdf").count() >= 1);
+    h.get_by_label("I have the right to edit this file");
+    assert!(h.query_by(|n| n.label().as_deref() == Some("Remove restrictions") && n.is_disabled()).is_some());
+    h.key_press(egui::Key::Enter);
+    h.run_steps(2);
+    assert!(h.state().session.get(id).unwrap().security_summary().is_some());
+    assert!(!h.state().session.get(id).unwrap().dirty);
+    h.get_by_label("I have the right to edit this file").click();
+    h.run_steps(2);
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(!h.state().session.get(id).unwrap().dirty && h.state().dialog.is_none());
+    assert!(h.state_mut().execute("protect.remove_restrictions"));
+    h.run_steps(3);
+    assert!(h.query_by(|n| n.label().as_deref() == Some("Remove restrictions") && n.is_disabled()).is_some(), "consent was not remembered");
+    h.get_by_label("I have the right to edit this file").click();
+    h.run_steps(2);
+    h.get_all_by_label("Remove restrictions").last().unwrap().click();
+    h.run_steps(3);
+    let doc = h.state().session.get(id).unwrap();
+    assert!(doc.dirty && doc.security_summary().is_none() && doc.allows_modification());
+    assert_eq!(doc.can_undo(), Some("Remove restrictions"));
+    assert!(h.state().dialog.is_none() && h.state().unlock_prompt.is_none());
+    let plain = h.state().session.save_bytes(id).unwrap();
+    let mut reopened = pdfcraft_engine::Session::new();
+    assert!(reopened.open("plain.pdf", None, plain, None).is_ok());
+    h.state_mut().undo();
+    let doc = h.state().session.get(id).unwrap();
+    assert!(doc.security_summary().is_some() && !doc.allows_modification());
+    assert!(!doc.security_summary().unwrap().owner);
+    assert!(h.state_mut().execute("protect.remove_restrictions"));
+    h.run_steps(3);
+    assert!(h.query_by(|n| n.label().as_deref() == Some("Remove restrictions") && n.is_disabled()).is_some());
+}
+
+#[test]
+fn removing_restrictions_confirmation_never_follows_another_active_document() {
+    let mut h = restricted_harness();
+    let original = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().execute("protect.remove_restrictions"));
+    h.run_steps(3);
+    h.get_by_label("I have the right to edit this file").click();
+    h.run_steps(2);
+    h.state_mut().open_bytes("other.pdf", None, FIXTURE.to_vec()).unwrap();
+    h.run_steps(4);
+    assert!(h.state().dialog.is_none(), "changing documents dismisses the document-bound consent");
+    assert!(!h.state().session.get(original).unwrap().dirty);
+    assert!(h.state().session.get(original).unwrap().security_summary().is_some());
+    let other = h.state().active_ids().unwrap().1;
+    assert_ne!(original, other);
+    assert!(!h.state().session.get(other).unwrap().dirty);
+}
+
+#[test]
+fn removing_restrictions_is_disabled_without_a_protected_document() {
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    assert!(pdfcraft_engine::commands::command("protect.remove_restrictions").is_some());
+    assert!(!app.execute("protect.remove_restrictions"));
+    app.open_bytes("plain.pdf", None, FIXTURE.to_vec()).unwrap();
+    assert!(!app.execute("protect.remove_restrictions"));
+    assert!(app.dialog.is_none() && !app.session.get(app.active_ids().unwrap().1).unwrap().dirty);
+}

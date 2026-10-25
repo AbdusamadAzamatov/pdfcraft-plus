@@ -2473,3 +2473,7 @@ animation effects	Off	關
 	Straighten	校正
 	Pages with comments or form fields are left as they are	含有註解或表單欄位的頁面保持不變
 	Straighten pages	校正頁面傾斜
+	Remove restrictions	移除限制
+	Remove restrictions…	移除限制…
+	I have the right to edit this file	我有權編輯此檔案
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	僅限此分支版本。無需權限密碼即可移除安全設定。儲存時將以未加密形式重寫檔案。

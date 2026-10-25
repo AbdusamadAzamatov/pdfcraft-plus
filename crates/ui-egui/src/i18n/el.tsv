@@ -2529,3 +2529,7 @@ animation effects	Off	Ανενεργά
 	Straighten	Ευθυγράμμιση
 	Pages with comments or form fields are left as they are	Οι σελίδες με σχόλια ή πεδία φόρμας μένουν ως έχουν
 	Straighten pages	Ευθυγράμμιση σελίδων
+	Remove restrictions	Κατάργηση περιορισμών
+	Remove restrictions…	Κατάργηση περιορισμών…
+	I have the right to edit this file	Έχω το δικαίωμα να επεξεργαστώ αυτό το αρχείο
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Μόνο σε αυτή την παραλλαγή. Καταργεί την ασφάλεια χωρίς τον κωδικό δικαιωμάτων. Η αποθήκευση επανεγγράφει το αρχείο χωρίς κρυπτογράφηση.

@@ -2523,3 +2523,7 @@ animation effects	Off	オフ
 	Straighten	補正
 	Pages with comments or form fields are left as they are	注釈やフォームフィールドのあるページはそのままになります
 	Straighten pages	ページの傾きを補正
+	Remove restrictions	制限を解除
+	Remove restrictions…	制限を解除…
+	I have the right to edit this file	このファイルを編集する権利があります
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	この派生版のみの機能です。権限パスワードなしで保護を解除します。保存時にファイルを暗号化せずに書き直します。

@@ -357,6 +357,8 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("edit.invert.remove", "Remove inverted colours", None, None, Marks(crate::MarkKind::ColorFilter), "moon"),
     c("protect.password", "Protect using password…", FILE, None, Security, "lock"),
     c("protect.remove", "Remove security", FILE, None, ProtectedSecurity, "lock-open"),
+    // Personal-fork-only action; the separate confirmation never changes normal security commands.
+    c("protect.remove_restrictions", "Remove restrictions…", FILE, None, ProtectedSecurity, "lock-open"),
     c("protect.unlock", "Enter permissions password…", None, None, Unlock, "lock-open"),
     c("protect.properties", "Security properties…", FILE, None, Document, "shield-check"),
     c("page.organize", "Organize pages", PAGES, None, Document, "layout-grid"),

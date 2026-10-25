@@ -203,6 +203,11 @@ impl PdfCraftApp {
                     self.notify_tr("Security will be removed when you save");
                 }
             }
+            "protect.remove_restrictions" => {
+                if let Some((_, doc)) = self.active_ids() {
+                    self.dialog = Some(Dialog::RemoveRestrictions { doc, confirmed_rights: false });
+                }
+            }
             "page.number" => {
                 if let Some(i) = active {
                     let v = &self.views[i];

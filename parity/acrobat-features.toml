@@ -215,7 +215,7 @@ status = "shipped"
 commands = []
 tools = []
 evidence = ["crates/ui-egui/tests/editing.rs::restricted_documents_show_a_notice_and_block_page_changes", "crates/crypt/src/tests.rs::permission_bits_follow_table_22", "crates/crypt/src/tests.rs::perms_limits_what_an_edited_p_grants", "crates/engine/src/tests.rs::combining_protected_files_is_refused_clearly"]
-notes = ""
+notes = "Normal operations honour permissions. This personal fork separately offers protect.remove_restrictions / doc_remove_restrictions, requiring explicit rights confirmation on each call and an already-open PDF. It does not bypass the opening password, grant owner authentication, or exempt other edits in a batch; undo restores the original restrictions."
 
 [[feature]]
 id = "core.crypt-filters"
@@ -5574,6 +5574,29 @@ commands = ["protect.remove"]
 tools = ["doc_unprotect"]
 evidence = ["crates/engine/src/tests.rs::protect_with_an_open_password_then_save_reopen_and_undo", "crates/automation/tests/automation.rs::protecting_through_tools"]
 notes = "needs the permissions password (or none set)"
+
+[[feature]]
+id = "protect.remove-restrictions"
+title = "Remove restrictions without the owner password (personal fork only)"
+area = "G"
+tier = "P3"
+milestone = "M8"
+status = "shipped"
+commands = ["protect.remove_restrictions"]
+tools = ["doc_remove_restrictions"]
+evidence = [
+    "crates/cos/tests/encryption.rs::permissions_follow_output_security_without_changing_the_read_context",
+    "crates/engine/src/tests.rs::remove_restrictions_requires_explicit_rights_even_for_the_owner_or_plain_files",
+    "crates/engine/src/tests.rs::remove_restrictions_preserves_renders_metadata_unknown_data_and_undo_after_save",
+    "crates/engine/src/tests.rs::remove_restrictions_does_not_bypass_the_open_password",
+    "crates/engine/src/tests.rs::remove_restrictions_batches_keep_other_permission_checks_and_are_atomic",
+    "crates/engine/src/tests.rs::remove_restrictions_refuses_signed_documents_without_changing_them",
+    "crates/automation/tests/automation.rs::removing_restrictions_through_tools_requires_consent_and_preserves_the_file",
+    "crates/automation/tests/automation.rs::removing_restrictions_over_mcp_requires_explicit_consent_in_full_and_compact_modes",
+    "crates/ui-egui/tests/ui_group/protect.rs::removing_restrictions_requires_fresh_rights_confirmation_and_is_undoable",
+    "crates/ui-egui/tests/ui_group/protect.rs::removing_restrictions_confirmation_never_follows_another_active_document",
+]
+notes = "CU5, owner-approved personal-fork exception, not an upstream Acrobat-parity claim. Clean up and File menu open a document-bound confirmation with an initially unchecked right-to-edit checkbox; consent is never persisted. The headless tool requires literal confirmed_rights: true every call, including command_run and MCP compact tool_call. Only already-open standard-password-encrypted PDFs are supported; a nonempty opening password must still be supplied normally. Signed documents and files without password security are refused. Removes ALL password security via a full rewrite on save, not just selected permissions. One undo step; source and undo states are never authenticated as owner. Ordinary doc_unprotect and permission enforcement remain unchanged. RC4-40/128 and AES-128/256, metadata encryption, unknown data, identical renders and undo after saving are covered."
 
 [[feature]]
 id = "protect.certificate-encryption"

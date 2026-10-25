@@ -1960,6 +1960,100 @@ fn protecting_through_tools() {
     ok(&mut c, "doc_open", json!({ "path": "open.pdf" }));
 }
 
+fn cu5_locked_file(dir: &Path, password: &str) {
+    let mut author = auto(dir);
+    let doc = ok(&mut author, "doc_open", json!({ "path": "a.pdf" }))["doc"].clone();
+    let mut options = json!({ "doc": doc, "permissions_password": "owner", "printing": "none", "changes": "none", "copy": false });
+    if !password.is_empty() {
+        options["open_password"] = json!(password);
+    }
+    ok(&mut author, "doc_protect", options);
+    ok(&mut author, "doc_save", json!({ "doc": doc, "path": "restricted.pdf" }));
+}
+
+#[test]
+fn removing_restrictions_through_tools_requires_consent_and_preserves_the_file() {
+    let dir = workdir("cu5-restrictions");
+    cu5_locked_file(&dir, "open");
+    let original = std::fs::read(dir.join("restricted.pdf")).unwrap();
+    let mut a = auto(&dir);
+    assert!(a.call("doc_open", &json!({ "path": "restricted.pdf" })).is_err(), "the open password is still needed");
+    let doc = ok(&mut a, "doc_open", json!({ "path": "restricted.pdf", "password": "open" }))["doc"].clone();
+    let before = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    for consent in [None, Some(json!(false)), Some(json!("true")), Some(json!(1)), Some(Value::Null)] {
+        let mut args = json!({ "doc": doc });
+        if let Some(consent) = consent {
+            args["confirmed_rights"] = consent;
+        }
+        let error = a.call("doc_remove_restrictions", &args).unwrap_err();
+        assert!(matches!(error, ToolError::InvalidArgs(_)), "{error}");
+        assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc })), before, "a refusal changes nothing");
+    }
+    assert!(a.call("doc_unprotect", &json!({ "doc": doc })).unwrap_err().to_string().contains("changing security"));
+    let rendered = a.call("page_render", &json!({ "doc": doc, "page": 1, "dpi": 72 })).unwrap();
+    let result = ok(&mut a, "doc_remove_restrictions", json!({ "doc": doc, "confirmed_rights": true }));
+    assert_eq!(result["security"]["protected"], false);
+    assert_eq!(a.call("page_render", &json!({ "doc": doc, "page": 1, "dpi": 72 })).unwrap(), rendered);
+    let error = a.call("doc_save", &json!({ "doc": doc, "path": "../cu5-outside.pdf" })).unwrap_err();
+    assert!(error.to_string().contains("outside the allowed directory"), "{error}");
+    ok(&mut a, "doc_save", json!({ "doc": doc, "path": "unrestricted.pdf" }));
+    assert_eq!(std::fs::read(dir.join("restricted.pdf")).unwrap(), original, "the source file is not overwritten");
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc }))["security"]["protected"], true);
+    assert!(a.call("doc_unprotect", &json!({ "doc": doc })).is_err(), "undo does not grant owner access");
+    assert!(a.call("doc_remove_restrictions", &json!({ "doc": doc })).is_err(), "each new removal needs its own consent");
+    ok(&mut a, "edit_redo", json!({ "doc": doc }));
+    assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc }))["security"]["protected"], false);
+    let mut reopened = auto(&dir);
+    let plain = ok(&mut reopened, "doc_open", json!({ "path": "unrestricted.pdf" }))["doc"].clone();
+    assert!(ok(&mut reopened, "text_extract", json!({ "doc": plain }))["pages"][0]["text"].as_str().unwrap().contains("Page 1"));
+}
+
+#[test]
+fn removing_restrictions_command_requires_its_own_consent() {
+    let dir = workdir("cu5-command");
+    cu5_locked_file(&dir, "");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "restricted.pdf" }))["doc"].clone();
+    let definition = tools().into_iter().find(|t| t.name == "doc_remove_restrictions").expect("fork-only tool is registered");
+    assert_eq!(definition.command, Some("protect.remove_restrictions"));
+    assert!(definition.destructive && !definition.read_only);
+    assert_eq!(definition.input_schema["properties"]["confirmed_rights"]["const"], true);
+    assert!(definition.input_schema["required"].as_array().unwrap().contains(&json!("confirmed_rights")));
+    let args = json!({ "id": "protect.remove_restrictions", "params": { "doc": doc } });
+    assert!(a.call("command_run", &args).unwrap_err().to_string().contains("confirmed_rights"));
+    let batch = ok(&mut a, "command_batch", json!({ "steps": [args] }));
+    assert_eq!((batch["completed"].as_u64(), batch["failed"].as_u64()), (Some(0), Some(1)));
+    assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc }))["security"]["protected"], true);
+    let result = ok(&mut a, "command_run", json!({ "id": "protect.remove_restrictions", "params": { "doc": doc, "confirmed_rights": true } }));
+    assert_eq!(result["security"]["protected"], false);
+}
+
+#[cfg(feature = "mcp")]
+#[test]
+fn removing_restrictions_over_mcp_requires_explicit_consent_in_full_and_compact_modes() {
+    let dir = workdir("cu5-mcp");
+    cu5_locked_file(&dir, "");
+    for compact in [false, true] {
+        let mut server = McpServer::new(auto(&dir)).with_compact(compact);
+        let opened = rpc(&mut server, 1, "tools/call", json!({ "name": "doc_open", "arguments": { "path": "restricted.pdf" } }));
+        let doc = opened["result"]["structuredContent"]["doc"].clone();
+        assert!(doc.is_number(), "{opened}");
+        let call = |args: Value| {
+            if compact {
+                json!({ "name": "tool_call", "arguments": { "name": "doc_remove_restrictions", "arguments": args } })
+            } else {
+                json!({ "name": "doc_remove_restrictions", "arguments": args })
+            }
+        };
+        let denied = rpc(&mut server, 2, "tools/call", call(json!({ "doc": doc })));
+        assert_eq!(denied["result"]["isError"], true, "{denied}");
+        assert!(denied["result"]["content"][0]["text"].as_str().unwrap().contains("confirmed_rights"));
+        let allowed = rpc(&mut server, 3, "tools/call", call(json!({ "doc": doc, "confirmed_rights": true })));
+        assert_eq!(allowed["result"]["structuredContent"]["security"]["protected"], false, "{allowed}");
+    }
+}
+
 /// A form secured with "fill-sign" changes and no open password (how secured forms are usually
 /// distributed): its existing signature field can be signed without the permissions password,
 /// the update keeps the encryption, and the signature validates after reopening. A new field

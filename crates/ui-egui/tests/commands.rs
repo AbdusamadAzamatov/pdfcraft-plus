@@ -142,7 +142,7 @@ fn every_registered_command_is_implemented() {
                 author: String::new(),
             }));
         }
-        if spec.id == "protect.remove" {
+        if matches!(spec.id, "protect.remove" | "protect.remove_restrictions") {
             let p = pdfcraft_engine::Protection { open_password: Some("pw".into()), ..Default::default() };
             app.apply_edit(pdfcraft_engine::Edit::Protect(p));
         }

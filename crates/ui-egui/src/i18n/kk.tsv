@@ -2521,3 +2521,7 @@ animation effects	Off	Өшірулі
 	Straighten	Түзету
 	Pages with comments or form fields are left as they are	Түсініктемелері немесе пішін өрістері бар беттер өзгеріссіз қалады
 	Straighten pages	Беттерді түзету
+	Remove restrictions	Шектеулерді алып тастау
+	Remove restrictions…	Шектеулерді алып тастау…
+	I have the right to edit this file	Бұл файлды өңдеуге құқығым бар
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Тек осы тармақталған нұсқада. Рұқсаттар құпиясөзінсіз қорғанысты жояды. Сақтау файлды шифрлаусыз қайта жазады.

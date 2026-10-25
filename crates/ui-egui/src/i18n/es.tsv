@@ -2663,3 +2663,7 @@ animation effects	Off	Desactivados
 	Straighten	Enderezar
 	Pages with comments or form fields are left as they are	Las páginas con comentarios o campos de formulario se dejan como están
 	Straighten pages	Enderezar páginas
+	Remove restrictions	Quitar restricciones
+	Remove restrictions…	Quitar restricciones…
+	I have the right to edit this file	Tengo derecho a editar este archivo
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Solo en esta versión derivada. Quita la seguridad sin la contraseña de permisos. Al guardar, el archivo se reescribe sin cifrar.

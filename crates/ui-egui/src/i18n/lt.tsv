@@ -2774,3 +2774,7 @@ theme	Appearance	Išvaizda
 	Straighten	Ištiesinti
 	Pages with comments or form fields are left as they are	Puslapiai su komentarais ar formos laukais paliekami tokie, kokie yra
 	Straighten pages	Ištiesinti puslapius
+	Remove restrictions	Pašalinti apribojimus
+	Remove restrictions…	Pašalinti apribojimus…
+	I have the right to edit this file	Turiu teisę redaguoti šį failą
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Tik šioje atšakoje. Pašalina apsaugą be teisių slaptažodžio. Išsaugant failas perrašomas nešifruotas.

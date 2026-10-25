@@ -62,6 +62,11 @@ flag, autosave and the automation tools consistent for free.
 `split_by_size`, `reduced_bytes`, `optimized_bytes`, `print_pdf`, `export_data`, and the signing
 family (`sign`, `sign_with_timestamp`, `timestamp_document`, `embed_ltv`).
 
+The personal fork includes the explicitly confirmed `Edit::RemoveRestrictions { confirmed_rights }`
+for already-open PDFs. It removes output security without authenticating the source or undo states
+as owner, reuses the security full-rewrite and undo paths, and refuses signed documents.
+`Edit::RemoveProtection`, owner-password unlocking, and normal permission checks are unchanged.
+
 ## Modules
 
 | Module | What it holds |

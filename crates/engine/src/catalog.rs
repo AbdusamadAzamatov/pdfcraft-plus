@@ -354,6 +354,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     menu_item("Invert colours", "moon", &["edit.invert", "edit.invert.remove"]),
                     item("Rasterize pages…", "image", "optimize.rasterize", Ready),
                     item("Convert to grayscale", "contrast", "optimize.grayscale", Ready),
+                    item("Remove restrictions…", "lock-open", "protect.remove_restrictions", Ready),
                 ],
             },
         ],

@@ -2432,3 +2432,7 @@ animation effects	Off	ఆఫ్
 	Straighten	నిటారుగా చేయి
 	Pages with comments or form fields are left as they are	వ్యాఖ్యలు లేదా ఫారమ్ ఫీల్డ్‌లు ఉన్న పేజీలు అలాగే ఉంచబడతాయి
 	Straighten pages	పేజీలను నిటారుగా చేయి
+	Remove restrictions	పరిమితులను తొలగించు
+	Remove restrictions…	పరిమితులను తొలగించు…
+	I have the right to edit this file	ఈ ఫైల్‌ను సవరించే హక్కు నాకు ఉంది
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	ఈ ఫోర్క్‌లో మాత్రమే. అనుమతుల పాస్‌వర్డ్ లేకుండానే భద్రతను తొలగిస్తుంది. సేవ్ చేసినప్పుడు ఫైల్‌ను గుప్తీకరణ లేకుండా తిరిగి వ్రాస్తుంది.

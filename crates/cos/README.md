@@ -43,6 +43,10 @@ Useful alongside: `doc.repair_log()` (what was reconstructed), `doc.revisions()`
 `doc.permissions()` and `doc.security()`, `doc.set_encryption()` / `doc.remove_encryption()`, and
 `doc.require_full_save()` for edits that cannot be expressed incrementally.
 
+`permissions()` describes the current output security, including pending protection changes.
+`security()` retains the original authenticated input handler so lazy objects remain decryptable;
+changing output protection never authenticates that handler or an undo snapshot as owner.
+
 `Document` is **cheap to clone**: the original bytes, the xref index and the parse caches are
 shared, so a clone is a snapshot. Undo/redo and background jobs hold clones while the UI edits
 another. Edits never touch the original bytes.

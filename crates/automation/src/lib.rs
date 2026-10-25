@@ -785,6 +785,14 @@ impl Automation {
                 out["security"] = security(self.doc(&a)?);
                 out
             }
+            "doc_remove_restrictions" => {
+                if a.opt_bool("confirmed_rights")? != Some(true) {
+                    return Err(ToolError::InvalidArgs("confirmed_rights must be true to confirm that you have the right to edit this file".into()));
+                }
+                let mut out = self.apply(&a, Edit::RemoveRestrictions { confirmed_rights: true })?;
+                out["security"] = security(self.doc(&a)?);
+                out
+            }
             "form_fields" => self.form_fields(&a)?,
             "form_fill" => self.form_fill(&a)?,
             "form_set_image" => {

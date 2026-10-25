@@ -2523,3 +2523,7 @@ animation effects	Off	Désactivés
 	Straighten	Redresser
 	Pages with comments or form fields are left as they are	Les pages comportant des commentaires ou des champs de formulaire restent telles quelles
 	Straighten pages	Redresser les pages
+	Remove restrictions	Supprimer les restrictions
+	Remove restrictions…	Supprimer les restrictions…
+	I have the right to edit this file	J'ai le droit de modifier ce fichier
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Uniquement dans cette version dérivée. Supprime la sécurité sans le mot de passe des autorisations. L'enregistrement réécrit le fichier sans chiffrement.

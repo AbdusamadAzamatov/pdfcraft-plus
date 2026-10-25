@@ -55,6 +55,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut apply_number = false;
     let mut link_command: Option<&'static str> = None;
     let mut protect_now = false;
+    let mut remove_restrictions_now = None;
     let mut boxes_now = false;
     let mut impose_now = false;
     let mut stitch_now = false;
@@ -1086,6 +1087,21 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = apply || cancel;
                 return;
             }
+            Dialog::RemoveRestrictions { doc, mut confirmed_rights } => {
+                if app.active_ids().map(|(_, id)| id) != Some(doc) {
+                    close = true;
+                    return;
+                }
+                let Some(document) = app.session.get(doc) else {
+                    close = true;
+                    return;
+                };
+                let (go, cancel) = crate::restrictions_ui::body(ui, &document.name, &mut confirmed_rights, &t);
+                next = Dialog::RemoveRestrictions { doc, confirmed_rights };
+                remove_restrictions_now = go.then_some((doc, confirmed_rights));
+                close = go || cancel;
+                return;
+            }
             Dialog::NumberPages => {
                 use pdfcraft_engine::LabelStyle as L;
                 ui.label(egui::RichText::new(tl!("Number pages")).font(theme::semibold(18.0)));
@@ -1486,6 +1502,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     if protect_now && app.apply_edit(app.protect_draft.edit()) {
         app.protect_draft = Default::default();
         app.notify_tr("Password protection will be applied when you save");
+    }
+    if let Some((doc, confirmed_rights)) = remove_restrictions_now
+        && app.active_ids().map(|(_, id)| id) == Some(doc)
+        && app.apply_edit(Edit::RemoveRestrictions { confirmed_rights })
+    {
+        app.notify_tr("Security will be removed when you save");
     }
     if apply_number && let Some(edit) = number_now {
         app.apply_edit(edit);

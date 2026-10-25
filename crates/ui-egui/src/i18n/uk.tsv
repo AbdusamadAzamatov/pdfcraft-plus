@@ -2545,3 +2545,7 @@ animation effects	Off	Вимкнено
 	Straighten	Вирівняти
 	Pages with comments or form fields are left as they are	Сторінки з коментарями або полями форм залишаються без змін
 	Straighten pages	Вирівняти сторінки
+	Remove restrictions	Зняти обмеження
+	Remove restrictions…	Зняти обмеження…
+	I have the right to edit this file	Я маю право редагувати цей файл
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Лише в цьому форку. Знімає захист без пароля дозволів. Під час збереження файл перезаписується без шифрування.

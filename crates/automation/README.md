@@ -62,6 +62,22 @@ both. The existing `query`, `count`, `matches` and rectangle semantics are uncha
 `text_extract`, comment placement and redaction keep strict all-requested-pages-must-succeed
 semantics; they never silently act on partial text.
 
+## Removing restrictions in the personal fork
+
+`doc_unprotect` still requires the permissions (owner) password or unrestricted permissions.
+This personal fork additionally exposes `doc_remove_restrictions` (command
+`protect.remove_restrictions`) for PDFs that are already open:
+
+```json
+{"doc": 1, "confirmed_rights": true}
+```
+
+The caller must explicitly confirm the right to edit that file on **every call**. Missing, false
+or non-boolean consent is refused. This does not recover or bypass the password needed to open a
+PDF. Signed documents are refused. Removal is one undoable edit; undo restores restrictions without
+granting owner access. `doc_save` then writes an unencrypted full rewrite, with the usual atomic
+write and `--root` checks. No file is written by the removal tool itself.
+
 ## Shared field properties
 
 `form_set_props` accepts either `field` (one name) or `fields` (1–1000 unique names):

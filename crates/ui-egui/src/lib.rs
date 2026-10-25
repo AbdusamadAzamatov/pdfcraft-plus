@@ -109,6 +109,7 @@ pub mod prepare;
 mod print_ui;
 mod rasterize_ui;
 pub mod resize_ui;
+mod restrictions_ui;
 pub mod rotate_angle_ui;
 mod signature_drag;
 pub mod trim_ui;
@@ -294,6 +295,11 @@ pub enum Dialog {
     NumberPages,
     /// Protect Using Password.
     Protect,
+    /// Personal-fork-only security removal. Consent belongs only to this document and dialog.
+    RemoveRestrictions {
+        doc: DocId,
+        confirmed_rights: bool,
+    },
     /// Set Page Boxes (crop, trim, bleed, art, media).
     PageBoxes,
     /// Organize ▸ Layout ▸ Pages per sheet (N-up), Booklet or Poster: the sheets as a new document.
@@ -2611,6 +2617,10 @@ impl PdfCraftApp {
                     "shortcuts" => Some(Dialog::Shortcuts),
                     "split" => Some(Dialog::Split),
                     "protect" => Some(Dialog::Protect),
+                    "remove-restrictions" => {
+                        self.execute("protect.remove_restrictions");
+                        self.dialog
+                    }
                     "page-boxes" => Some(Dialog::PageBoxes),
                     "divide-pages" => Some(Dialog::DividePages),
                     "stitch-pages" => Some(Dialog::Stitch),

@@ -682,7 +682,7 @@ impl Document {
         self.editor.is_some()
     }
 
-    /// What the opening password allows; `None` when the document is not encrypted.
+    /// What the current security allows, including pending changes; `None` for unencrypted output.
     pub fn permissions(&self) -> Option<pdfcraft_cos::Permissions> {
         self.editor.as_ref().and_then(|e| e.cos.permissions())
     }
@@ -1801,6 +1801,12 @@ pub enum Edit {
     Protect(Protection),
     /// Remove password security (needs the owner password).
     RemoveProtection,
+    /// Personal-fork-only removal of security from an already-open document without its owner
+    /// password. Requires explicit confirmation of the right to edit, makes a full rewrite, and
+    /// is undoable. Does not bypass the password needed to open a document.
+    RemoveRestrictions {
+        confirmed_rights: bool,
+    },
     /// Several edits applied as one undoable step (all or nothing).
     Batch {
         label: String,
@@ -2157,6 +2163,7 @@ impl Edit {
             Edit::FlattenFillSign => Label::of("Flatten Fill & Sign"),
             Edit::Protect(_) => Label::of("Protect with password"),
             Edit::RemoveProtection => Label::of("Remove security"),
+            Edit::RemoveRestrictions { .. } => Label::of("Remove restrictions"),
             // A batch carries its own name, already worded by whoever built it.
             // A batch carries its name as text, so the wording is only the hole (see `BATCH_LABELS`).
             Edit::Batch { label, .. } => Label::with("{batch}", label.as_str()),
@@ -2274,6 +2281,9 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
                 Err(EditError::NotPermitted("filling in form fields"))
             }
         }
+        // Personal-fork opt-in only; run_edit checks consent. Sibling batch edits still have
+        // to satisfy the original permissions, and no undo state is authenticated as owner.
+        Edit::RemoveRestrictions { .. } => Ok(()),
         Edit::Protect(_) | Edit::RemoveProtection => {
             if unrestricted(p) {
                 Ok(())
@@ -2846,7 +2856,10 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
             };
             doc.set_encryption(&params).map_err(|e| EditError::Protection(e.to_string()))?;
         }
-        Edit::RemoveProtection => {
+        Edit::RemoveProtection | Edit::RemoveRestrictions { .. } => {
+            if matches!(edit, Edit::RemoveRestrictions { confirmed_rights: false }) {
+                return Err(EditError::Invalid("confirm that you have the right to edit this file before removing restrictions".into()));
+            }
             if doc.output_handler().is_none() {
                 return Err(EditError::Protection("the document isn't protected".into()));
             }
@@ -2905,7 +2918,7 @@ fn keys_after(edit: &Edit) -> Option<Keys> {
         Edit::Protect(p) => {
             Some(Keys { render: p.open_password.clone(), reopen: p.permissions_password.clone().or_else(|| p.open_password.clone()) })
         }
-        Edit::RemoveProtection => Some(Keys::default()),
+        Edit::RemoveProtection | Edit::RemoveRestrictions { .. } => Some(Keys::default()),
         Edit::Batch { edits, .. } => edits.iter().rev().find_map(keys_after),
         _ => None,
     }

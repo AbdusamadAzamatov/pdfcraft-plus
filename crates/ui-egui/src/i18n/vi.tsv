@@ -2776,3 +2776,7 @@ key	Space	Space
 	Straighten	Làm thẳng
 	Pages with comments or form fields are left as they are	Các trang có nhận xét hoặc trường biểu mẫu được giữ nguyên
 	Straighten pages	Làm thẳng trang
+	Remove restrictions	Gỡ hạn chế
+	Remove restrictions…	Gỡ hạn chế…
+	I have the right to edit this file	Tôi có quyền chỉnh sửa tệp này
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Chỉ có trong bản phân nhánh này. Gỡ bảo mật mà không cần mật khẩu phân quyền. Khi lưu, tệp được ghi lại không mã hóa.

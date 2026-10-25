@@ -103,6 +103,23 @@ fn empty_user_password_opens_but_reports_restrictions() {
 }
 
 #[test]
+fn permissions_follow_output_security_without_changing_the_read_context() {
+    for alg in ALL {
+        let mut doc = Document::open_with_password(Arc::new(protect(alg, "open", "owner", 0b0100)), Some("open")).unwrap();
+        let original = doc.clone();
+        assert!(!doc.permissions().unwrap().modify());
+        doc.remove_encryption();
+        assert!(doc.permissions().is_none(), "{alg:?}: the current output has no restrictions");
+        assert_eq!(doc.security().unwrap().auth(), Auth::User, "removal must not authenticate as owner");
+        // Objects not read before removal still need the original authenticated decoder.
+        assert_eq!(content(&doc), SECRET, "{alg:?}");
+        assert_eq!(title(&doc).as_deref(), Some("Quarterly numbers"));
+        assert!(!original.permissions().unwrap().modify(), "the undo snapshot stays restricted");
+        assert_eq!(content(&Document::open(Arc::new(write_full(&doc, &Default::default()).unwrap())).unwrap()), SECRET);
+    }
+}
+
+#[test]
 fn the_permissions_password_unlocks_an_open_document() {
     for alg in ALL {
         // Only a permissions password: opens without asking, restricted (#995).

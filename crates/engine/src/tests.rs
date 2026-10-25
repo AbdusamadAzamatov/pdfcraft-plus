@@ -6648,3 +6648,152 @@ fn stitch_new_refuses_a_document_without_the_assembly_permission() {
     let (out, _) = s.stitch_new(owner, &[0, 1], &opts).unwrap();
     assert!(pdfcraft_cos::Document::open(out).is_ok(), "the owner's copy opens without a password");
 }
+
+fn cu5_restricted(algorithm: Algorithm, open_password: &str, encrypt_metadata: bool) -> Arc<Vec<u8>> {
+    use pdfcraft_cos::{Dict, Object, PdfString};
+    let mut doc = pdfcraft_cos::Document::open(Arc::new(fixture(2))).unwrap();
+    let root = doc.root().unwrap();
+    let mut catalog = doc.get(root).as_dict().unwrap().clone();
+    catalog.set(b"CU5Private".to_vec(), Object::String(PdfString { bytes: b"preserve unknown data".to_vec(), hex: false }));
+    doc.set(root, Object::Dict(catalog));
+    let mut info = Dict::new();
+    info.set(b"Title".to_vec(), Object::String(PdfString { bytes: b"Keep this title".to_vec(), hex: false }));
+    let info = doc.add(Object::Dict(info));
+    doc.trailer_mut().set(b"Info".to_vec(), Object::Ref(info));
+    doc.set_encryption(&pdfcraft_cos::NewEncryption {
+        algorithm,
+        user_password: open_password,
+        owner_password: "owner",
+        permissions: 0b0100,
+        encrypt_metadata,
+        seed: [19; 32],
+    })
+    .unwrap();
+    Arc::new(pdfcraft_cos::write_full(&doc, &Default::default()).unwrap())
+}
+
+#[test]
+fn remove_restrictions_requires_explicit_rights_even_for_the_owner_or_plain_files() {
+    for (bytes, password) in
+        [(Arc::new(fixture(2)), None), (protected("", "owner", 0b0100), None), (protected("open", "owner", 0b0100), Some("owner"))]
+    {
+        let mut session = Session::new();
+        let id = session.open("source.pdf", None, bytes.clone(), password).unwrap();
+        let generation = session.get(id).unwrap().edit_generation();
+        let error = session.apply(id, Edit::RemoveRestrictions { confirmed_rights: false }).unwrap_err();
+        assert!(error.to_string().contains("right to edit"), "{error}");
+        let doc = session.get(id).unwrap();
+        assert_eq!(doc.bytes, bytes);
+        assert!(!doc.dirty && doc.can_undo().is_none() && doc.edit_generation() == generation);
+    }
+    let (mut session, id) = session_with(1);
+    assert!(matches!(session.apply(id, Edit::RemoveRestrictions { confirmed_rights: true }), Err(EditError::Protection(_))));
+    assert!(!session.get(id).unwrap().dirty, "an unprotected file is not changed");
+}
+
+#[test]
+fn remove_restrictions_preserves_renders_metadata_unknown_data_and_undo_after_save() {
+    use pdfcraft_cos::{Document as CosDocument, Object};
+    for algorithm in [Algorithm::Rc4_40, Algorithm::Rc4_128, Algorithm::Aes128, Algorithm::Aes256] {
+        for password in ["", "open"] {
+            for encrypt_metadata in [true, false] {
+                let bytes = cu5_restricted(algorithm, password, encrypt_metadata);
+                let mut session = Session::new();
+                let id = session.open("source.pdf", None, bytes.clone(), Some(password)).unwrap();
+                let render = |session: &Session, page| {
+                    let doc = session.get(id).unwrap();
+                    let mut renderer = pdfcraft_render::PageRenderer::new(doc.bytes.clone(), doc.config.clone());
+                    let result = renderer.render(pdfcraft_render::RenderRequest { page, scale: 0.5, ..Default::default() });
+                    assert!(result.error.is_none(), "{:?}: {:?}", algorithm, result.error);
+                    assert!(result.width > 0 && result.height > 0);
+                    (result.width, result.height, result.rgba)
+                };
+                let before: Vec<_> = (0..2).map(|page| render(&session, page)).collect();
+                assert_eq!(session.apply(id, Edit::RemoveProtection), Err(EditError::NotPermitted("changing security")));
+                session.apply(id, Edit::RemoveRestrictions { confirmed_rights: true }).unwrap();
+                let doc = session.get(id).unwrap();
+                assert!(doc.dirty && doc.security_summary().is_none() && doc.allows_modification() && doc.allows_copying());
+                assert_eq!(doc.can_undo(), Some("Remove restrictions"));
+                let saved = session.save_bytes(id).unwrap();
+                let output = CosDocument::open(saved.clone()).unwrap();
+                assert!(output.security().is_none() && output.trailer().get(b"Encrypt").is_none());
+                assert!(!saved.starts_with(bytes.as_slice()), "security removal must not append to the encrypted file");
+                let catalog = output.get(output.root().unwrap());
+                assert_eq!(catalog.as_dict().unwrap().get(b"CU5Private").and_then(Object::as_string).unwrap().bytes, b"preserve unknown data");
+                session.mark_saved(id, saved, None).unwrap();
+                assert_eq!(session.get(id).unwrap().info_value("Title").as_deref(), Some("Keep this title"));
+                assert_eq!(page_texts(&session, id), ["Page 1", "Page 2"]);
+                for (page, expected) in before.iter().enumerate() {
+                    assert_eq!(&render(&session, page), expected, "{algorithm:?}, {password:?}, metadata {encrypt_metadata}");
+                }
+                session.undo(id).unwrap();
+                let doc = session.get(id).unwrap();
+                assert!(!doc.allows_modification() && !doc.security_summary().unwrap().owner, "undo must not elevate the original to owner");
+                assert_eq!(session.apply(id, Edit::RemoveProtection), Err(EditError::NotPermitted("changing security")));
+                let restored = CosDocument::open_with_password(session.save_bytes(id).unwrap(), Some(password)).unwrap();
+                assert!(restored.security().is_some() && !restored.permissions().unwrap().owner);
+                session.redo(id).unwrap();
+                assert!(session.get(id).unwrap().security_summary().is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn remove_restrictions_does_not_bypass_the_open_password() {
+    let bytes = cu5_restricted(Algorithm::Aes256, "open", true);
+    let mut session = Session::new();
+    assert!(session.open("source.pdf", None, bytes.clone(), None).is_err());
+    assert!(session.open("source.pdf", None, bytes.clone(), Some("wrong")).is_err());
+    let id = session.open("source.pdf", None, bytes, Some("open")).unwrap();
+    assert!(!session.get(id).unwrap().security_summary().unwrap().owner);
+    session.apply(id, Edit::RemoveRestrictions { confirmed_rights: true }).unwrap();
+    let mut reopened = Session::new();
+    assert!(reopened.open("plain.pdf", None, session.save_bytes(id).unwrap(), None).is_ok());
+}
+
+#[test]
+fn remove_restrictions_batches_keep_other_permission_checks_and_are_atomic() {
+    let bytes = cu5_restricted(Algorithm::Aes256, "", true);
+    let mut session = Session::new();
+    let id = session.open("source.pdf", None, bytes.clone(), None).unwrap();
+    for edits in [
+        vec![Edit::RemoveRestrictions { confirmed_rights: true }, Edit::RotatePages { pages: vec![0], degrees: 90 }],
+        vec![Edit::RemoveRestrictions { confirmed_rights: true }, Edit::RemoveProtection],
+        vec![Edit::RemoveRestrictions { confirmed_rights: true }, Edit::RemoveRestrictions { confirmed_rights: false }],
+        vec![Edit::Batch { label: "Nested".into(), edits: vec![Edit::RemoveRestrictions { confirmed_rights: false }] }],
+    ] {
+        assert!(session.apply(id, Edit::Batch { label: "Combined changes".into(), edits }).is_err());
+        let doc = session.get(id).unwrap();
+        assert_eq!(doc.bytes, bytes);
+        assert!(!doc.dirty && doc.can_undo().is_none() && !doc.allows_modification());
+    }
+    session
+        .apply(
+            id,
+            Edit::Batch {
+                label: "Confirmed removal".into(),
+                edits: vec![Edit::Batch { label: "Nested".into(), edits: vec![Edit::RemoveRestrictions { confirmed_rights: true }] }],
+            },
+        )
+        .unwrap();
+    assert!(session.get(id).unwrap().security_summary().is_none());
+    session.undo(id).unwrap();
+    assert!(!session.get(id).unwrap().security_summary().unwrap().owner);
+}
+
+#[test]
+fn remove_restrictions_refuses_signed_documents_without_changing_them() {
+    let p12 = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../sign/tests/data/ec-p256.p12")).unwrap();
+    let digital_id = sign::pkcs12::open(&p12, "test").unwrap();
+    let mut author = Session::new().with_clock(|| 1_800_000_000);
+    let id = author.open("source.pdf", None, cu5_restricted(Algorithm::Aes128, "open", true), Some("owner")).unwrap();
+    let signed = author.sign(id, &digital_id, SignOptions { page: 0, ..Default::default() }).unwrap();
+    let mut session = Session::new().with_clock(|| 1_800_000_000);
+    let id = session.open("signed.pdf", None, signed.clone(), Some("open")).unwrap();
+    assert!(session.get(id).unwrap().is_signed());
+    assert!(matches!(session.apply(id, Edit::RemoveRestrictions { confirmed_rights: true }), Err(EditError::SignedRewrite(_))));
+    let doc = session.get(id).unwrap();
+    assert_eq!(doc.bytes, signed);
+    assert!(!doc.dirty && doc.can_undo().is_none() && doc.security_summary().is_some());
+}

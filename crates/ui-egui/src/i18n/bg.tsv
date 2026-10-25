@@ -2486,3 +2486,7 @@ animation effects	Off	Изключени
 	Straighten	Изправяне
 	Pages with comments or form fields are left as they are	Страниците с коментари или полета на формуляри остават непроменени
 	Straighten pages	Изправяне на страници
+	Remove restrictions	Премахване на ограниченията
+	Remove restrictions…	Премахване на ограниченията…
+	I have the right to edit this file	Имам право да редактирам този файл
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Само в тази разклонена версия. Премахва защитата без паролата за разрешения. Записването презаписва файла без шифроване.

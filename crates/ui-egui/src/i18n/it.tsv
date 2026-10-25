@@ -2735,3 +2735,7 @@ certificate	SHA-256 digest	Impronta SHA-256
 	Straighten	Raddrizza
 	Pages with comments or form fields are left as they are	Le pagine con commenti o campi modulo restano invariate
 	Straighten pages	Raddrizza pagine
+	Remove restrictions	Rimuovi restrizioni
+	Remove restrictions…	Rimuovi restrizioni…
+	I have the right to edit this file	Ho il diritto di modificare questo file
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Solo in questa versione derivata. Rimuove la sicurezza senza la password delle autorizzazioni. Il salvataggio riscrive il file senza crittografia.

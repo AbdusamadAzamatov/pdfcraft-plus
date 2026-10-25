@@ -2528,3 +2528,7 @@ animation effects	Off	Izklopljeni
 	Straighten	Poravnaj
 	Pages with comments or form fields are left as they are	Strani s komentarji ali polji obrazca ostanejo nespremenjene
 	Straighten pages	Poravnaj strani
+	Remove restrictions	Odstrani omejitve
+	Remove restrictions…	Odstrani omejitve…
+	I have the right to edit this file	Imam pravico urejati to datoteko
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Samo v tej izpeljani različici. Odstrani zaščito brez gesla za dovoljenja. Shranjevanje prepiše datoteko brez šifriranja.

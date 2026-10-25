@@ -2524,3 +2524,7 @@ animation effects	Off	Aus
 	Straighten	Gerade ausrichten
 	Pages with comments or form fields are left as they are	Seiten mit Kommentaren oder Formularfeldern bleiben unverändert
 	Straighten pages	Seiten gerade ausrichten
+	Remove restrictions	Beschränkungen entfernen
+	Remove restrictions…	Beschränkungen entfernen…
+	I have the right to edit this file	Ich bin berechtigt, diese Datei zu bearbeiten
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Nur in diesem Fork. Entfernt den Schutz ohne Berechtigungskennwort. Beim Speichern wird die Datei unverschlüsselt neu geschrieben.

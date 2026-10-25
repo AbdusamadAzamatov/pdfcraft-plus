@@ -929,6 +929,13 @@ pub fn tools() -> Vec<ToolDef> {
             .cmd("protect.remove")
             .destructive()
             .with(schema(json!({ "doc": doc() }), &["doc"])),
+        t("doc_remove_restrictions", "Remove restrictions (fork only)", "Personal-fork-only action: remove password security from an already-open PDF without its permissions (owner) password. Each call requires confirmed_rights: true, explicitly confirming that you have the right to edit this file. Does not bypass the password needed to open a PDF. Signed documents are refused. One undo step; undo restores the original restrictions without granting owner access. The next doc_save fully rewrites the PDF unencrypted, using the normal atomic write and path confinement. doc_unprotect and all normal permission checks are unchanged.")
+            .cmd("protect.remove_restrictions")
+            .destructive()
+            .with(schema(json!({
+                "doc": doc(),
+                "confirmed_rights": { "type": "boolean", "const": true, "description": "Explicit confirmation: I have the right to edit this file. Required anew for every call." }
+            }), &["doc", "confirmed_rights"])),
         t("page_replace", "Replace pages", "Replace the content of pages with pages of another PDF (same count). Links, comments, form fields and bookmarks on the original pages stay, as in Acrobat. Undoable.")
             .cmd("page.replace")
             .with(schema(json!({ "doc": doc(), "pages": pages("to replace"), "path": path_arg(), "from_pages": pages("of the other file, in order (default: its first pages)") }), &["doc", "pages", "path"])),

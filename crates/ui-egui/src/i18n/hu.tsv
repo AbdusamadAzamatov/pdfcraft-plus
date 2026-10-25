@@ -2522,3 +2522,7 @@ animation effects	Off	Ki
 	Straighten	Kiegyenesítés
 	Pages with comments or form fields are left as they are	A megjegyzéseket vagy űrlapmezőket tartalmazó oldalak változatlanok maradnak
 	Straighten pages	Oldalak kiegyenesítése
+	Remove restrictions	Korlátozások eltávolítása
+	Remove restrictions…	Korlátozások eltávolítása…
+	I have the right to edit this file	Jogosult vagyok a fájl szerkesztésére
+	Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted.	Csak ebben a származtatott változatban. A jogosultsági jelszó nélkül távolítja el a védelmet. Mentéskor titkosítás nélkül újraírja a fájlt.
