@@ -2579,3 +2579,9 @@ animation effects	Off	Vypnuto
 	The first page shows while the rest downloads. Files get larger.	První stránka se zobrazí, zatímco se zbytek stahuje. Soubory budou větší.
 	Saved without Fast Web View: {e}	Uloženo bez rychlého zobrazení webu: {e}
 	Signed documents are saved incrementally, without Fast Web View.	Podepsané dokumenty se ukládají přírůstkově, bez rychlého zobrazení webu.
+	Trim white margins…	Oříznout bílé okraje…
+	Remove white margins	Odstranit bílé okraje
+	Padding	Odsazení
+	Pages trimmed: {n}	Oříznuté stránky: {n}
+	Pages trimmed: {n}. Left alone: {pages}	Oříznuté stránky: {n}. Beze změny: {pages}
+	No white margins to remove	Žádné bílé okraje k odstranění

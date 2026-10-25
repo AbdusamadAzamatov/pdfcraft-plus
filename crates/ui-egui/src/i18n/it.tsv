@@ -2717,3 +2717,9 @@ certificate	SHA-256 digest	Impronta SHA-256
 	The first page shows while the rest downloads. Files get larger.	La prima pagina appare mentre il resto si scarica. I file diventano più grandi.
 	Saved without Fast Web View: {e}	Salvato senza visualizzazione web veloce: {e}
 	Signed documents are saved incrementally, without Fast Web View.	I documenti firmati vengono salvati in modo incrementale, senza visualizzazione web veloce.
+	Trim white margins…	Ritaglia margini bianchi…
+	Remove white margins	Rimuovi margini bianchi
+	Padding	Spaziatura
+	Pages trimmed: {n}	Pagine ritagliate: {n}
+	Pages trimmed: {n}. Left alone: {pages}	Pagine ritagliate: {n}. Invariate: {pages}
+	No white margins to remove	Nessun margine bianco da rimuovere

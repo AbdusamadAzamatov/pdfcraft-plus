@@ -7116,3 +7116,45 @@ fn fast_web_view_saves_through_tools() {
     }
     assert!(!dir.join("signed-web.pdf").exists());
 }
+
+/// Organize ▸ Layout ▸ Trim white margins (PL8) through `page_trim_margins`: the text pages are
+/// cropped to their text plus the padding, a blank page is left alone and reported, the whole run
+/// is one undo step, and bad options are refused with what is allowed.
+#[test]
+fn page_trim_margins_crops_to_the_text_and_reports_blank_pages() {
+    let dir = workdir("trim-margins");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "page_insert_blank", json!({ "doc": doc, "at": 2 }));
+    let r = ok(&mut a, "page_trim_margins", json!({ "doc": doc, "padding": 5 }));
+    assert_eq!(r["trimmed"], json!([1, 3, 4]), "{r}");
+    assert_eq!(r["left_alone"], json!([{ "page": 2, "reason": "no_ink" }]));
+    assert_eq!(r["undo"], "Remove white margins");
+    assert!(r.get("note").is_none());
+    // "Page 1" in Helvetica 24 at (20, 150): its ink runs from x 22 (the P's side bearing) to 92
+    // (the 1 stops short of its 76 pt advance), from 5 pt below the baseline (the g) to 17 pt
+    // above (the capital); plus 5 pt.
+    let crop: Vec<f64> = r["crop_boxes"][0]["crop"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect();
+    let want = [22.0 - 5.0, 145.0 - 5.0, 92.0 + 5.0, 167.0 + 5.0];
+    assert!(crop.iter().zip(want).all(|(c, w)| (c - w).abs() <= 2.0), "{crop:?} vs {want:?}");
+    let info = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    let width = info["pages"][0]["width"].as_f64().unwrap();
+    assert!((width - (crop[2] - crop[0])).abs() < 0.01, "the shown page is the crop box: {width}");
+    assert_eq!(info["pages"][1]["width"].as_f64(), Some(200.0), "the blank page keeps its size");
+    assert!(a.call("page_render", &json!({ "doc": doc, "page": 1, "dpi": 72 })).is_ok(), "the trimmed page renders");
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    let info = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    assert!((0..4).all(|p| info["pages"][p]["width"].as_f64() == Some(200.0)), "one undo step puts every page back");
+
+    // The blank page alone: nothing to do, said so, and nothing to undo.
+    let r = ok(&mut a, "page_trim_margins", json!({ "doc": doc, "pages": [2] }));
+    assert_eq!(r["trimmed"], json!([]));
+    assert_eq!(r["left_alone"], json!([{ "page": 2, "reason": "no_ink" }]));
+    assert!(r["note"].as_str().unwrap().contains("nothing changed"), "{r}");
+    assert_eq!(r["undo"], "Insert blank page", "no new undo step");
+    for bad in [json!(-1), json!(37), json!("5")] {
+        assert!(matches!(err(&mut a, "page_trim_margins", json!({ "doc": doc, "padding": bad })), ToolError::InvalidArgs(_)), "{bad}");
+    }
+    assert!(matches!(err(&mut a, "page_trim_margins", json!({ "doc": doc, "pages": [9] })), ToolError::InvalidArgs(m) if m.contains("page 9")));
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -2782,3 +2782,9 @@ certificate	Version	الإصدار
 	The first page shows while the rest downloads. Files get larger.	تظهر الصفحة الأولى بينما يُنزَّل الباقي. تصبح الملفات أكبر.
 	Saved without Fast Web View: {e}	تم الحفظ دون عرض ويب سريع: {e}
 	Signed documents are saved incrementally, without Fast Web View.	تُحفظ المستندات الموقّعة تزايديًا، دون عرض ويب سريع.
+	Trim white margins…	قص الهوامش البيضاء…
+	Remove white margins	إزالة الهوامش البيضاء
+	Padding	الحشو
+	Pages trimmed: {n}	الصفحات المقصوصة: {n}
+	Pages trimmed: {n}. Left alone: {pages}	الصفحات المقصوصة: {n}. لم تُغيَّر: {pages}
+	No white margins to remove	لا توجد هوامش بيضاء لإزالتها

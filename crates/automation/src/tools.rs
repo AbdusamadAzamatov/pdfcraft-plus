@@ -958,6 +958,15 @@ pub fn tools() -> Vec<ToolDef> {
             }),
             &["doc"],
         )),
+        t("page_trim_margins", "Trim white margins", "Crop pages (default all) to what is drawn on them (Organize ▸ Layout ▸ Trim white margins; Set Page Boxes ▸ Remove white margins). Each page is drawn at 72 dpi as it is shown, comments included, and read in grey; pixels with luma below 245/255 are ink. The crop box becomes the ink's bounding box grown by padding points (0 to 36, default 0) and kept inside the current crop box, mapped back through /Rotate, the crop box origin and /UserUnit. Pages with no ink, with ink already reaching every edge, or that can't be drawn in full keep their crop box and are listed in left_alone with reason no_ink, no_margin or not_drawn. Returns trimmed (1-based pages) and crop_boxes (user-space [x0, y0, x1, y1]). One undo step for all pages (none when nothing changes); needs the permission to change pages.")
+            .cmd("page.trim_margins")
+            .with(schema(
+                json!({
+                    "doc": doc(), "pages": pages("to trim (default: all)"),
+                    "padding": { "type": "number", "minimum": 0, "maximum": 36, "description": "White space kept around the ink, in points (default 0)." }
+                }),
+                &["doc"],
+            )),
         t(
             "page_set_box",
             "Set page boxes / crop",

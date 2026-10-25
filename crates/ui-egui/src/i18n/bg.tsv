@@ -2468,3 +2468,9 @@ animation effects	Off	Изключени
 	The first page shows while the rest downloads. Files get larger.	Първата страница се показва, докато останалото се изтегля. Файловете стават по-големи.
 	Saved without Fast Web View: {e}	Записано без бърз уеб изглед: {e}
 	Signed documents are saved incrementally, without Fast Web View.	Подписаните документи се записват инкрементално, без бърз уеб изглед.
+	Trim white margins…	Изрязване на белите полета…
+	Remove white margins	Премахване на белите полета
+	Padding	Отстъп
+	Pages trimmed: {n}	Изрязани страници: {n}
+	Pages trimmed: {n}. Left alone: {pages}	Изрязани страници: {n}. Без промяна: {pages}
+	No white margins to remove	Няма бели полета за премахване

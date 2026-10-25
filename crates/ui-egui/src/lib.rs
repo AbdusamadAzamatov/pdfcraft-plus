@@ -109,6 +109,7 @@ mod rasterize_ui;
 pub mod resize_ui;
 pub mod rotate_angle_ui;
 mod signature_drag;
+pub mod trim_ui;
 pub mod units;
 mod web_print;
 mod word_count_ui;
@@ -299,6 +300,8 @@ pub enum Dialog {
     DividePages,
     /// Organize ▸ Layout ▸ Remove blank pages: the pages that look blank, checked for removal.
     RemoveBlank,
+    /// Organize ▸ Layout ▸ Trim white margins.
+    TrimMargins,
     /// Compress ▸ Clean up ▸ Rasterize pages.
     Rasterize,
     /// Compress ▸ Clean up ▸ Convert to grayscale: the confirmation, then the report.
@@ -802,6 +805,8 @@ pub struct PdfCraftApp {
     pub rasterize_draft: rasterize_ui::RasterizeDraft,
     /// Convert to grayscale: what the conversion did (`None` while the dialog asks first).
     pub gray_result: Option<pdfcraft_engine::optimize::color::GrayReport>,
+    /// Organize ▸ Layout ▸ Trim white margins dialog state.
+    pub trim_draft: trim_ui::TrimDraft,
     /// Header & footer / watermark / background dialog state.
     pub marks_draft: marks_ui::MarksDraft,
     /// Export dialog settings.
@@ -1095,6 +1100,7 @@ impl PdfCraftApp {
             blank_draft: Default::default(),
             rasterize_draft: Default::default(),
             gray_result: None,
+            trim_draft: Default::default(),
             marks_draft: Default::default(),
             export_draft: Default::default(),
             export_status: None,
@@ -2617,6 +2623,10 @@ impl PdfCraftApp {
                     "optimize" => Some(Dialog::Optimize),
                     "rasterize-pages" => {
                         self.open_rasterize();
+                        self.dialog
+                    }
+                    "trim-margins" => {
+                        self.open_trim_margins();
                         self.dialog
                     }
                     "sign" | "certify" => {

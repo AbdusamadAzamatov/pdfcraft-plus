@@ -2503,3 +2503,9 @@ animation effects	Off	Өшірулі
 	The first page shows while the rest downloads. Files get larger.	Қалғаны жүктеліп жатқанда бірінші бет көрсетіледі. Файлдар үлкейеді.
 	Saved without Fast Web View: {e}	Жылдам веб-көрініссіз сақталды: {e}
 	Signed documents are saved incrementally, without Fast Web View.	Қолтаңба қойылған құжаттар жылдам веб-көрініссіз, қосымша жаңарту ретінде сақталады.
+	Trim white margins…	Ақ шеттерді қиып алу…
+	Remove white margins	Ақ шеттерді жою
+	Padding	Шегініс
+	Pages trimmed: {n}	Қиылған беттер: {n}
+	Pages trimmed: {n}. Left alone: {pages}	Қиылған беттер: {n}. Өзгеріссіз: {pages}
+	No white margins to remove	Жоятын ақ шеттер жоқ

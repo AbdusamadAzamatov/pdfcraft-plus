@@ -2506,3 +2506,9 @@ animation effects	Off	Aus
 	The first page shows while the rest downloads. Files get larger.	Die erste Seite erscheint, während der Rest lädt. Dateien werden größer.
 	Saved without Fast Web View: {e}	Ohne schnelle Webanzeige gespeichert: {e}
 	Signed documents are saved incrementally, without Fast Web View.	Signierte Dokumente werden inkrementell gespeichert, ohne schnelle Webanzeige.
+	Trim white margins…	Weiße Ränder zuschneiden…
+	Remove white margins	Weiße Ränder entfernen
+	Padding	Abstand
+	Pages trimmed: {n}	Zugeschnittene Seiten: {n}
+	Pages trimmed: {n}. Left alone: {pages}	Zugeschnittene Seiten: {n}. Unverändert: {pages}
+	No white margins to remove	Keine weißen Ränder zu entfernen

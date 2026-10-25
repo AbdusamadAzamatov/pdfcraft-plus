@@ -5079,3 +5079,74 @@ fn fast_web_view_preference_makes_save_as_linearized_and_properties_say_so() {
     assert_eq!(yes_rows(&mut h), 0, "Properties: Fast Web View No");
     let _ = std::fs::remove_file(out);
 }
+
+/// Organize ▸ Layout ▸ Trim white margins (PL8): the catalog item opens the dialog, OK crops the
+/// text pages to their text plus the padding in one undo step and says the blank page was left
+/// alone. Set Page Boxes ▸ Remove white margins fills the margins from the current page (and says
+/// so when a blank page has none to remove).
+#[test]
+fn trim_white_margins_dialog_and_set_page_boxes_button_crop_to_the_ink() {
+    use pdfcraft_engine::Edit;
+    let mut h = harness(3, |app| {
+        assert!(app.apply_edit(Edit::InsertBlankPage { at: 1, width: 200.0, height: 300.0 }));
+    });
+    h.state_mut().set_option("tool", "organize").unwrap();
+    h.run_steps(4);
+    h.get_by_label("Trim white margins…").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::TrimMargins));
+    h.state_mut().trim_draft.padding = 4.0;
+    h.run_steps(2);
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    let sizes = |h: &Harness<'static, PdfCraftApp>| {
+        let s = h.state();
+        s.session.get(s.views[0].id).unwrap().info.pages.iter().map(|p| (p.width.round(), p.height.round())).collect::<Vec<_>>()
+    };
+    {
+        let s = h.state();
+        assert_eq!(s.dialog, None);
+        assert_eq!(s.session.get(s.views[0].id).unwrap().can_undo(), Some("Remove white margins"));
+        assert_eq!(s.toast.as_ref().map(|t| t.0.as_str()), Some("Pages trimmed: 3. Left alone: 2"));
+    }
+    // "Page n" in Helvetica 24 is 70 to 74 × 22 pt of ink (the digits differ); with 4 pt around it,
+    // 78 to 82 × 30.
+    let trimmed = sizes(&h);
+    for p in [0, 2, 3] {
+        let (w, ht) = trimmed[p];
+        assert!((76.0..=84.0).contains(&w) && (28.0..=32.0).contains(&ht), "page {}: {w} × {ht}", p + 1);
+    }
+    assert_eq!(trimmed[1], (200.0, 300.0), "the blank page is left alone");
+    assert!(h.state_mut().execute("edit.undo"));
+    h.run_steps(2);
+    assert_eq!(sizes(&h), [(200.0, 300.0); 4], "one undo step puts every page back");
+
+    // Set Page Boxes on page 1: the button fills the margins to the ink; OK crops that page.
+    h.state_mut().run_command("page.boxes");
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::PageBoxes));
+    h.get_by_label("Remove white margins").click();
+    h.run_steps(2);
+    let [l, b, r, t] = h.state().boxes_draft.margins;
+    // Ink from x 22 to 92 and y 145 to 167 on the 200 × 300 page.
+    for (got, want) in [(l, 22.0), (b, 145.0), (r, 108.0), (t, 133.0)] {
+        assert!((got - want).abs() <= 2.0, "margins {:?}", [l, b, r, t]);
+    }
+    h.get_by_label("Current page (1)").click();
+    h.run_steps(2);
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    let cropped = sizes(&h);
+    assert!((68.0..=73.0).contains(&cropped[0].0), "{cropped:?}");
+    assert_eq!(cropped[1..], [(200.0, 300.0); 3]);
+
+    // On the blank page there is nothing to remove: the margins stay, and it says so.
+    h.state_mut().views[0].current = 1;
+    h.state_mut().run_command("page.boxes");
+    h.run_steps(3);
+    let before = h.state().boxes_draft.margins;
+    h.get_by_label("Remove white margins").click();
+    h.run_steps(2);
+    assert_eq!(h.state().boxes_draft.margins, before);
+    assert_eq!(h.state().toast.as_ref().map(|t| t.0.as_str()), Some("No white margins to remove"));
+}

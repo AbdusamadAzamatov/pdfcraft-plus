@@ -2,6 +2,8 @@
 //!
 //! Choose a box (crop, trim, bleed, art, media), margins from the media box in points, inches,
 //! millimetres or centimetres, and the pages. A preview shows the current page's media box and the new box.
+//! Remove white margins sets the margins that crop the current page to its ink (PL8, see
+//! [`crate::trim_ui`]).
 
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Stroke, pos2, vec2};
 use pdfcraft_engine::{BoxSpec, Edit, PageBox};
@@ -88,6 +90,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
         };
         d.seeded = Some((current, d.which));
     }
+    let mut trim = false;
     ui.label(egui::RichText::new(tl!("Set Page Boxes")).font(theme::semibold(18.0)));
     ui.add_space(8.0);
     ui.horizontal_top(|ui| {
@@ -129,9 +132,13 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
                     ui.end_row();
                 }
                 ui.label("");
-                if ui.button(tl!("Set to zero")).clicked() {
-                    d.margins = [0.0; 4];
-                }
+                ui.horizontal(|ui| {
+                    if ui.button(tl!("Set to zero")).clicked() {
+                        d.margins = [0.0; 4];
+                    }
+                    // Acrobat's button: the margins that crop the current page to its ink.
+                    trim = ui.button(tl!("Remove white margins")).clicked();
+                });
                 ui.end_row();
                 ui.label(tl!("Pages"));
                 ui.vertical(|ui| {
@@ -186,6 +193,9 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
             );
         }
     });
+    if trim {
+        app.boxes_remove_white_margins(current);
+    }
     ui.add_space(12.0);
     let (mut apply, mut cancel) = (false, false);
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {

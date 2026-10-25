@@ -40,6 +40,7 @@ pub mod signature_image;
 pub mod signature_scan;
 pub mod text_fonts;
 mod text_preview;
+pub mod trim;
 pub mod word_count;
 pub mod xfa;
 
@@ -52,6 +53,7 @@ pub use pdfcraft_organize::{
     BoxSpec, FieldConflicts, MAX_PAGE_SIDE, PageBox, ResizeMode, RotateFit, SizeOrientation, SplitBy, Transition, TransitionSpec, split_ranges,
 };
 pub use resize::{RESIZE_PAPERS, paper_size};
+pub use trim::{LeftAlone, TrimOptions, TrimPlan};
 
 /// One file produced by a split: (1-based first page, last page, PDF bytes).
 pub use pdfcraft_organize::LabelStyle;
@@ -2005,8 +2007,15 @@ pub const EDIT_LABELS: &[&str] = &[
 /// The names of the batches built below L7, which an interface shows in the same places as
 /// [`EDIT_LABELS`] and so translates the same way. A batch built in the interface itself arrives
 /// already worded in the interface's language.
-pub const BATCH_LABELS: &[&str] =
-    &["Set document title", "Mark differences", "Detect form fields", "Run JavaScript", "Recognize text", "Flatten comments and rotate"];
+pub const BATCH_LABELS: &[&str] = &[
+    "Set document title",
+    "Mark differences",
+    "Detect form fields",
+    "Run JavaScript",
+    "Recognize text",
+    "Flatten comments and rotate",
+    "Remove white margins",
+];
 
 impl Edit {
     /// Label for the Edit menu and history ("Undo Rotate pages").

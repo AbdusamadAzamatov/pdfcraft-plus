@@ -61,6 +61,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut blank_now = false;
     let mut rasterize_now = false;
     let mut gray_now = false;
+    let mut trim_now = false;
     let mut marks_now = false;
     let mut export_now = false;
     let mut props_now = false;
@@ -1059,6 +1060,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = done;
                 return;
             }
+            Dialog::TrimMargins => {
+                let (go, cancel) = crate::trim_ui::body(ui, app, &t);
+                trim_now = go;
+                close = go || cancel;
+                return;
+            }
             Dialog::Protect => {
                 let (apply, cancel) = crate::protect::body(ui, app, &t);
                 protect_now = apply;
@@ -1452,6 +1459,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     // reason is in the notice).
     if gray_now && !app.convert_to_grayscale() {
         close = true;
+    }
+    if trim_now {
+        app.trim_with_draft();
     }
     if protect_now && app.apply_edit(app.protect_draft.edit()) {
         app.protect_draft = Default::default();

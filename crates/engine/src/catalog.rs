@@ -204,6 +204,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                 title: "Layout",
                 items: &[
                     item("Crop pages", "crop", "page.crop", Ready),
+                    item("Trim white margins…", "crop", "page.trim_margins", Ready),
                     item("Pages per sheet (N-up)…", "grid-3x3", "page.nup", Ready),
                     item("Booklet…", "book-open", "page.booklet", Ready),
                     item("Poster (tile)…", "maximize", "page.poster", Ready),

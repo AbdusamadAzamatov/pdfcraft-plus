@@ -2505,3 +2505,9 @@ animation effects	Off	オフ
 	The first page shows while the rest downloads. Files get larger.	残りのダウンロード中に最初のページが表示されます。ファイルは大きくなります。
 	Saved without Fast Web View: {e}	高速 Web 表示なしで保存しました: {e}
 	Signed documents are saved incrementally, without Fast Web View.	署名済みの文書は高速 Web 表示なしで増分保存されます。
+	Trim white margins…	白い余白をトリミング…
+	Remove white margins	白い余白を削除
+	Padding	余白の追加
+	Pages trimmed: {n}	トリミングしたページ: {n}
+	Pages trimmed: {n}. Left alone: {pages}	トリミングしたページ: {n}。変更なし: {pages}
+	No white margins to remove	削除する白い余白はありません

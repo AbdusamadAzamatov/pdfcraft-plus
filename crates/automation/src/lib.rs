@@ -438,6 +438,7 @@ impl Automation {
             }
             "page_divide" => self.page_divide(&a)?,
             "page_set_box" => self.page_set_box(&a)?,
+            "page_trim_margins" => self.page_trim_margins(&a)?,
             "page_transition_set" => self.page_transition_set(&a)?,
             "doc_create" => self.doc_create(&a)?,
             "xfa_to_static" => self.apply(&a, Edit::XfaToStatic)?,
@@ -1623,6 +1624,31 @@ impl Automation {
         };
         let mut out = self.apply(a, Edit::SetPageBox { pages, which, spec })?;
         out["page_sizes"] = json!(self.doc(a)?.info.pages.iter().map(|p| [p.width, p.height]).collect::<Vec<_>>());
+        Ok(out)
+    }
+
+    /// `page_trim_margins`: crop pages to their ink plus the padding, reporting the pages left
+    /// alone (no ink, ink to every edge, or not drawable).
+    fn page_trim_margins(&mut self, a: &Args) -> Result<Value> {
+        use pdfcraft_engine::trim::MAX_PADDING;
+        let id = self.doc(a)?.id;
+        let pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => Vec::new(),
+        };
+        let padding = a.opt_num("padding")?.unwrap_or(0.0);
+        if !padding.is_finite() || !(0.0..=MAX_PADDING).contains(&padding) {
+            return Err(ToolError::InvalidArgs(format!("padding is in points, from 0 to {MAX_PADDING} (default 0), not {padding}")));
+        }
+        let plan = self.session.trim_margins(id, &pdfcraft_engine::TrimOptions { padding, pages }).map_err(failed)?;
+        let round = |v: f64| (v * 100.0).round() / 100.0;
+        let mut out = summary(self.doc(a)?);
+        out["trimmed"] = json!(plan.crops.iter().map(|(p, _)| p + 1).collect::<Vec<_>>());
+        out["crop_boxes"] = json!(plan.crops.iter().map(|(p, r)| json!({ "page": p + 1, "crop": r.map(round) })).collect::<Vec<_>>());
+        out["left_alone"] = json!(plan.left.iter().map(|(p, why)| json!({ "page": p + 1, "reason": why.name() })).collect::<Vec<_>>());
+        if plan.crops.is_empty() {
+            out["note"] = json!("no page had white margins to remove; nothing changed (no undo step)");
+        }
         Ok(out)
     }
 

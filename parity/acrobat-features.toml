@@ -3265,11 +3265,11 @@ title = "Remove white margins"
 area = "D"
 tier = "P2"
 milestone = "M4"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "shipped"
+commands = ["page.trim_margins"]
+tools = ["page_trim_margins"]
+evidence = ["crates/engine/src/trim.rs::trim_crops_to_the_ink_plus_padding_and_leaves_blank_pages_alone", "crates/engine/src/trim.rs::the_ink_box_maps_back_through_the_crop_origin_and_rotation", "crates/engine/src/trim.rs::ink_bounds_cover_every_dark_pixel_and_nothing_else", "crates/engine/src/trim.rs::ink_at_every_edge_or_odd_sizes_leave_the_page_alone", "crates/automation/tests/automation.rs::page_trim_margins_crops_to_the_text_and_reports_blank_pages", "crates/ui-egui/tests/editing.rs::trim_white_margins_dialog_and_set_page_boxes_button_crop_to_the_ink"]
+notes = "Organize ▸ Layout ▸ Trim white margins… (pages: all, current, selected or a range; padding 0 to 36 pt, default 0) and a Remove white margins button in Set Page Boxes. Each page is drawn at 72 dpi as it is shown, comments included (cropping one away would hide it), and read in grey; pixels with luma below 245/255 are ink. The ink bounding box plus the padding, kept inside the page, is mapped back to default user space through the crop box origin and /Rotate (drawn in shown points, so /UserUnit cancels out) and becomes the CropBox via Edit::SetPageBox, every page in one undo step (Edit::Batch \"Remove white margins\"). Pages with no ink, ink already at every edge, or that render only in part keep their crop box and are reported (the tool lists them with no_ink / no_margin / not_drawn; the dialog names them in its message). The Set Page Boxes button works as Acrobat's: it fills the margin fields from the current page's ink (no padding) and OK applies those margins to the chosen pages; on a page with nothing to remove it says so. Decisions: the dialog runs synchronously like Rasterize pages (72 dpi is cheap), not on a worker thread; near-white backgrounds (luma ≥ 245) count as paper. Not yet: no preview of the new boxes in the dialog; a scanned page with a grey border or noise reaching every edge is left alone (no despeckle or threshold option); only the CropBox is set (Trim/Bleed/Art stay, clipped as before)."
 
 [[feature]]
 id = "organize.change-page-size"

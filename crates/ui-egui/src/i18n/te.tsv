@@ -2414,3 +2414,9 @@ animation effects	Off	ఆఫ్
 	The first page shows while the rest downloads. Files get larger.	మిగతాది డౌన్‌లోడ్ అవుతుండగానే మొదటి పేజీ కనిపిస్తుంది. ఫైళ్లు పెద్దవవుతాయి.
 	Saved without Fast Web View: {e}	వేగవంతమైన వెబ్ వీక్షణ లేకుండా సేవ్ చేయబడింది: {e}
 	Signed documents are saved incrementally, without Fast Web View.	సంతకం చేసిన పత్రాలు వేగవంతమైన వెబ్ వీక్షణ లేకుండా, పెంపుదలగా సేవ్ చేయబడతాయి.
+	Trim white margins…	తెల్లని మార్జిన్‌లను క్రాప్ చేయి…
+	Remove white margins	తెల్లని మార్జిన్‌లను తీసివేయి
+	Padding	ప్యాడింగ్
+	Pages trimmed: {n}	క్రాప్ చేసిన పేజీలు: {n}
+	Pages trimmed: {n}. Left alone: {pages}	క్రాప్ చేసిన పేజీలు: {n}. మార్చనివి: {pages}
+	No white margins to remove	తీసివేయడానికి తెల్లని మార్జిన్‌లు లేవు

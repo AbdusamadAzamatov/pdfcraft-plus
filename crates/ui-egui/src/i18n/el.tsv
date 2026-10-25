@@ -2511,3 +2511,9 @@ animation effects	Off	Ανενεργά
 	The first page shows while the rest downloads. Files get larger.	Η πρώτη σελίδα εμφανίζεται όσο κατεβαίνει το υπόλοιπο. Τα αρχεία γίνονται μεγαλύτερα.
 	Saved without Fast Web View: {e}	Αποθηκεύτηκε χωρίς γρήγορη προβολή στο web: {e}
 	Signed documents are saved incrementally, without Fast Web View.	Τα υπογεγραμμένα έγγραφα αποθηκεύονται σταδιακά, χωρίς γρήγορη προβολή στο web.
+	Trim white margins…	Περικοπή λευκών περιθωρίων…
+	Remove white margins	Αφαίρεση λευκών περιθωρίων
+	Padding	Περιθώριο ασφαλείας
+	Pages trimmed: {n}	Σελίδες που περικόπηκαν: {n}
+	Pages trimmed: {n}. Left alone: {pages}	Σελίδες που περικόπηκαν: {n}. Χωρίς αλλαγή: {pages}
+	No white margins to remove	Δεν υπάρχουν λευκά περιθώρια για αφαίρεση

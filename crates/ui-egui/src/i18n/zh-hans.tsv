@@ -2469,3 +2469,9 @@ animation effects	Off	关
 	The first page shows while the rest downloads. Files get larger.	其余部分下载时即可显示第一页。文件会变大。
 	Saved without Fast Web View: {e}	已保存，但未启用快速 Web 查看：{e}
 	Signed documents are saved incrementally, without Fast Web View.	已签名的文档以增量方式保存，不启用快速 Web 查看。
+	Trim white margins…	裁剪白边…
+	Remove white margins	删除白边
+	Padding	留白
+	Pages trimmed: {n}	已裁剪页数：{n}
+	Pages trimmed: {n}. Left alone: {pages}	已裁剪页数：{n}。未更改：{pages}
+	No white margins to remove	没有可删除的白边

@@ -2527,3 +2527,9 @@ animation effects	Off	Вимкнено
 	The first page shows while the rest downloads. Files get larger.	Перша сторінка з’являється, поки завантажується решта. Файли стають більшими.
 	Saved without Fast Web View: {e}	Збережено без швидкого веб-перегляду: {e}
 	Signed documents are saved incrementally, without Fast Web View.	Підписані документи зберігаються додаванням, без швидкого веб-перегляду.
+	Trim white margins…	Обітнути білі поля…
+	Remove white margins	Вилучити білі поля
+	Padding	Відступ
+	Pages trimmed: {n}	Обітнуто сторінок: {n}
+	Pages trimmed: {n}. Left alone: {pages}	Обітнуто сторінок: {n}. Без змін: {pages}
+	No white margins to remove	Немає білих полів для вилучення

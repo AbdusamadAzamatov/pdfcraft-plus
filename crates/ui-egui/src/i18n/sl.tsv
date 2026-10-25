@@ -2510,3 +2510,9 @@ animation effects	Off	Izklopljeni
 	The first page shows while the rest downloads. Files get larger.	Prva stran se prikaže, medtem ko se preostanek prenaša. Datoteke so večje.
 	Saved without Fast Web View: {e}	Shranjeno brez hitrega spletnega ogleda: {e}
 	Signed documents are saved incrementally, without Fast Web View.	Podpisani dokumenti se shranijo postopno, brez hitrega spletnega ogleda.
+	Trim white margins…	Obreži bele robove…
+	Remove white margins	Odstrani bele robove
+	Padding	Odmik
+	Pages trimmed: {n}	Obrezane strani: {n}
+	Pages trimmed: {n}. Left alone: {pages}	Obrezane strani: {n}. Nespremenjene: {pages}
+	No white margins to remove	Ni belih robov za odstranitev
