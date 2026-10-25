@@ -2495,3 +2495,14 @@ animation effects	Off	Ανενεργά
 	No scaling	Χωρίς κλιμάκωση
 	Only pages of another size	Μόνο σελίδες άλλου μεγέθους
 	Every page already has this size.	Όλες οι σελίδες έχουν ήδη αυτό το μέγεθος.
+	Convert to grayscale	Μετατροπή σε κλίμακα του γκρι
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Κάθε χρώμα του εγγράφου γίνεται απόχρωση του γκρι: κείμενο, σχέδια και εικόνες. Ό,τι δεν μπορεί να μετατραπεί κρατά το χρώμα του και παρατίθεται μετά.
+	Save the document afterwards; saving rewrites the whole file.	Αποθηκεύστε το έγγραφο μετά· η αποθήκευση ξαναγράφει ολόκληρο το αρχείο.
+	Colours made gray: {n}	Χρώματα που έγιναν γκρι: {n}
+	Images made gray: {n}	Εικόνες που έγιναν γκρι: {n}
+	Kept their colour:	Κράτησαν το χρώμα τους:
+	Page {page}	Σελίδα {page}
+	Spot colours	Spot χρώματα
+	Lab colours	Χρώματα Lab
+	Other colours	Άλλα χρώματα
+	Inline images	Ενσωματωμένες εικόνες

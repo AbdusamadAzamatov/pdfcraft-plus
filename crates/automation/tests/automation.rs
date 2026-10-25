@@ -7049,3 +7049,29 @@ fn page_resize_sets_sizes_from_presets_units_and_pages_and_skips_matching_pages(
     }
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// Compress ▸ Clean up ▸ Convert to grayscale (CU3): `doc_grayscale` turns a coloured page gray
+/// in one undo step and says what it converted; with nothing in colour it says so.
+#[test]
+fn doc_grayscale_turns_every_colour_gray_in_one_undo_step() {
+    let dir = workdir("grayscale");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    assert!(matches!(err(&mut a, "doc_grayscale", json!({ "doc": doc })), ToolError::Failed(m) if m.contains("no colour")));
+    ok(&mut a, "doc_background", json!({ "doc": doc, "color": "yellow" }));
+    let coloured = |a: &mut Automation| -> usize {
+        let (_, _, rgba) = a.render_pixels(doc, 1, 1.0).unwrap();
+        rgba.as_ref().as_chunks::<4>().0.iter().filter(|p| p[0].abs_diff(p[2]) > 1 || p[0].abs_diff(p[1]) > 1).count()
+    };
+    assert!(coloured(&mut a) > 1000, "the background is yellow");
+    let r = ok(&mut a, "doc_grayscale", json!({ "doc": doc }));
+    assert!(r["colors"].as_u64().unwrap() >= 3, "{r}");
+    assert_eq!(r["kept"], json!([]), "{r}");
+    assert!(r["undo"].to_string().contains("Convert to grayscale"), "{r}");
+    assert_eq!(coloured(&mut a), 0, "every pixel is gray");
+    assert_eq!(page_text(&mut a, doc)[0], "Page 1", "text stays text");
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    assert!(coloured(&mut a) > 1000, "one undo step brings the colour back");
+    assert!(a.call("doc_grayscale", &json!({ "doc": 999 })).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}

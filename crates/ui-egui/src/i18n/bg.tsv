@@ -2452,3 +2452,14 @@ animation effects	Off	Изключени
 	No scaling	Без мащабиране
 	Only pages of another size	Само страници с друг размер
 	Every page already has this size.	Всички страници вече са с този размер.
+	Convert to grayscale	Преобразуване в нюанси на сивото
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Всеки цвят в документа става нюанс на сивото: текст, рисунки и изображения. Това, което не може да се преобразува, запазва цвета си и се изброява след това.
+	Save the document afterwards; saving rewrites the whole file.	Запазете документа след това; запазването презаписва целия файл.
+	Colours made gray: {n}	Цветове, направени сиви: {n}
+	Images made gray: {n}	Изображения, направени сиви: {n}
+	Kept their colour:	Запазиха цвета си:
+	Page {page}	Страница {page}
+	Spot colours	Спот цветове
+	Lab colours	Lab цветове
+	Other colours	Други цветове
+	Inline images	Вградени изображения

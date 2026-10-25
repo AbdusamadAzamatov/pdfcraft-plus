@@ -31,6 +31,16 @@ let report = optimize_with_progress(&mut doc, &settings, &mut |stage| keep_going
   layer, that layer is removed when the result is smaller (the inner filters keep their encoded
   bytes). Streams with `/DecodeParms`, images and object streams are left alone.
 
+**Convert to grayscale** (`color::to_gray(&mut doc)`, Compress ▸ Clean up): every colour of the
+whole document becomes gray with the ISO 32000-2 §10.4.2 formulas (RGB as Rec. 601 luma, CMYK as
+`1 − min(1, 0.3C + 0.59M + 0.11Y + K)`). Colour operators in page content, forms (12 deep),
+annotation appearances and `d0` Type 3 glyphs become `g`/`G` and `/DeviceGray`; 8-bit RGB and
+CMYK images (and RGB JPEGs) are stored again as one gray component (Flate, or JPEG when they were
+JPEG); Indexed images get a gray palette; masks stay (a colour-key mask becomes a soft mask).
+Shadings, patterns, spot, Lab and other colours, and images it can't decode faithfully, keep
+their colour and are listed in the `GrayReport` by page. The engine runs it as one undoable edit
+(`Session::grayscale`) followed by a full rewrite on save.
+
 The engine runs Remove Hidden Information (`pdfcraft-redact`) for the user-data categories,
 then this, then merges identical objects and writes a full, compressed save
 (`pdfcraft_engine::optimizer::OptimizeJob`, which the UI runs on a worker thread with a

@@ -6456,3 +6456,39 @@ fn rasterize_pages_refuses_bad_options_and_restricted_documents() {
     let r = s.open("r.pdf", None, bytes, None).unwrap();
     assert_eq!(s.rasterize_pages(r, &[0], options), Err(EditError::NotPermitted("changes to the document")));
 }
+
+/// Compress ▸ Clean up ▸ Convert to grayscale (CU3): one undo step that turns a red background
+/// gray, reports what it converted, survives a save (a full rewrite) and is refused in signed
+/// documents with the optimizer's message; with nothing in colour it says so.
+#[test]
+fn grayscale_converts_the_document_in_one_undo_step() {
+    let (mut s, id) = session_with(1);
+    let e = s.grayscale(id).unwrap_err();
+    assert!(matches!(&e, EditError::Invalid(m) if m.contains("no colour")), "{e:?}");
+    s.apply(
+        id,
+        Edit::AddBackground { pages: vec![0], settings: Background { color: [1.0, 0.0, 0.0], ..Background::default() }, replace: false, file: None },
+    )
+    .unwrap();
+    let red = render_page(&s, id);
+    assert_eq!(&stamp_pixel(&red, 4, 4)[..3], [255, 0, 0]);
+    let report = s.grayscale(id).unwrap();
+    assert!(report.colors >= 1 && report.kept.is_empty(), "{report:?}");
+    assert_eq!(s.get(id).unwrap().can_undo().map(|l| l.to_string()), Some("Convert to grayscale".into()));
+    let gray = render_page(&s, id);
+    assert_eq!(&stamp_pixel(&gray, 4, 4)[..3], [76, 76, 76], "red has a luma of 0.299");
+    assert!(gray.rgba.as_chunks::<4>().0.iter().all(|[r, g, b, _]| r.abs_diff(*g) <= 1 && g.abs_diff(*b) <= 1), "every pixel is gray");
+    let saved = s.save_bytes(id).unwrap();
+    let reopened = pdfcraft_cos::Document::open(saved).unwrap();
+    assert!(reopened.revisions().len() <= 1, "a full rewrite: the colour isn't kept in an earlier revision");
+    s.undo(id).unwrap();
+    assert_eq!(&stamp_pixel(&render_page(&s, id), 4, 4)[..3], [255, 0, 0], "undo brings the colour back");
+
+    let p12 = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../sign/tests/data/ec-p256.p12")).unwrap();
+    let digital_id = sign::pkcs12::open(&p12, "test").unwrap();
+    let mut s = Session::new().with_clock(|| 1_800_000_000);
+    let id = s.open("fixture.pdf", None, Arc::new(fixture(1)), None).unwrap();
+    let signed = s.sign(id, &digital_id, SignOptions { page: 0, rect: Some([20.0, 20.0, 180.0, 60.0]), ..SignOptions::default() }).unwrap();
+    s.mark_signed(id, signed, None).unwrap();
+    assert_eq!(s.grayscale(id).unwrap_err(), EditError::Signed);
+}

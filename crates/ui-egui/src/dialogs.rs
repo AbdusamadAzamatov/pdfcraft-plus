@@ -60,6 +60,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut divide_now = false;
     let mut blank_now = false;
     let mut rasterize_now = false;
+    let mut gray_now = false;
     let mut marks_now = false;
     let mut export_now = false;
     let mut props_now = false;
@@ -1051,6 +1052,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = go || cancel;
                 return;
             }
+            Dialog::Grayscale => {
+                let (convert, done) = crate::grayscale_ui::body(ui, app.gray_result.as_ref(), &t);
+                gray_now = convert;
+                close = done;
+                return;
+            }
             Dialog::Protect => {
                 let (apply, cancel) = crate::protect::body(ui, app, &t);
                 protect_now = apply;
@@ -1439,6 +1446,11 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     }
     if rasterize_now {
         app.rasterize_with_draft();
+    }
+    // Converted: the dialog stays to show what happened; refused or failed: it closes (the
+    // reason is in the notice).
+    if gray_now && !app.convert_to_grayscale() {
+        close = true;
     }
     if protect_now && app.apply_edit(app.protect_draft.edit()) {
         app.protect_draft = Default::default();

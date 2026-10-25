@@ -2398,3 +2398,14 @@ animation effects	Off	ఆఫ్
 	No scaling	స్కేల్ చేయవద్దు
 	Only pages of another size	వేరే పరిమాణం ఉన్న పేజీలు మాత్రమే
 	Every page already has this size.	అన్ని పేజీలు ఇప్పటికే ఈ పరిమాణంలో ఉన్నాయి.
+	Convert to grayscale	గ్రేస్కేల్‌కు మార్చు
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	పత్రంలోని ప్రతి రంగు బూడిద ఛాయగా మారుతుంది: పాఠ్యం, చిత్రణలు మరియు చిత్రాలు. మార్చలేనివి తమ రంగును ఉంచుకుంటాయి, తర్వాత జాబితా చేయబడతాయి.
+	Save the document afterwards; saving rewrites the whole file.	తర్వాత పత్రాన్ని సేవ్ చేయండి; సేవ్ చేయడం మొత్తం ఫైల్‌ను తిరిగి రాస్తుంది.
+	Colours made gray: {n}	బూడిద రంగుకు మార్చిన రంగులు: {n}
+	Images made gray: {n}	బూడిద రంగుకు మార్చిన చిత్రాలు: {n}
+	Kept their colour:	తమ రంగును ఉంచుకున్నవి:
+	Page {page}	పేజీ {page}
+	Spot colours	స్పాట్ రంగులు
+	Lab colours	Lab రంగులు
+	Other colours	ఇతర రంగులు
+	Inline images	ఇన్‌లైన్ చిత్రాలు

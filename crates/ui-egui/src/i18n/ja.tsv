@@ -2489,3 +2489,14 @@ animation effects	Off	オフ
 	No scaling	拡大縮小しない
 	Only pages of another size	サイズが異なるページのみ
 	Every page already has this size.	すべてのページがすでにこのサイズです。
+	Convert to grayscale	グレースケールに変換
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	文書内のすべての色がグレーの濃淡になります（テキスト、図形、画像）。変換できないものは色が残り、変換後に一覧表示されます。
+	Save the document afterwards; saving rewrites the whole file.	変換後に文書を保存してください。保存するとファイル全体が書き直されます。
+	Colours made gray: {n}	グレーにした色: {n}
+	Images made gray: {n}	グレーにした画像: {n}
+	Kept their colour:	色が残ったもの:
+	Page {page}	{page} ページ
+	Spot colours	特色
+	Lab colours	Lab カラー
+	Other colours	その他の色
+	Inline images	インライン画像

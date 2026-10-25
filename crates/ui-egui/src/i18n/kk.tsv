@@ -2487,3 +2487,14 @@ animation effects	Off	Өшірулі
 	No scaling	Масштабтаусыз
 	Only pages of another size	Тек өлшемі басқа беттер
 	Every page already has this size.	Барлық беттің өлшемі осындай.
+	Convert to grayscale	Сұр реңктерге түрлендіру
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Құжаттағы әр түс сұр реңкке айналады: мәтін, сызбалар және суреттер. Түрлендіруге болмайтындар түсін сақтайды және кейін тізімделеді.
+	Save the document afterwards; saving rewrites the whole file.	Содан кейін құжатты сақтаңыз; сақтау бүкіл файлды қайта жазады.
+	Colours made gray: {n}	Сұрға айналған түстер: {n}
+	Images made gray: {n}	Сұрға айналған суреттер: {n}
+	Kept their colour:	Түсін сақтағандар:
+	Page {page}	{page}-бет
+	Spot colours	Нүктелік түстер
+	Lab colours	Lab түстері
+	Other colours	Басқа түстер
+	Inline images	Кірістірілген суреттер

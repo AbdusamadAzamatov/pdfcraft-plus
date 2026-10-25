@@ -2494,3 +2494,14 @@ animation effects	Off	Izklopljeni
 	No scaling	Brez spreminjanja merila
 	Only pages of another size	Samo strani druge velikosti
 	Every page already has this size.	Vse strani so že te velikosti.
+	Convert to grayscale	Pretvori v sivinsko
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Vsaka barva v dokumentu postane odtenek sive: besedilo, risbe in slike. Kar ni mogoče pretvoriti, ohrani barvo in je navedeno pozneje.
+	Save the document afterwards; saving rewrites the whole file.	Nato shranite dokument; shranjevanje na novo zapiše celotno datoteko.
+	Colours made gray: {n}	Barve, pretvorjene v sivo: {n}
+	Images made gray: {n}	Slike, pretvorjene v sivo: {n}
+	Kept their colour:	Ohranili barvo:
+	Page {page}	Stran {page}
+	Spot colours	Posebne barve
+	Lab colours	Barve Lab
+	Other colours	Druge barve
+	Inline images	Vgrajene slike

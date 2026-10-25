@@ -2485,3 +2485,14 @@ animation effects	Off	Kapalı
 	No scaling	Ölçekleme yok
 	Only pages of another size	Yalnızca farklı boyuttaki sayfalar
 	Every page already has this size.	Tüm sayfalar zaten bu boyutta.
+	Convert to grayscale	Gri tonlamaya dönüştür
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Belgedeki her renk bir gri tonuna dönüşür: metin, çizimler ve resimler. Dönüştürülemeyenler rengini korur ve ardından listelenir.
+	Save the document afterwards; saving rewrites the whole file.	Ardından belgeyi kaydedin; kaydetme tüm dosyayı yeniden yazar.
+	Colours made gray: {n}	Griye dönüştürülen renkler: {n}
+	Images made gray: {n}	Griye dönüştürülen resimler: {n}
+	Kept their colour:	Rengini koruyanlar:
+	Page {page}	Sayfa {page}
+	Spot colours	Spot renkler
+	Lab colours	Lab renkleri
+	Other colours	Diğer renkler
+	Inline images	Satır içi resimler

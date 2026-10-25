@@ -2503,3 +2503,14 @@ animation effects	Off	Desativados
 	No scaling	Sem dimensionar
 	Only pages of another size	Somente páginas de outro tamanho
 	Every page already has this size.	Todas as páginas já têm este tamanho.
+	Convert to grayscale	Converter para tons de cinza
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Cada cor do documento vira um tom de cinza: texto, desenhos e imagens. O que não puder ser convertido mantém a cor e é listado depois.
+	Save the document afterwards; saving rewrites the whole file.	Salve o documento depois; salvar reescreve o arquivo inteiro.
+	Colours made gray: {n}	Cores passadas para cinza: {n}
+	Images made gray: {n}	Imagens passadas para cinza: {n}
+	Kept their colour:	Mantiveram a cor:
+	Page {page}	Página {page}
+	Spot colours	Cores especiais
+	Lab colours	Cores Lab
+	Other colours	Outras cores
+	Inline images	Imagens embutidas

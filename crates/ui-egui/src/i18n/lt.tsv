@@ -2740,3 +2740,14 @@ theme	Appearance	Išvaizda
 	No scaling	Nekeisti mastelio
 	Only pages of another size	Tik kito dydžio puslapiai
 	Every page already has this size.	Visi puslapiai jau yra šio dydžio.
+	Convert to grayscale	Konvertuoti į pilkumo tonus
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Kiekviena dokumento spalva tampa pilkos atspalviu: tekstas, piešiniai ir paveikslėliai. Kas negali būti konvertuota, išlaiko spalvą ir bus išvardyta po to.
+	Save the document afterwards; saving rewrites the whole file.	Po to įrašykite dokumentą; įrašant perrašomas visas failas.
+	Colours made gray: {n}	Pilkomis paverstos spalvos: {n}
+	Images made gray: {n}	Pilkais paversti paveikslėliai: {n}
+	Kept their colour:	Išlaikė spalvą:
+	Page {page}	{page} puslapis
+	Spot colours	Taškinės spalvos
+	Lab colours	Lab spalvos
+	Other colours	Kitos spalvos
+	Inline images	Įterptiniai paveikslėliai

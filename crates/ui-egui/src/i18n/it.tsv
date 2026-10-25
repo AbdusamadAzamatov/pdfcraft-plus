@@ -2701,3 +2701,14 @@ certificate	SHA-256 digest	Impronta SHA-256
 	No scaling	Nessun ridimensionamento
 	Only pages of another size	Solo pagine di altra dimensione
 	Every page already has this size.	Tutte le pagine hanno già questa dimensione.
+	Convert to grayscale	Converti in scala di grigi
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Ogni colore del documento diventa una tonalità di grigio: testo, disegni e immagini. Ciò che non può essere convertito mantiene il suo colore e viene elencato dopo.
+	Save the document afterwards; saving rewrites the whole file.	Salva il documento dopo; il salvataggio riscrive l'intero file.
+	Colours made gray: {n}	Colori resi grigi: {n}
+	Images made gray: {n}	Immagini rese grigie: {n}
+	Kept their colour:	Hanno mantenuto il colore:
+	Page {page}	Pagina {page}
+	Spot colours	Colori spot
+	Lab colours	Colori Lab
+	Other colours	Altri colori
+	Inline images	Immagini in linea

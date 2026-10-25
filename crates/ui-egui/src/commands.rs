@@ -393,6 +393,7 @@ impl PdfCraftApp {
                 self.marks_draft.replace = false;
                 self.dialog = Some(Dialog::Marks(pdfcraft_engine::MarkKind::ColorFilter));
             }
+            "optimize.grayscale" => self.open_grayscale(),
             "edit.header_footer.remove" | "edit.watermark.remove" | "edit.background.remove" | "edit.invert.remove" => {
                 use pdfcraft_engine::MarkKind as K;
                 let kind = match id {

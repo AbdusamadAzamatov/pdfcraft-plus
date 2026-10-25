@@ -4979,3 +4979,53 @@ fn change_page_size_dialog_resizes_pages_and_only_those_of_another_size() {
     h.run_steps(2);
     assert_eq!(h.state().dialog, None);
 }
+
+/// Compress ▸ Clean up ▸ Convert to grayscale (CU3): the dialog asks first, Convert turns the
+/// red background gray in one undo step and shows what was converted; OK closes it. A document
+/// with no colour closes the dialog with a notice saying so.
+#[test]
+fn convert_to_grayscale_asks_converts_and_reports() {
+    use pdfcraft_engine::{Background, Edit};
+    let mut h = harness(1, |app| {
+        let red = Background { color: [1.0, 0.0, 0.0], ..Background::default() };
+        assert!(app.apply_edit(Edit::AddBackground { pages: vec![0], settings: red, replace: false, file: None }));
+    });
+    assert!(h.state_mut().execute("optimize.grayscale"));
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::Grayscale));
+    h.get_by_label_contains("becomes a shade of gray");
+    assert_eq!(
+        h.state().session.get(h.state().views[0].id).unwrap().can_undo().map(|l| l.to_string()),
+        Some("Add background".into()),
+        "nothing changes before Convert"
+    );
+    h.query_all_by_role_and_label(Role::Button, "Convert").last().unwrap().click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::Grayscale), "the dialog stays to report");
+    let colours = h.state().gray_result.as_ref().unwrap().colors;
+    assert!(colours >= 1);
+    h.get_by_label(&format!("Colours made gray: {colours}"));
+    h.get_by_label("Images made gray: 0");
+    assert!(h.query_by_label("Kept their colour:").is_none(), "nothing kept its colour");
+    if let Ok(path) = std::env::var("PDFCRAFT_GRAYSCALE_SHOT") {
+        h.render().unwrap().save(path).unwrap();
+    }
+    h.get_by_role_and_label(Role::Button, "OK").click();
+    h.run_steps(2);
+    assert_eq!(h.state().dialog, None);
+    let id = h.state().views[0].id;
+    let doc = h.state().session.get(id).unwrap();
+    assert_eq!(doc.can_undo().map(|l| l.to_string()), Some("Convert to grayscale".into()));
+    let mut r = PageRenderer::new(doc.bytes.clone(), Default::default());
+    let out = r.render(RenderRequest { page: 0, scale: 1.0, ..Default::default() });
+    assert_eq!(&out.rgba[..3], [76, 76, 76], "red became its luma");
+
+    // Nothing left in colour: Convert closes the dialog and says why.
+    assert!(h.state_mut().execute("optimize.grayscale"));
+    h.run_steps(2);
+    h.query_all_by_role_and_label(Role::Button, "Convert").last().unwrap().click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, None);
+    let toast = h.state().toast.as_ref().map(|t| t.0.clone()).unwrap_or_default();
+    assert!(toast.contains("Convert to grayscale failed") && toast.contains("no colour"), "{toast}");
+}

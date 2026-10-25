@@ -2511,3 +2511,14 @@ animation effects	Off	Вимкнено
 	No scaling	Без масштабування
 	Only pages of another size	Лише сторінки іншого розміру
 	Every page already has this size.	Усі сторінки вже такого розміру.
+	Convert to grayscale	Перетворити на відтінки сірого
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Кожен колір у документі стає відтінком сірого: текст, малюнки й зображення. Те, що не можна перетворити, зберігає колір і буде перелічено після.
+	Save the document afterwards; saving rewrites the whole file.	Потім збережіть документ; збереження перезаписує весь файл.
+	Colours made gray: {n}	Кольорів переведено в сірий: {n}
+	Images made gray: {n}	Зображень переведено в сірий: {n}
+	Kept their colour:	Зберегли колір:
+	Page {page}	Сторінка {page}
+	Spot colours	Плашкові кольори
+	Lab colours	Кольори Lab
+	Other colours	Інші кольори
+	Inline images	Вбудовані зображення

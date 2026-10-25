@@ -23,6 +23,16 @@ pub(crate) fn page_resources(doc: &Document, page: ObjRef) -> Option<Dict> {
     None
 }
 
+/// The decoded data of each of `refs` (empty for what isn't a readable stream).
+pub(crate) fn content_bytes_list(doc: &Document, refs: &[ObjRef]) -> Vec<Vec<u8>> {
+    refs.iter()
+        .map(|r| match &*doc.get(*r) {
+            Object::Stream(s) => s.decoded().unwrap_or_default(),
+            _ => Vec::new(),
+        })
+        .collect()
+}
+
 pub(crate) fn content_bytes(doc: &Document, contents: &Object) -> Vec<u8> {
     match &*doc.resolve(contents) {
         Object::Stream(s) => s.decoded().unwrap_or_default(),
@@ -186,7 +196,9 @@ pub(crate) fn components(doc: &Document, cs: &Object) -> Option<usize> {
     }
 }
 
-fn is_dct(s: &Stream) -> Option<bool> {
+/// Whether `s` is a JPEG (`Some(true)`), stored with lossless filters PdfCraft decodes
+/// (`Some(false)`), or neither (`None`).
+pub(crate) fn is_dct(s: &Stream) -> Option<bool> {
     match s.dict.get(b"Filter") {
         None => Some(false),
         Some(Object::Name(n)) => match n.as_slice() {
@@ -299,6 +311,12 @@ fn image_stream(old: &Dict, px: &[u8], n: usize, w: u32, h: u32, compression: Co
     } else {
         Some(Stream::flate(d, px))
     }
+}
+
+/// An 8-bit gray image from `px` (`w` × `h`) stored as JPEG at the quality the optimizer uses
+/// when it keeps an image's JPEG compression ([`Compression::Retain`]).
+pub(crate) fn jpeg_retain(old: &Dict, px: &[u8], w: u32, h: u32) -> Option<Stream> {
+    image_stream(old, px, 1, w, h, Compression::Retain, true)
 }
 
 /// One image: resample and/or recompress per `settings`; `ppi` is its effective resolution.

@@ -2403,3 +2403,14 @@ animation effects	Off	Выкл
 	No scaling	Без масштабирования
 	Only pages of another size	Только страницы другого размера
 	Every page already has this size.	Все страницы уже этого размера.
+	Convert to grayscale	Преобразовать в оттенки серого
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Каждый цвет в документе становится оттенком серого: текст, рисунки и изображения. То, что нельзя преобразовать, сохраняет цвет и будет перечислено после.
+	Save the document afterwards; saving rewrites the whole file.	Затем сохраните документ; при сохранении файл перезаписывается целиком.
+	Colours made gray: {n}	Цветов переведено в серый: {n}
+	Images made gray: {n}	Изображений переведено в серый: {n}
+	Kept their colour:	Сохранили цвет:
+	Page {page}	Страница {page}
+	Spot colours	Плашечные цвета
+	Lab colours	Цвета Lab
+	Other colours	Другие цвета
+	Inline images	Встроенные изображения

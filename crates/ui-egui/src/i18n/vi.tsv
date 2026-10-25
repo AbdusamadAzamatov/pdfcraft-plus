@@ -2742,3 +2742,14 @@ key	Space	Space
 	No scaling	Không co giãn
 	Only pages of another size	Chỉ các trang khác kích thước
 	Every page already has this size.	Mọi trang đã có kích thước này.
+	Convert to grayscale	Chuyển sang thang độ xám
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Mọi màu trong tài liệu trở thành một sắc xám: văn bản, hình vẽ và hình ảnh. Những gì không chuyển được sẽ giữ màu và được liệt kê sau đó.
+	Save the document afterwards; saving rewrites the whole file.	Hãy lưu tài liệu sau đó; khi lưu, toàn bộ tệp được ghi lại.
+	Colours made gray: {n}	Số màu đã chuyển sang xám: {n}
+	Images made gray: {n}	Số hình ảnh đã chuyển sang xám: {n}
+	Kept their colour:	Vẫn giữ màu:
+	Page {page}	Trang {page}
+	Spot colours	Màu pha sẵn
+	Lab colours	Màu Lab
+	Other colours	Màu khác
+	Inline images	Hình ảnh nội tuyến

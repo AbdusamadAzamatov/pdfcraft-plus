@@ -2453,3 +2453,14 @@ animation effects	Off	关
 	No scaling	不缩放
 	Only pages of another size	仅限大小不同的页面
 	Every page already has this size.	所有页面已是此大小。
+	Convert to grayscale	转换为灰度
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	文档中的每种颜色都会变为灰色调：文本、绘图和图片。无法转换的内容保留其颜色，并在之后列出。
+	Save the document afterwards; saving rewrites the whole file.	之后请保存文档；保存时会重写整个文件。
+	Colours made gray: {n}	已转为灰色的颜色：{n}
+	Images made gray: {n}	已转为灰色的图片：{n}
+	Kept their colour:	保留了颜色的内容：
+	Page {page}	第 {page} 页
+	Spot colours	专色
+	Lab colours	Lab 颜色
+	Other colours	其他颜色
+	Inline images	内嵌图片

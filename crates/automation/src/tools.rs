@@ -1023,6 +1023,9 @@ pub fn tools() -> Vec<ToolDef> {
         t("doc_invert", "Invert colours", "Invert the colours of pages for reading at night: a white overlay blended with /BM /Difference turns black text white, white paper black and red cyan; text stays text. Comments and form fields keep their colours. Inverting a page again replaces its inversion; remove it with doc_remove_marks kind \"invert\". Undoable.")
             .cmd("edit.invert")
             .with(schema(json!({ "doc": doc(), "pages": pages("to invert (default: all)") }), &["doc"])),
+        t("doc_grayscale", "Convert to grayscale", "Convert every colour of the whole document to gray (ISO 32000-2 §10.4.2: RGB as 0.299 R + 0.587 G + 0.114 B, CMYK as 1 − min(1, 0.3 C + 0.59 M + 0.11 Y + K)): colour operators in page content, forms, annotation appearances and Type 3 glyphs; RGB and CMYK images (stored again as Flate, or JPEG when they were JPEG; soft masks kept); Indexed images get a gray palette. Shadings, patterns, spot (Separation/DeviceN) and Lab colours and images it can't decode faithfully keep their colour and are listed in `kept` ({kind, page (1-based, absent when no page draws it directly), count}) and `kept_lines`. One undo step; the next save rewrites the file. Signed documents are refused.")
+            .cmd("optimize.grayscale")
+            .with(schema(json!({ "doc": doc() }), &["doc"])),
         t("doc_remove_marks", "Remove header & footer, watermark, background or inverted colours", "Remove every header and footer, watermark, background or colour inversion (kind \"invert\") PdfCraft (or a compatible tool) added. Undoable.")
             .destructive()
             .with(schema(json!({ "doc": doc(), "kind": { "type": "string", "enum": ["header_footer", "watermark", "background", "invert"] } }), &["doc", "kind"])),

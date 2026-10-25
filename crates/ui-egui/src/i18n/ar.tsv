@@ -2766,3 +2766,14 @@ certificate	Version	الإصدار
 	No scaling	بلا تحجيم
 	Only pages of another size	الصفحات ذات الحجم المختلف فقط
 	Every page already has this size.	كل الصفحات بهذا الحجم بالفعل.
+	Convert to grayscale	تحويل إلى تدرّج الرمادي
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	يصبح كل لون في المستند درجة من الرمادي: النصوص والرسومات والصور. ما لا يمكن تحويله يحتفظ بلونه ويُدرج بعد ذلك.
+	Save the document afterwards; saving rewrites the whole file.	احفظ المستند بعد ذلك؛ الحفظ يعيد كتابة الملف بالكامل.
+	Colours made gray: {n}	الألوان المحوّلة إلى الرمادي: {n}
+	Images made gray: {n}	الصور المحوّلة إلى الرمادي: {n}
+	Kept their colour:	احتفظت بلونها:
+	Page {page}	الصفحة {page}
+	Spot colours	الألوان الموضعية
+	Lab colours	ألوان Lab
+	Other colours	ألوان أخرى
+	Inline images	الصور المضمّنة

@@ -2488,3 +2488,14 @@ animation effects	Off	Ki
 	No scaling	Méretezés nélkül
 	Only pages of another size	Csak az eltérő méretű oldalak
 	Every page already has this size.	Már minden oldal ekkora.
+	Convert to grayscale	Átalakítás szürkeárnyalatossá
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	A dokumentum minden színe szürkeárnyalattá válik: a szöveg, a rajzok és a képek is. Ami nem alakítható át, megtartja a színét, és utána felsoroljuk.
+	Save the document afterwards; saving rewrites the whole file.	Utána mentse a dokumentumot; a mentés az egész fájlt újraírja.
+	Colours made gray: {n}	Szürkévé alakított színek: {n}
+	Images made gray: {n}	Szürkévé alakított képek: {n}
+	Kept their colour:	Megtartották a színüket:
+	Page {page}	{page}. oldal
+	Spot colours	Direkt színek
+	Lab colours	Lab színek
+	Other colours	Egyéb színek
+	Inline images	Beágyazott képek

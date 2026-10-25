@@ -2629,3 +2629,14 @@ animation effects	Off	Desactivados
 	No scaling	Sin escalar
 	Only pages of another size	Solo páginas de otro tamaño
 	Every page already has this size.	Todas las páginas ya tienen este tamaño.
+	Convert to grayscale	Convertir a escala de grises
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Cada color del documento se convierte en un tono de gris: texto, dibujos e imágenes. Lo que no se pueda convertir conserva su color y se indica después.
+	Save the document afterwards; saving rewrites the whole file.	Guarde el documento después; al guardar se reescribe todo el archivo.
+	Colours made gray: {n}	Colores pasados a gris: {n}
+	Images made gray: {n}	Imágenes pasadas a gris: {n}
+	Kept their colour:	Conservaron su color:
+	Page {page}	Página {page}
+	Spot colours	Colores directos
+	Lab colours	Colores Lab
+	Other colours	Otros colores
+	Inline images	Imágenes en línea

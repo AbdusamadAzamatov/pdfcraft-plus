@@ -2490,3 +2490,14 @@ animation effects	Off	Aus
 	No scaling	Nicht skalieren
 	Only pages of another size	Nur Seiten anderer Größe
 	Every page already has this size.	Alle Seiten haben bereits diese Größe.
+	Convert to grayscale	In Graustufen umwandeln
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Jede Farbe im Dokument wird zu einem Grauton: Text, Zeichnungen und Bilder. Was sich nicht umwandeln lässt, behält seine Farbe und wird danach aufgelistet.
+	Save the document afterwards; saving rewrites the whole file.	Speichern Sie das Dokument danach; beim Speichern wird die ganze Datei neu geschrieben.
+	Colours made gray: {n}	In Grau umgewandelte Farben: {n}
+	Images made gray: {n}	In Grau umgewandelte Bilder: {n}
+	Kept their colour:	Haben ihre Farbe behalten:
+	Page {page}	Seite {page}
+	Spot colours	Volltonfarben
+	Lab colours	Lab-Farben
+	Other colours	Andere Farben
+	Inline images	Inline-Bilder

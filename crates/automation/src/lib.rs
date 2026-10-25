@@ -461,6 +461,18 @@ impl Automation {
                 json!({ "path": path.to_string_lossy(), "written": written, "bytes_before": before, "bytes_after": bytes.len(), "merged_objects": merged })
             }
             "doc_optimize" => self.doc_optimize(&a)?,
+            "doc_grayscale" => {
+                let id = self.doc(&a)?.id;
+                let r = self.session.grayscale(id).map_err(failed)?;
+                let mut out = summary(self.doc(&a)?);
+                out["colors"] = json!(r.colors);
+                out["streams"] = json!(r.streams);
+                out["images"] = json!(r.images);
+                out["palettes"] = json!(r.palettes);
+                out["kept"] = json!(r.kept.iter().map(|k| json!({ "kind": k.kind.name(), "page": k.page, "count": k.count })).collect::<Vec<_>>());
+                out["kept_lines"] = json!(r.kept_lines());
+                out
+            }
             "doc_initial_view" => self.doc_initial_view(&a)?,
             "doc_revisions" => self.doc_revisions(&a)?,
             "text_lines" => {

@@ -2563,3 +2563,14 @@ animation effects	Off	Vypnuto
 	No scaling	Bez změny měřítka
 	Only pages of another size	Jen stránky jiné velikosti
 	Every page already has this size.	Všechny stránky už mají tuto velikost.
+	Convert to grayscale	Převést do odstínů šedi
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Každá barva v dokumentu se změní na odstín šedi: text, kresby i obrázky. Co nelze převést, si ponechá barvu a bude potom vypsáno.
+	Save the document afterwards; saving rewrites the whole file.	Dokument potom uložte; uložení přepíše celý soubor.
+	Colours made gray: {n}	Barvy převedené na šedou: {n}
+	Images made gray: {n}	Obrázky převedené na šedou: {n}
+	Kept their colour:	Ponechaly si barvu:
+	Page {page}	Strana {page}
+	Spot colours	Přímé barvy
+	Lab colours	Barvy Lab
+	Other colours	Jiné barvy
+	Inline images	Vložené obrázky

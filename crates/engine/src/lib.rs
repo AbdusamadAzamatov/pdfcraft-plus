@@ -415,6 +415,8 @@ pub struct Document {
     /// What the last successful [`Session::apply`] wrote that its fonts can't draw: kept as typed,
     /// drawn with `?` in its place (see [`TextNotice`]). The interface shows it; tools return it.
     pub edit_notices: Vec<TextNotice>,
+    /// What the last successful [`Edit::Grayscale`] converted and left in colour.
+    pub gray_report: Option<optimize::color::GrayReport>,
 }
 
 /// Text an edit stored as typed but drew with `?` in place of `ch`, because the font it is drawn
@@ -1766,6 +1768,10 @@ pub enum Edit {
     },
     /// Sanitize Document: every category, then a full rewrite on save.
     Sanitize,
+    /// Convert to grayscale: every colour of the document becomes gray (see
+    /// [`optimize::color::to_gray`]), then a full rewrite on save so the colour data goes. Use
+    /// [`Session::grayscale`], which refuses signed documents and returns the report.
+    Grayscale,
     /// An XFA form made an ordinary (static) PDF form: the XFA packets, `/NeedsRendering` and
     /// PdfCraft's private keys go, the pages as laid out and the fields with their values
     /// stay, so every viewer shows the same form and none lays it out again. Its scripts no
@@ -1981,6 +1987,7 @@ pub const EDIT_LABELS: &[&str] = &[
     "Create link",
     "Create links",
     "Sanitize document",
+    "Convert to grayscale",
     "Flatten comments",
     "Flatten form fields",
     "Flatten",
@@ -2122,6 +2129,7 @@ impl Edit {
             Edit::RemoveLinks { .. } => Label::of("Remove all links"),
             Edit::AddLinks { links, .. } => plural("Create link", "Create links", links.len()),
             Edit::Sanitize => Label::of("Sanitize document"),
+            Edit::Grayscale => Label::of("Convert to grayscale"),
             Edit::XfaToStatic => Label::of("Convert to a static form"),
             Edit::Flatten { comments: true, fields: false } => Label::of("Flatten comments"),
             Edit::Flatten { comments: false, fields: true } => Label::of("Flatten form fields"),
@@ -2276,6 +2284,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::RemoveLinks { .. }
         | Edit::AddLinks { .. }
         | Edit::Sanitize
+        | Edit::Grayscale
         | Edit::XfaToStatic
         | Edit::SetFieldProps { .. }
         | Edit::DeleteField { .. }
@@ -2335,6 +2344,8 @@ struct EditCtx {
     /// Fields the edit renamed to keep imported names separate (old → new), for the repair
     /// log and the undo label.
     renamed_fields: Vec<(String, String)>,
+    /// What [`Edit::Grayscale`] converted and left in colour.
+    gray: Option<optimize::color::GrayReport>,
 }
 
 impl EditCtx {
@@ -2361,6 +2372,7 @@ impl EditCtx {
             seed,
             count: 0,
             renamed_fields: Vec::new(),
+            gray: None,
         }
     }
 
@@ -2757,6 +2769,20 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         }
         Edit::Sanitize => {
             pdfcraft_redact::sanitize::sanitize(doc)?;
+        }
+        Edit::Grayscale => {
+            let report = optimize::color::to_gray(doc).map_err(|e| EditError::Optimize(e.to_string()))?;
+            if !report.changed() {
+                let kept = report.kept_lines();
+                return Err(EditError::Invalid(if kept.is_empty() {
+                    "there is no colour to convert to gray".into()
+                } else {
+                    format!("nothing could be converted to gray: {}", kept.join("; "))
+                }));
+            }
+            // The colour data must not survive in an incremental update's earlier revision.
+            doc.require_full_save();
+            cx.gray = Some(report);
         }
         Edit::Flatten { comments, fields } => {
             // An XFA form's fields baked into the pages: the XFA goes too, or Adobe's viewers
@@ -3781,6 +3807,7 @@ impl Session {
             fonts_stale: false,
             xfa_warnings: Vec::new(),
             edit_notices: Vec::new(),
+            gray_report: None,
         }
     }
 
@@ -3960,6 +3987,7 @@ impl Session {
         doc.dirty = true;
         doc.generation += 1;
         doc.edit_notices = notices;
+        doc.gray_report = cx.gray.take();
         if !cx.xfa_removed.is_empty() {
             let removed: Vec<String> = cx.xfa_removed.iter().map(|n| format!("{XFA_REMOVED_PREFIX}{n}")).collect();
             doc.xfa_warnings.retain(|w| w.starts_with(XFA_REMOVED_PREFIX));
@@ -4466,6 +4494,18 @@ impl Session {
             None => name.to_ascii_lowercase().ends_with(".pdf"),
         };
         if pdf { Ok(bytes.clone()) } else { self.convert_to_pdf(name, bytes).map(|(_, pdf)| pdf) }
+    }
+
+    /// Convert to grayscale: every colour of document `id` becomes gray, in one undo step (see
+    /// [`optimize::color::to_gray`]); the next save rewrites the file. Signed documents are
+    /// refused, as the optimizer refuses them. Returns what was converted and what kept its
+    /// colour.
+    pub fn grayscale(&mut self, id: DocId) -> Result<optimize::color::GrayReport, EditError> {
+        if self.get(id).ok_or(EditError::NoDocument)?.is_signed() {
+            return Err(EditError::Signed);
+        }
+        self.apply(id, Edit::Grayscale)?;
+        Ok(self.get(id).and_then(|d| d.gray_report.clone()).unwrap_or_default())
     }
 
     /// Reduce File Size: Acrobat's defaults (images above 225 ppi to 150 ppi, JPEG medium

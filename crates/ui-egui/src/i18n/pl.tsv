@@ -2465,3 +2465,14 @@ animation effects	Off	Wyłączone
 	No scaling	Bez skalowania
 	Only pages of another size	Tylko strony o innym rozmiarze
 	Every page already has this size.	Wszystkie strony mają już ten rozmiar.
+	Convert to grayscale	Konwertuj na odcienie szarości
+	Every colour in the document becomes a shade of gray: text, drawings and pictures. What can't be converted keeps its colour and is listed afterwards.	Każdy kolor w dokumencie staje się odcieniem szarości: tekst, rysunki i obrazy. To, czego nie da się przekonwertować, zachowuje kolor i zostanie potem wymienione.
+	Save the document afterwards; saving rewrites the whole file.	Następnie zapisz dokument; zapis przepisuje cały plik.
+	Colours made gray: {n}	Kolory zamienione na szarość: {n}
+	Images made gray: {n}	Obrazy zamienione na szarość: {n}
+	Kept their colour:	Zachowały kolor:
+	Page {page}	Strona {page}
+	Spot colours	Kolory dodatkowe
+	Lab colours	Kolory Lab
+	Other colours	Inne kolory
+	Inline images	Obrazy wbudowane

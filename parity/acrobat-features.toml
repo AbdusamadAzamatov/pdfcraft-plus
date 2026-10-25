@@ -7696,6 +7696,18 @@ evidence = []
 notes = ""
 
 [[feature]]
+id = "optimize.convert-grayscale"
+title = "Convert the whole document to grayscale (vector and images)"
+area = "K"
+tier = "P2"
+milestone = "M11"
+status = "shipped"
+commands = ["optimize.grayscale"]
+tools = ["doc_grayscale"]
+evidence = ["crates/optimize/tests/grayscale.rs::colour_operators_become_gray_and_spot_colours_and_shadings_are_reported", "crates/optimize/tests/grayscale.rs::an_rgb_image_becomes_one_gray_component_of_the_same_size", "crates/optimize/tests/grayscale.rs::an_indexed_image_gets_a_gray_palette_and_keeps_its_indices", "crates/optimize/tests/grayscale.rs::a_separation_image_and_colour_are_reported_not_touched", "crates/optimize/tests/grayscale.rs::forms_appearances_and_type3_glyphs_are_converted_once", "crates/optimize/tests/grayscale.rs::inline_images_and_colour_key_masks_turn_gray", "crates/optimize/tests/grayscale.rs::malformed_and_cyclic_content_does_not_crash", "crates/optimize/tests/grayscale.rs::the_result_renders_entirely_in_gray", "crates/optimize/tests/grayscale.rs::a_colour_photo_gets_smaller", "crates/engine/src/tests.rs::grayscale_converts_the_document_in_one_undo_step", "crates/automation/tests/automation.rs::doc_grayscale_turns_every_colour_gray_in_one_undo_step", "crates/ui-egui/tests/editing.rs::convert_to_grayscale_asks_converts_and_reports"]
+notes = "Compress ▸ Clean up ▸ Convert to grayscale (a confirmation, then a report of what was converted and what kept its colour, by page; one undo step; the next save rewrites the file so the colour data goes). Formulas from ISO 32000-2 §10.4.2: RGB → 0.299 R + 0.587 G + 0.114 B (Rec. 601, as Print ▸ grayscale), CMYK → 1 − min(1, 0.3 C + 0.59 M + 0.11 Y + K); ICCBased N=3/4 and CalRGB are read as RGB/CMYK. Vector: rg/RG, k/K, cs/CS + sc/scn in RGB/CMYK spaces become g/G and /DeviceGray in page content, form XObjects (12 deep, each converted once), annotation appearances and Type 3 glyphs defined with d0 (d1 glyphs are left alone); annotation /C and /IC become gray. A form or glyph that sets 3 or 4 numbers without choosing a space draws in its caller's space, which is gray now: 3 numbers are read as RGB, 4 as CMYK. Images: 8-bit RGB and CMYK images (lossless filters) and RGB JPEGs are decoded and stored as 1-component Flate, or JPEG at the optimizer's Retain quality (80) when they were JPEG; Indexed images keep their indices and get a DeviceGray palette; /SMask and explicit /Mask stay, a colour-key /Mask array becomes an equivalent soft mask, and a soft mask's /Matte turns gray; unfiltered and Flate inline images are converted too. Every image in the file is converted once, which is why the scope is the whole document. Kept and reported: shadings (sh), patterns, Separation/DeviceN, Lab and Indexed vector colours, CMYK JPEGs, JPEG 2000, 16-bit or decode-array images and other colour spaces. Signed documents are refused with the optimizer's message. Still missing: form-field default appearances (/DA, /MK colours) are not converted, so a viewer regenerating a field's appearance draws it in colour again; transparency group /CS and soft-mask groups reached through ExtGState are not walked; ICC profiles are ignored (device formulas); it runs on the UI thread without a progress bar."
+
+[[feature]]
 id = "optimize.audit-space"
 title = "Audit space usage"
 area = "K"
@@ -8377,11 +8389,11 @@ title = "Convert colours"
 area = "L"
 tier = "P1"
 milestone = "M11"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "partial"
+commands = ["optimize.grayscale"]
+tools = ["doc_grayscale"]
+evidence = ["crates/optimize/tests/grayscale.rs::the_result_renders_entirely_in_gray", "crates/automation/tests/automation.rs::doc_grayscale_turns_every_colour_gray_in_one_undo_step"]
+notes = "Partly covered by Compress ▸ Clean up ▸ Convert to grayscale (optimize.convert-grayscale): the whole document's RGB and CMYK colours and images to DeviceGray with the ISO 32000-2 §10.4.2 formulas. Missing: other destination spaces (CMYK, RGB), conversion through ICC profiles and output intents, per-object or per-page choices, spot-colour handling and Convert Colors' preview."
 
 [[feature]]
 id = "print.ink-manager"

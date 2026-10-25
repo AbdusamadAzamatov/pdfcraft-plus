@@ -353,6 +353,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("edit.background.update", "Update background…", None, None, Marks(crate::MarkKind::Background), "palette"),
     c("edit.background.remove", "Remove background", None, None, Marks(crate::MarkKind::Background), "palette"),
     c("edit.invert", "Invert colours", None, None, Modification, "moon"),
+    c("optimize.grayscale", "Convert to grayscale", None, None, Modification, "contrast"),
     c("edit.invert.remove", "Remove inverted colours", None, None, Marks(crate::MarkKind::ColorFilter), "moon"),
     c("protect.password", "Protect using password…", FILE, None, Security, "lock"),
     c("protect.remove", "Remove security", FILE, None, ProtectedSecurity, "lock-open"),

@@ -90,6 +90,7 @@ pub mod fill_sign;
 mod fling;
 pub mod folders_ui;
 pub mod forms_ui;
+mod grayscale_ui;
 mod home;
 mod icon_data;
 pub mod icons;
@@ -300,6 +301,8 @@ pub enum Dialog {
     RemoveBlank,
     /// Compress ▸ Clean up ▸ Rasterize pages.
     Rasterize,
+    /// Compress ▸ Clean up ▸ Convert to grayscale: the confirmation, then the report.
+    Grayscale,
     /// Add / Update Header and Footer, Watermark, Background.
     Marks(pdfcraft_engine::MarkKind),
     /// Export a PDF ▸ Image / Text.
@@ -794,6 +797,8 @@ pub struct PdfCraftApp {
     pub blank_draft: blank_ui::BlankDraft,
     /// Compress ▸ Clean up ▸ Rasterize pages dialog state.
     pub rasterize_draft: rasterize_ui::RasterizeDraft,
+    /// Convert to grayscale: what the conversion did (`None` while the dialog asks first).
+    pub gray_result: Option<pdfcraft_engine::optimize::color::GrayReport>,
     /// Header & footer / watermark / background dialog state.
     pub marks_draft: marks_ui::MarksDraft,
     /// Export dialog settings.
@@ -1085,6 +1090,7 @@ impl PdfCraftApp {
             divide_draft: Default::default(),
             blank_draft: Default::default(),
             rasterize_draft: Default::default(),
+            gray_result: None,
             marks_draft: Default::default(),
             export_draft: Default::default(),
             export_status: None,
