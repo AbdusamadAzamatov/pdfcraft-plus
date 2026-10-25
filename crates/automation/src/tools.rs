@@ -886,6 +886,22 @@ pub fn tools() -> Vec<ToolDef> {
         t("page_replace", "Replace pages", "Replace the content of pages with pages of another PDF (same count). Links, comments, form fields and bookmarks on the original pages stay, as in Acrobat. Undoable.")
             .cmd("page.replace")
             .with(schema(json!({ "doc": doc(), "pages": pages("to replace"), "path": path_arg(), "from_pages": pages("of the other file, in order (default: its first pages)") }), &["doc", "pages", "path"])),
+        t(
+            "page_rasterize",
+            "Rasterize pages",
+            "Turn each listed page (1-based; default all) into a single picture of itself (Compress ▸ Clean up ▸ Rasterize pages), for printer compatibility or to stop its text being copied. dpi: resolution of the pictures, 72–600 (default 150); grayscale: grey pictures. comments: \"keep\" (default) leaves comments out of the pictures and keeps them as comments; \"burn\" draws them into the pictures and removes them from those pages. The pages keep their size, boxes, rotation, links, form fields and bookmarks; their text is no longer searchable or extractable (run Recognize text afterwards to add it back). Form fields stay live on top of the picture, which also shows them. Needs the permission to change the document. One undo step; reports rasterized (the number of pages).",
+        )
+        .cmd("optimize.rasterize")
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("to rasterize (default: all)"),
+                "dpi": { "type": "number", "minimum": 72, "maximum": 600, "description": "Resolution of the pictures in dots per inch (default 150)." },
+                "grayscale": { "type": "boolean", "description": "Grey pictures instead of colour (default false)." },
+                "comments": { "type": "string", "enum": ["keep", "burn"], "description": "keep (default): comments stay as comments; burn: drawn into the pictures and removed." },
+            }),
+            &["doc"],
+        )),
         t("page_duplicate", "Duplicate pages", "Insert copies of pages after the last of them (fonts and images are shared, not copied). Undoable.")
             .cmd("page.duplicate")
             .with(schema(json!({ "doc": doc(), "pages": pages("to duplicate") }), &["doc", "pages"])),

@@ -2472,3 +2472,11 @@ animation effects	Off	Aus
 	Checking page {d} of {t}…	Seite {d} von {t} wird geprüft…
 	No blank pages found	Keine leeren Seiten gefunden
 	A document must keep at least one page: uncheck a page to keep it.	Ein Dokument muss mindestens eine Seite behalten: Entferne das Häkchen bei einer Seite, um sie zu behalten.
+	Rasterize pages…	Seiten rastern…
+	Rasterize page	Seite rastern
+	Rasterize pages	Seiten rastern
+	Keep as comments	Als Kommentare behalten
+	Burn into the image	In das Bild einbrennen
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Der Text auf diesen Seiten ist danach nicht mehr durchsuchbar oder kopierbar. Führe anschließend Text erkennen aus, um ihn wieder durchsuchbar zu machen.
+	Rasterize	Rastern
+	Couldn't rasterize the pages: {e}	Die Seiten konnten nicht gerastert werden: {e}

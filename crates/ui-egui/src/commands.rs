@@ -637,6 +637,7 @@ impl PdfCraftApp {
             "create.images" => self.create_from_images_dialog(),
             "create.clipboard" => self.create_from_clipboard(),
             "optimize.reduce" => self.reduce_file_size(),
+            "optimize.rasterize" => self.open_rasterize(),
             "page.duplicate" => {
                 self.apply_edit(Edit::DuplicatePages { pages: targets });
             }

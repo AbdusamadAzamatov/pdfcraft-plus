@@ -2722,3 +2722,11 @@ theme	Appearance	Išvaizda
 	Checking page {d} of {t}…	Tikrinamas {d} puslapis iš {t}…
 	No blank pages found	Tuščių puslapių nerasta
 	A document must keep at least one page: uncheck a page to keep it.	Dokumente turi likti bent vienas puslapis: atžymėkite puslapį, kad jį paliktumėte.
+	Rasterize pages…	Rastrinti puslapius…
+	Rasterize page	Rastrinti puslapį
+	Rasterize pages	Rastrinti puslapius
+	Keep as comments	Palikti kaip komentarus
+	Burn into the image	Įlieti į paveikslėlį
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Šių puslapių teksto nebebus galima ieškoti ar kopijuoti. Vėliau paleiskite „Atpažinti tekstą“, kad jame vėl būtų galima ieškoti.
+	Rasterize	Rastrinti
+	Couldn't rasterize the pages: {e}	Nepavyko rastrinti puslapių: {e}

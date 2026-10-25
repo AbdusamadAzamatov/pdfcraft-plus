@@ -2545,3 +2545,11 @@ animation effects	Off	Vypnuto
 	Checking page {d} of {t}…	Kontroluje se stránka {d} z {t}…
 	No blank pages found	Nebyly nalezeny žádné prázdné stránky
 	A document must keep at least one page: uncheck a page to keep it.	Dokument musí mít alespoň jednu stránku: zrušte zaškrtnutí stránky, kterou chcete ponechat.
+	Rasterize pages…	Rastrovat stránky…
+	Rasterize page	Rastrovat stránku
+	Rasterize pages	Rastrovat stránky
+	Keep as comments	Ponechat jako komentáře
+	Burn into the image	Vpálit do obrázku
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Text na těchto stránkách už nepůjde vyhledávat ani kopírovat. Potom spusťte Rozpoznat text, aby šel znovu vyhledávat.
+	Rasterize	Rastrovat
+	Couldn't rasterize the pages: {e}	Stránky nelze rastrovat: {e}

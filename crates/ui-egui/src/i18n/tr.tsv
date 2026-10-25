@@ -2467,3 +2467,11 @@ animation effects	Off	Kapalı
 	Checking page {d} of {t}…	Sayfa {d} / {t} denetleniyor…
 	No blank pages found	Boş sayfa bulunamadı
 	A document must keep at least one page: uncheck a page to keep it.	Bir belgede en az bir sayfa kalmalıdır: tutmak istediğiniz sayfanın işaretini kaldırın.
+	Rasterize pages…	Sayfaları rasterleştir…
+	Rasterize page	Sayfayı rasterleştir
+	Rasterize pages	Sayfaları rasterleştir
+	Keep as comments	Yorum olarak koru
+	Burn into the image	Görüntüye göm
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Bu sayfalardaki metin artık aranamaz ve kopyalanamaz. Yeniden aranabilir yapmak için ardından Metni tanı'yı çalıştırın.
+	Rasterize	Rasterleştir
+	Couldn't rasterize the pages: {e}	Sayfalar rasterleştirilemedi: {e}

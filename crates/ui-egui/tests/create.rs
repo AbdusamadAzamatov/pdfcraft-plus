@@ -359,3 +359,63 @@ fn multiple_files_past_a_thousand_are_all_used() {
     let doc = app.session.get(app.views[0].id).unwrap();
     assert_eq!(doc.info.pages.len(), 1001, "every picked file is used, in order");
 }
+
+/// The image XObjects page `page` (0-based) of `bytes` draws from its resources.
+fn page_images(bytes: std::sync::Arc<Vec<u8>>, page: usize) -> usize {
+    let cos = pdfcraft_cos::Document::open(bytes).unwrap();
+    let pages = pdfcraft_model::pages(&cos);
+    let res = pages[page].dict.get(b"Resources").map(|r| cos.resolve(r));
+    let xo = res.as_ref().and_then(|r| r.as_dict()).and_then(|r| r.get(b"XObject")).map(|x| cos.resolve(x));
+    xo.as_ref().and_then(|x| x.as_dict()).map_or(0, |x| {
+        x.iter().filter(|(_, v)| matches!(&*cos.resolve(v), pdfcraft_cos::Object::Stream(s) if s.dict.name(b"Subtype") == Some(b"Image"))).count()
+    })
+}
+
+/// Compress ▸ Clean up ▸ Rasterize pages… (CU2): the catalog item opens the dialog (pages,
+/// resolution, greyscale, comments, the searchable-text warning); Cancel changes nothing, and
+/// Rasterize on the current page turns only that page into one picture, as one undo step.
+#[test]
+fn rasterize_pages_dialog_turns_the_current_page_into_a_picture() {
+    use egui_kittest::Harness;
+    use egui_kittest::kittest::Queryable;
+    use pdfcraft_ui_egui::Dialog;
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("form.pdf", None, include_bytes!("data/form.pdf").to_vec()).unwrap();
+        app
+    });
+    h.run_steps(4);
+    let id = h.state().views[0].id;
+    let pages = h.state().session.get(id).unwrap().info.pages.len();
+    h.state_mut().set_option("tool", "compress").unwrap();
+    h.run_steps(4);
+    h.get_by_label("Rasterize pages…").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::Rasterize));
+    h.get_by_label("Resolution:");
+    h.get_by_label("Greyscale");
+    h.get_by_label("Keep as comments");
+    h.get_by_label("Burn into the image");
+    h.get_by_label("The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.");
+    h.get_by_label("Cancel").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, None);
+    assert!(!h.state().session.get(id).unwrap().dirty, "Cancel changes nothing");
+
+    assert!(h.state_mut().execute("optimize.rasterize"));
+    h.run_steps(3);
+    h.get_by_label("Current page").click();
+    h.run_steps(1);
+    h.state_mut().rasterize_draft.dpi = 72;
+    h.get_by_label("Rasterize").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, None);
+    let doc = h.state().session.get(id).unwrap();
+    assert_eq!(doc.can_undo(), Some("Rasterize page"));
+    assert_eq!(doc.info.pages.len(), pages);
+    assert_eq!(page_images(doc.bytes.clone(), 0), 1, "the current page is one picture");
+    if pages > 1 {
+        assert_eq!(page_images(doc.bytes.clone(), 1), 0, "the other pages are untouched");
+    }
+}

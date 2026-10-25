@@ -2493,3 +2493,11 @@ animation effects	Off	Вимкнено
 	Checking page {d} of {t}…	Перевірка сторінки {d} з {t}…
 	No blank pages found	Порожніх сторінок не знайдено
 	A document must keep at least one page: uncheck a page to keep it.	У документі має лишитися принаймні одна сторінка: зніміть позначку зі сторінки, щоб залишити її.
+	Rasterize pages…	Раструвати сторінки…
+	Rasterize page	Раструвати сторінку
+	Rasterize pages	Раструвати сторінки
+	Keep as comments	Залишити коментарями
+	Burn into the image	Вписати в зображення
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Текст на цих сторінках більше не можна буде шукати й копіювати. Потім запустіть «Розпізнати текст», щоб у ньому знову можна було шукати.
+	Rasterize	Раструвати
+	Couldn't rasterize the pages: {e}	Не вдалося раструвати сторінки: {e}

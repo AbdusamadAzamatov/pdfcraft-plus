@@ -58,6 +58,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut impose_now = false;
     let mut divide_now = false;
     let mut blank_now = false;
+    let mut rasterize_now = false;
     let mut marks_now = false;
     let mut export_now = false;
     let mut props_now = false;
@@ -1032,6 +1033,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = remove || cancel;
                 return;
             }
+            Dialog::Rasterize => {
+                let (go, cancel) = crate::rasterize_ui::body(ui, app, &t);
+                rasterize_now = go;
+                close = go || cancel;
+                return;
+            }
             Dialog::Protect => {
                 let (apply, cancel) = crate::protect::body(ui, app, &t);
                 protect_now = apply;
@@ -1414,6 +1421,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     }
     if blank_now {
         app.remove_blank_with_draft();
+    }
+    if rasterize_now {
+        app.rasterize_with_draft();
     }
     if protect_now && app.apply_edit(app.protect_draft.edit()) {
         app.protect_draft = Default::default();

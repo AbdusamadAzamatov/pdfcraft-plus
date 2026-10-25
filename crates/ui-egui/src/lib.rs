@@ -104,6 +104,7 @@ mod panels;
 mod pickers;
 pub mod prepare;
 mod print_ui;
+mod rasterize_ui;
 pub mod rotate_angle_ui;
 mod signature_drag;
 pub mod units;
@@ -296,6 +297,8 @@ pub enum Dialog {
     DividePages,
     /// Organize ▸ Layout ▸ Remove blank pages: the pages that look blank, checked for removal.
     RemoveBlank,
+    /// Compress ▸ Clean up ▸ Rasterize pages.
+    Rasterize,
     /// Add / Update Header and Footer, Watermark, Background.
     Marks(pdfcraft_engine::MarkKind),
     /// Export a PDF ▸ Image / Text.
@@ -785,6 +788,8 @@ pub struct PdfCraftApp {
     pub divide_draft: divide_ui::DivideDraft,
     /// Organize ▸ Layout ▸ Remove blank pages dialog state (options, search, results).
     pub blank_draft: blank_ui::BlankDraft,
+    /// Compress ▸ Clean up ▸ Rasterize pages dialog state.
+    pub rasterize_draft: rasterize_ui::RasterizeDraft,
     /// Header & footer / watermark / background dialog state.
     pub marks_draft: marks_ui::MarksDraft,
     /// Export dialog settings.
@@ -1074,6 +1079,7 @@ impl PdfCraftApp {
             impose_draft: Default::default(),
             divide_draft: Default::default(),
             blank_draft: Default::default(),
+            rasterize_draft: Default::default(),
             marks_draft: Default::default(),
             export_draft: Default::default(),
             export_status: None,
@@ -2589,6 +2595,10 @@ impl PdfCraftApp {
                     "pdfa" => Some(Dialog::PdfA),
                     "signature" => Some(Dialog::Signature),
                     "optimize" => Some(Dialog::Optimize),
+                    "rasterize-pages" => {
+                        self.open_rasterize();
+                        self.dialog
+                    }
                     "sign" | "certify" => {
                         // Sign with a Digital ID for an invisible signature on the current page.
                         let page = self.active.map_or(0, |i| self.views[i].current);

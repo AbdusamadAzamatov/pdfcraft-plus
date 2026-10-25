@@ -2477,3 +2477,11 @@ animation effects	Off	Ανενεργά
 	Checking page {d} of {t}…	Έλεγχος σελίδας {d} από {t}…
 	No blank pages found	Δεν βρέθηκαν κενές σελίδες
 	A document must keep at least one page: uncheck a page to keep it.	Ένα έγγραφο πρέπει να έχει τουλάχιστον μία σελίδα: αποεπιλέξτε μια σελίδα για να τη διατηρήσετε.
+	Rasterize pages…	Ραστεροποίηση σελίδων…
+	Rasterize page	Ραστεροποίηση σελίδας
+	Rasterize pages	Ραστεροποίηση σελίδων
+	Keep as comments	Διατήρηση ως σχόλια
+	Burn into the image	Ενσωμάτωση στην εικόνα
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Το κείμενο σε αυτές τις σελίδες δεν θα μπορεί πλέον να αναζητηθεί ή να αντιγραφεί. Εκτελέστε στη συνέχεια την Αναγνώριση κειμένου για να γίνει ξανά αναζητήσιμο.
+	Rasterize	Ραστεροποίηση
+	Couldn't rasterize the pages: {e}	Δεν ήταν δυνατή η ραστεροποίηση των σελίδων: {e}

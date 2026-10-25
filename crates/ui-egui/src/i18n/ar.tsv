@@ -2748,3 +2748,11 @@ certificate	Version	الإصدار
 	Checking page {d} of {t}…	جارٍ فحص الصفحة {d} من {t}…
 	No blank pages found	لم يُعثر على صفحات فارغة
 	A document must keep at least one page: uncheck a page to keep it.	يجب أن يحتفظ المستند بصفحة واحدة على الأقل: ألغِ تحديد صفحة للاحتفاظ بها.
+	Rasterize pages…	تحويل الصفحات إلى صور…
+	Rasterize page	تحويل الصفحة إلى صورة
+	Rasterize pages	تحويل الصفحات إلى صور
+	Keep as comments	إبقاؤها تعليقات
+	Burn into the image	دمجها في الصورة
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	لن يعود النص في هذه الصفحات قابلاً للبحث أو النسخ. شغّل «التعرف على النص» بعد ذلك لجعله قابلاً للبحث مجددًا.
+	Rasterize	تحويل إلى صور
+	Couldn't rasterize the pages: {e}	تعذّر تحويل الصفحات إلى صور: {e}

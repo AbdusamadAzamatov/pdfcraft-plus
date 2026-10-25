@@ -2611,3 +2611,11 @@ animation effects	Off	Desactivados
 	Checking page {d} of {t}…	Revisando la página {d} de {t}…
 	No blank pages found	No se encontraron páginas en blanco
 	A document must keep at least one page: uncheck a page to keep it.	Un documento debe conservar al menos una página: desmarca una página para conservarla.
+	Rasterize pages…	Rasterizar páginas…
+	Rasterize page	Rasterizar página
+	Rasterize pages	Rasterizar páginas
+	Keep as comments	Mantener como comentarios
+	Burn into the image	Incrustar en la imagen
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	El texto de estas páginas ya no se podrá buscar ni copiar. Ejecuta Reconocer texto después para que se pueda buscar de nuevo.
+	Rasterize	Rasterizar
+	Couldn't rasterize the pages: {e}	No se pudieron rasterizar las páginas: {e}

@@ -2471,3 +2471,11 @@ animation effects	Off	Désactivés
 	Checking page {d} of {t}…	Vérification de la page {d} sur {t}…
 	No blank pages found	Aucune page blanche trouvée
 	A document must keep at least one page: uncheck a page to keep it.	Un document doit garder au moins une page : décochez une page pour la conserver.
+	Rasterize pages…	Pixelliser les pages…
+	Rasterize page	Pixelliser la page
+	Rasterize pages	Pixelliser les pages
+	Keep as comments	Conserver comme commentaires
+	Burn into the image	Incruster dans l'image
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Le texte de ces pages ne pourra plus être recherché ni copié. Lancez ensuite Reconnaître le texte pour le rendre à nouveau consultable.
+	Rasterize	Pixelliser
+	Couldn't rasterize the pages: {e}	Impossible de pixelliser les pages : {e}

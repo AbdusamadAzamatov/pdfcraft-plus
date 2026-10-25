@@ -2470,3 +2470,11 @@ animation effects	Off	Ki
 	Checking page {d} of {t}…	{d}. oldal ellenőrzése ({t} oldalból)…
 	No blank pages found	Nem található üres oldal
 	A document must keep at least one page: uncheck a page to keep it.	A dokumentumnak legalább egy oldalt meg kell tartania: a megtartáshoz törölje egy oldal jelölését.
+	Rasterize pages…	Oldalak raszterizálása…
+	Rasterize page	Oldal raszterizálása
+	Rasterize pages	Oldalak raszterizálása
+	Keep as comments	Megtartás megjegyzésként
+	Burn into the image	Beégetés a képbe
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Az oldalak szövege ezután nem lesz kereshető és másolható. Utána futtassa a Szövegfelismerést, hogy újra kereshető legyen.
+	Rasterize	Raszterizálás
+	Couldn't rasterize the pages: {e}	Az oldalak raszterizálása nem sikerült: {e}

@@ -347,6 +347,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                 items: &[
                     item("Remove hidden information", "eye-off", "protect.remove_hidden", Ready),
                     menu_item("Invert colours", "moon", &["edit.invert", "edit.invert.remove"]),
+                    item("Rasterize pages…", "image", "optimize.rasterize", Ready),
                 ],
             },
         ],

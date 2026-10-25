@@ -2380,3 +2380,11 @@ animation effects	Off	ఆఫ్
 	Checking page {d} of {t}…	{t}లో పేజీ {d} తనిఖీ చేస్తోంది…
 	No blank pages found	ఖాళీ పేజీలు ఏవీ కనుగొనబడలేదు
 	A document must keep at least one page: uncheck a page to keep it.	పత్రంలో కనీసం ఒక పేజీ ఉండాలి: ఉంచాలనుకునే పేజీ ఎంపికను తీసివేయండి.
+	Rasterize pages…	పేజీలను చిత్రాలుగా మార్చు…
+	Rasterize page	పేజీని చిత్రంగా మార్చు
+	Rasterize pages	పేజీలను చిత్రాలుగా మార్చు
+	Keep as comments	వ్యాఖ్యలుగానే ఉంచు
+	Burn into the image	చిత్రంలో కలిపివేయి
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	ఈ పేజీలలోని టెక్స్ట్‌ను ఇకపై శోధించడం లేదా కాపీ చేయడం సాధ్యం కాదు. మళ్లీ శోధించగలిగేలా చేయడానికి తర్వాత టెక్స్ట్‌ను గుర్తించు అమలు చేయండి.
+	Rasterize	చిత్రాలుగా మార్చు
+	Couldn't rasterize the pages: {e}	పేజీలను చిత్రాలుగా మార్చడం సాధ్యం కాలేదు: {e}

@@ -6955,3 +6955,44 @@ fn page_find_blank_then_page_delete_removes_the_blank_page() {
     assert!(matches!(err(&mut a, "page_delete", json!({ "doc": blank, "pages": [1] })), ToolError::Failed(m) if m.contains("at least one page")));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Compress ▸ Clean up ▸ Rasterize pages (CU2) through `page_rasterize`: the chosen pages lose
+/// their text but keep their size (a rotated one included) and, by default, their comments; burn
+/// mode removes the comments it draws; each run is one undo step; bad options are refused.
+#[test]
+fn page_rasterize_turns_pages_into_pictures_and_undoes() {
+    let dir = workdir("rasterize");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "page_rotate", json!({ "doc": doc, "pages": [2], "degrees": 90 }));
+    ok(&mut a, "comment_add", json!({ "doc": doc, "page": 2, "type": "rectangle", "rect": [10, 10, 60, 40] }));
+    ok(&mut a, "comment_add", json!({ "doc": doc, "page": 3, "type": "rectangle", "rect": [10, 10, 60, 40] }));
+    let sizes = |a: &mut Automation| ok(a, "doc_info", json!({ "doc": doc }))["pages"].clone();
+    let before = sizes(&mut a);
+    let comments = |a: &mut Automation, page: u64| ok(a, "comment_list", json!({ "doc": doc, "page": page }))["comments"].as_array().unwrap().len();
+
+    let r = ok(&mut a, "page_rasterize", json!({ "doc": doc, "pages": [2], "dpi": 100 }));
+    assert_eq!((r["rasterized"].as_u64(), r["undo"].as_str()), (Some(1), Some("Rasterize page")), "{r}");
+    let text = page_text(&mut a, doc);
+    assert!(!text[0].is_empty() && text[1].is_empty() && !text[2].is_empty(), "only page 2 lost its text: {text:?}");
+    assert_eq!(sizes(&mut a), before, "same sizes and rotations");
+    assert_eq!(comments(&mut a, 2), 1, "the comment stays a comment");
+
+    let r = ok(&mut a, "page_rasterize", json!({ "doc": doc, "pages": [3], "comments": "burn", "grayscale": true }));
+    assert_eq!(r["rasterized"].as_u64(), Some(1));
+    assert_eq!((comments(&mut a, 2), comments(&mut a, 3)), (1, 0), "burning removes only the rasterized page's comment");
+    assert!(page_text(&mut a, doc)[2].is_empty());
+
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    assert_eq!(comments(&mut a, 3), 1, "one undo brings the comment and the text back");
+    assert!(!page_text(&mut a, doc)[2].is_empty());
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    assert!(page_text(&mut a, doc).iter().all(|t| !t.is_empty()));
+
+    for bad in [json!({ "dpi": 50 }), json!({ "dpi": 601 }), json!({ "comments": "flatten" }), json!({ "pages": [4] }), json!({ "pages": [] })] {
+        let mut args = bad.clone();
+        args["doc"] = json!(doc);
+        assert!(matches!(err(&mut a, "page_rasterize", args), ToolError::InvalidArgs(_)), "{bad}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

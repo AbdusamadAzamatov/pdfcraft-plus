@@ -2471,3 +2471,11 @@ animation effects	Off	オフ
 	Checking page {d} of {t}…	ページ {d}/{t} を確認中…
 	No blank pages found	空白のページは見つかりませんでした
 	A document must keep at least one page: uncheck a page to keep it.	文書には少なくとも 1 ページが必要です。残すページのチェックを外してください。
+	Rasterize pages…	ページをラスタライズ…
+	Rasterize page	ページをラスタライズ
+	Rasterize pages	ページをラスタライズ
+	Keep as comments	コメントとして残す
+	Burn into the image	画像に焼き込む
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	これらのページのテキストは検索もコピーもできなくなります。検索できるようにするには、後で「テキストを認識」を実行してください。
+	Rasterize	ラスタライズ
+	Couldn't rasterize the pages: {e}	ページをラスタライズできませんでした: {e}

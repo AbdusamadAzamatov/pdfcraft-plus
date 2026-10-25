@@ -2469,3 +2469,11 @@ animation effects	Off	Өшірулі
 	Checking page {d} of {t}…	{t} беттің {d}-беті тексерілуде…
 	No blank pages found	Бос беттер табылмады
 	A document must keep at least one page: uncheck a page to keep it.	Құжатта кемінде бір бет қалуы керек: сақтау үшін беттің белгісін алып тастаңыз.
+	Rasterize pages…	Беттерді растрлау…
+	Rasterize page	Бетті растрлау
+	Rasterize pages	Беттерді растрлау
+	Keep as comments	Түсініктеме ретінде қалдыру
+	Burn into the image	Суретке біріктіру
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Бұл беттердегі мәтінді енді іздеу не көшіру мүмкін болмайды. Қайта іздеуге болатындай ету үшін кейін «Мәтінді тану» әрекетін орындаңыз.
+	Rasterize	Растрлау
+	Couldn't rasterize the pages: {e}	Беттерді растрлау мүмкін болмады: {e}

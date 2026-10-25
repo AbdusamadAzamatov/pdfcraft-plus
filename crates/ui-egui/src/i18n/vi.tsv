@@ -2724,3 +2724,11 @@ key	Space	Space
 	Checking page {d} of {t}…	Đang kiểm tra trang {d} trên {t}…
 	No blank pages found	Không tìm thấy trang trống nào
 	A document must keep at least one page: uncheck a page to keep it.	Tài liệu phải giữ lại ít nhất một trang: bỏ chọn một trang để giữ lại.
+	Rasterize pages…	Chuyển trang thành ảnh…
+	Rasterize page	Chuyển trang thành ảnh
+	Rasterize pages	Chuyển các trang thành ảnh
+	Keep as comments	Giữ dạng bình luận
+	Burn into the image	Gộp vào ảnh
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Văn bản trên các trang này sẽ không còn tìm kiếm hay sao chép được. Hãy chạy Nhận dạng văn bản sau đó để tìm kiếm lại được.
+	Rasterize	Chuyển thành ảnh
+	Couldn't rasterize the pages: {e}	Không thể chuyển các trang thành ảnh: {e}

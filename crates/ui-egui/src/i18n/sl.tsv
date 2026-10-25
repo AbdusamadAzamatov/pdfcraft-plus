@@ -2476,3 +2476,11 @@ animation effects	Off	Izklopljeni
 	Checking page {d} of {t}…	Preverjanje strani {d} od {t}…
 	No blank pages found	Ni najdenih praznih strani
 	A document must keep at least one page: uncheck a page to keep it.	Dokument mora obdržati vsaj eno stran: počistite potrditev strani, ki jo želite obdržati.
+	Rasterize pages…	Rastriraj strani…
+	Rasterize page	Rastriraj stran
+	Rasterize pages	Rastriraj strani
+	Keep as comments	Ohrani kot komentarje
+	Burn into the image	Vžgi v sliko
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Besedila na teh straneh ne bo več mogoče iskati ali kopirati. Nato zaženite Prepoznaj besedilo, da ga bo spet mogoče iskati.
+	Rasterize	Rastriraj
+	Couldn't rasterize the pages: {e}	Strani ni bilo mogoče rastrirati: {e}

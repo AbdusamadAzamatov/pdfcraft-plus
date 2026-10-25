@@ -31,6 +31,7 @@ pub mod ocr;
 pub mod optimizer;
 pub mod print_raster;
 pub mod printcheck;
+pub mod rasterize;
 mod rotate_angle;
 mod scan_colours;
 mod scan_fields;
@@ -1316,6 +1317,16 @@ pub enum Edit {
         bytes: Arc<Vec<u8>>,
         src_pages: Vec<usize>,
     },
+    /// Rasterize pages (Compress ▸ Clean up): each of `pages` (0-based, distinct) becomes the
+    /// picture at the same position in `bytes`, an image-only PDF made by
+    /// [`print_raster::rasterize`]; the page keeps its boxes, rotation, links, form fields and
+    /// bookmarks. With `burn_comments` the pictures show the comments and the drawn comments are
+    /// removed; otherwise they stay as comments. See [`rasterize`].
+    RasterizePages {
+        pages: Vec<usize>,
+        bytes: Arc<Vec<u8>>,
+        burn_comments: bool,
+    },
     /// Set Page Boxes / Crop: set (or reset) one box on `pages`.
     SetPageBox {
         pages: Vec<usize>,
@@ -1982,6 +1993,7 @@ impl Edit {
             Edit::DuplicatePages { pages } => plural("Duplicate page", "Duplicate pages", pages.len()),
             Edit::DividePages { .. } => Label::of("Divide pages"),
             Edit::ReplacePages { pages, .. } => plural("Replace page", "Replace pages", pages.len()),
+            Edit::RasterizePages { pages, .. } => plural("Rasterize page", "Rasterize pages", pages.len()),
             Edit::SetPageBox { pages, which: PageBox::Crop, .. } => plural("Crop page", "Crop pages", pages.len()),
             Edit::SetPageBox { .. } => Label::of("Set page boxes"),
             Edit::SetTransition { .. } => Label::of("Set page transitions"),
@@ -2269,6 +2281,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::EditTextBlock { .. }
         | Edit::RegisterTextFont { .. }
         | Edit::EditPageImage { .. }
+        | Edit::RasterizePages { .. }
         | Edit::Flatten { .. }
         | Edit::FlattenFillSign => {
             if p.modify() {
@@ -2389,6 +2402,7 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
             let src = open_source(name, bytes)?;
             pdfcraft_organize::replace_pages(doc, pages, &src, src_pages)?;
         }
+        Edit::RasterizePages { pages, bytes, burn_comments } => rasterize::apply(doc, pages, bytes, *burn_comments)?,
         Edit::SetPageBox { pages, which, spec } => pdfcraft_organize::set_page_box(doc, pages, *which, *spec)?,
         Edit::SetTransition { pages, spec } => pdfcraft_organize::set_transition(doc, pages, spec)?,
         Edit::InsertPagesFrom { name, bytes, pages, at, field_conflicts } => {

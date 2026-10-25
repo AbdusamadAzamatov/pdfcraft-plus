@@ -2447,3 +2447,11 @@ animation effects	Off	Wyłączone
 	Checking page {d} of {t}…	Sprawdzanie strony {d} z {t}…
 	No blank pages found	Nie znaleziono pustych stron
 	A document must keep at least one page: uncheck a page to keep it.	Dokument musi zachować co najmniej jedną stronę: odznacz stronę, aby ją zachować.
+	Rasterize pages…	Rasteryzuj strony…
+	Rasterize page	Rasteryzuj stronę
+	Rasterize pages	Rasteryzuj strony
+	Keep as comments	Zachowaj jako komentarze
+	Burn into the image	Wtop w obraz
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Tekstu na tych stronach nie będzie już można wyszukiwać ani kopiować. Uruchom potem Rozpoznaj tekst, aby znów można go było wyszukiwać.
+	Rasterize	Rasteryzuj
+	Couldn't rasterize the pages: {e}	Nie można zrasteryzować stron: {e}

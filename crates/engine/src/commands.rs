@@ -322,6 +322,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("export.image", "Export to image…", FILE, None, Copying, "image"),
     c("optimize.reduce", "Reduce file size…", FILE, None, Document, "file-down"),
     c("optimize.advanced", "Optimize PDF…", FILE, None, Document, "settings-2"),
+    c("optimize.rasterize", "Rasterize pages…", None, None, Modification, "image"),
     c("export.text", "Export to text…", FILE, None, Copying, "type"),
     c("export.docx", "Export to Word…", FILE, None, Copying, "file-text"),
     c("export.pptx", "Export to PowerPoint…", FILE, None, Copying, "presentation"),

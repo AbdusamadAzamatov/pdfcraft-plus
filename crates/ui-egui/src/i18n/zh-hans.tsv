@@ -2435,3 +2435,11 @@ animation effects	Off	关
 	Checking page {d} of {t}…	正在检查第 {d} 页，共 {t} 页…
 	No blank pages found	未找到空白页
 	A document must keep at least one page: uncheck a page to keep it.	文档必须至少保留一页：取消勾选要保留的页面。
+	Rasterize pages…	栅格化页面…
+	Rasterize page	栅格化页面
+	Rasterize pages	栅格化多个页面
+	Keep as comments	保留为注释
+	Burn into the image	烧录到图像中
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	这些页面上的文本将无法再被搜索或复制。之后运行“识别文本”可使其重新可搜索。
+	Rasterize	栅格化
+	Couldn't rasterize the pages: {e}	无法栅格化页面：{e}

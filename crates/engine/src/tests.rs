@@ -6339,3 +6339,120 @@ fn find_blank_pages_finds_empty_white_and_specked_pages_by_sensitivity() {
     let e = s.apply(id, Edit::DeletePages { pages: (0..6).collect() }).unwrap_err();
     assert!(e.to_string().contains("at least one page"), "{e}");
 }
+
+/// The image XObjects page `page` (0-based) uses, and how many content streams it has.
+fn page_pictures(s: &Session, id: DocId, page: usize) -> (usize, Vec<u8>) {
+    let cos = s.cos(id).unwrap();
+    let refs = pdfcraft_organize::pages(cos).unwrap();
+    let obj = cos.get(refs[page].obj);
+    let d = obj.as_dict().unwrap();
+    let res = cos.resolve(d.get(b"Resources").unwrap());
+    let images = res.as_dict().unwrap().get(b"XObject").map_or(0, |x| {
+        let x = cos.resolve(x);
+        x.as_dict()
+            .unwrap()
+            .iter()
+            .filter(|(_, v)| matches!(&*cos.resolve(v), pdfcraft_cos::Object::Stream(st) if st.dict.name(b"Subtype") == Some(b"Image")))
+            .count()
+    });
+    let content = match &*cos.resolve(d.get(b"Contents").unwrap()) {
+        pdfcraft_cos::Object::Stream(st) => st.decoded().unwrap(),
+        other => panic!("one content stream, not {other:?}"),
+    };
+    (images, content)
+}
+
+/// Page `page` at 72 dpi without its comments, as RGBA.
+fn shown_without_comments(s: &Session, id: DocId, page: usize) -> (u32, u32, Vec<u8>) {
+    let doc = s.get(id).unwrap();
+    let config = pdfcraft_render::RenderConfig { hide_comments: true, ..doc.config.clone() };
+    let mut r = pdfcraft_render::PageRenderer::new(doc.bytes.clone(), config);
+    let out = r.render(pdfcraft_render::RenderRequest { page, scale: 1.0, ..Default::default() });
+    assert!(out.error.is_none(), "{:?}", out.error);
+    (out.width, out.height, out.rgba.to_vec())
+}
+
+/// The share of pixels two same-sized renders disagree on clearly.
+fn differing(a: &[u8], b: &[u8]) -> f64 {
+    let n = a.chunks(4).zip(b.chunks(4)).filter(|(p, q)| p.iter().zip(q.iter()).any(|(x, y)| x.abs_diff(*y) > 96)).count();
+    n as f64 / (a.len() / 4).max(1) as f64
+}
+
+/// Compress ▸ Clean up ▸ Rasterize pages (CU2): a rotated page with a comment becomes one picture
+/// of itself (no text left, exactly one image), keeps its size, rotation and look, keeps the
+/// comment in keep mode, leaves the other pages alone, and comes back with one undo.
+#[test]
+fn rasterize_pages_makes_one_picture_per_page_keeps_comments_and_undoes() {
+    let (mut s, id) = session_with(3);
+    s.apply(id, Edit::RotatePages { pages: vec![1], degrees: 90 }).unwrap();
+    s.apply(id, rect_comment(1, [80.0, 80.0, 120.0, 120.0])).unwrap();
+    let before = s.get(id).unwrap().info.pages[1].clone();
+    let look = shown_without_comments(&s, id, 1);
+    assert_eq!(page_texts(&s, id), ["Page 1", "Page 2", "Page 3"]);
+
+    let options = rasterize::RasterizeOptions { dpi: 72.0, ..Default::default() };
+    s.rasterize_pages(id, &[1, 1], options).unwrap();
+    assert_eq!(s.get(id).unwrap().can_undo(), Some("Rasterize page"));
+    assert_eq!(page_texts(&s, id), ["Page 1", "", "Page 3"], "the picture carries no text; the other pages keep theirs");
+    let (images, content) = page_pictures(&s, id, 1);
+    assert_eq!(images, 1, "exactly one picture");
+    assert!(String::from_utf8_lossy(&content).contains(" Do"), "{}", String::from_utf8_lossy(&content));
+    assert_eq!(page_pictures(&s, id, 0).0, 0, "the other pages aren't touched");
+    let after = s.get(id).unwrap().info.pages[1].clone();
+    assert_eq!((after.width, after.height, after.rotation, after.crop), (before.width, before.height, 90, before.crop), "same size and rotation");
+    let shown = shown_without_comments(&s, id, 1);
+    assert_eq!((shown.0, shown.1), (look.0, look.1));
+    let off = differing(&look.2, &shown.2);
+    assert!(off < 0.01, "the picture shows the page as it was, upright: {:.2}% of the pixels differ", off * 100.0);
+    let a = &s.get(id).unwrap().info.annotations;
+    assert_eq!((a.len(), a[0].page, a[0].contents.as_deref()), (1, 1, Some("Look here")), "the comment stays a comment");
+    assert_eq!(pixel(&s, id, 1, 150, 150), [255, 255, 255, 255], "and isn't in the picture");
+
+    assert_eq!(s.undo(id).unwrap().as_str(), "Rasterize page");
+    assert_eq!(page_texts(&s, id), ["Page 1", "Page 2", "Page 3"]);
+    assert_eq!(page_pictures(&s, id, 1).0, 0);
+}
+
+/// Burn in: the comments are drawn into the picture and removed from the rasterized pages only;
+/// a page with a crop box keeps it and shows the same area.
+#[test]
+fn rasterize_pages_can_burn_comments_into_the_picture() {
+    let (mut s, id) = session_with(2);
+    s.apply(id, rect_comment(0, [80.0, 80.0, 120.0, 120.0])).unwrap();
+    s.apply(id, rect_comment(1, [80.0, 80.0, 120.0, 120.0])).unwrap();
+    s.apply(id, Edit::SetPageBox { pages: vec![0], which: PageBox::Crop, spec: BoxSpec::Margins([10.0, 20.0, 30.0, 40.0]) }).unwrap();
+    let before = s.get(id).unwrap().info.pages[0].clone();
+    let options = rasterize::RasterizeOptions { dpi: 100.0, grayscale: true, burn_comments: true };
+    s.rasterize_pages(id, &[0], options).unwrap();
+    let doc = s.get(id).unwrap();
+    let a = &doc.info.annotations;
+    assert_eq!((a.len(), a[0].page), (1, 1), "the rasterized page's comment is gone, the other page's stays");
+    let after = &doc.info.pages[0];
+    assert_eq!((after.width, after.height, after.crop), (before.width, before.height, before.crop), "the crop box stays");
+    let (w, h, rgba) = shown_without_comments(&s, id, 0);
+    // The comment's centre, (100, 100) in user space, in the cropped view (from its top-left).
+    let (x, y) = ((100.0 - before.crop[0]) as u32, (before.crop[3] - 100.0) as u32);
+    assert!(x < w && y < h);
+    let i = ((y * w + x) * 4) as usize;
+    let px = &rgba[i..i + 4];
+    assert!(px[0] < 200 && px[0] == px[1] && px[1] == px[2], "the comment is burned in, in grey: {px:?}");
+    assert_eq!(page_texts(&s, id), ["", "Page 2"]);
+}
+
+/// Rasterizing changes the content, so it needs the Modification permission; bad options are
+/// refused with what is allowed, and nothing changes.
+#[test]
+fn rasterize_pages_refuses_bad_options_and_restricted_documents() {
+    let (mut s, id) = session_with(2);
+    let options = rasterize::RasterizeOptions::default();
+    for dpi in [0.0, 71.0, 601.0, f64::NAN, f64::INFINITY] {
+        let e = s.rasterize_pages(id, &[0], rasterize::RasterizeOptions { dpi, ..options }).unwrap_err();
+        assert!(matches!(&e, EditError::Invalid(m) if m.contains("between 72 and 600")), "{dpi}: {e:?}");
+    }
+    assert!(matches!(s.rasterize_pages(id, &[], options), Err(EditError::Invalid(m)) if m.contains("at least one page")));
+    assert!(matches!(s.rasterize_pages(id, &[2], options), Err(EditError::Invalid(m)) if m.contains("page 3 does not exist")));
+    assert!(!s.get(id).unwrap().dirty);
+    let bytes = protected("", "owner", 0b0100); // print only
+    let r = s.open("r.pdf", None, bytes, None).unwrap();
+    assert_eq!(s.rasterize_pages(r, &[0], options), Err(EditError::NotPermitted("changes to the document")));
+}

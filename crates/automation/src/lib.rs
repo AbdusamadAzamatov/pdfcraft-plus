@@ -403,6 +403,34 @@ impl Automation {
                 };
                 self.apply(&a, Edit::ReplacePages { pages, name, bytes, src_pages })?
             }
+            "page_rasterize" => {
+                let pages = match a.opt_ints("pages")? {
+                    Some(_) => self.pages(&a, "pages")?,
+                    None => (0..self.doc(&a)?.info.pages.len()).collect(),
+                };
+                let dpi = a.opt_num("dpi")?.unwrap_or(pdfcraft_engine::rasterize::DEFAULT_DPI);
+                if !dpi.is_finite() || !(pdfcraft_engine::rasterize::MIN_DPI..=pdfcraft_engine::rasterize::MAX_DPI).contains(&dpi) {
+                    return Err(ToolError::InvalidArgs(format!("dpi must be between 72 and 600, not {dpi}")));
+                }
+                let burn_comments = match a.opt_str("comments")?.unwrap_or("keep") {
+                    "keep" => false,
+                    "burn" => true,
+                    c => return Err(ToolError::InvalidArgs(format!("unknown comments {c:?} (keep, burn)"))),
+                };
+                let options =
+                    pdfcraft_engine::rasterize::RasterizeOptions { dpi, grayscale: a.opt_bool("grayscale")?.unwrap_or(false), burn_comments };
+                let id = self.doc(&a)?.id;
+                let n = {
+                    let mut d = pages.clone();
+                    d.sort_unstable();
+                    d.dedup();
+                    d.len()
+                };
+                self.session.rasterize_pages(id, &pages, options).map_err(failed)?;
+                let mut out = summary(self.doc(&a)?);
+                out["rasterized"] = json!(n);
+                out
+            }
             "page_duplicate" => {
                 let pages = self.pages(&a, "pages")?;
                 self.apply(&a, Edit::DuplicatePages { pages })?

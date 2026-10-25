@@ -2434,3 +2434,11 @@ animation effects	Off	Изключени
 	Checking page {d} of {t}…	Проверка на страница {d} от {t}…
 	No blank pages found	Не са намерени празни страници
 	A document must keep at least one page: uncheck a page to keep it.	Документът трябва да запази поне една страница: махнете отметката на страница, за да я запазите.
+	Rasterize pages…	Растеризиране на страници…
+	Rasterize page	Растеризиране на страница
+	Rasterize pages	Растеризиране на страници
+	Keep as comments	Запазване като коментари
+	Burn into the image	Вграждане в изображението
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Текстът на тези страници вече няма да може да се търси или копира. След това изпълнете „Разпознай текст“, за да може отново да се търси.
+	Rasterize	Растеризиране
+	Couldn't rasterize the pages: {e}	Страниците не можаха да се растеризират: {e}

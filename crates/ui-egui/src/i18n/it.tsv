@@ -2683,3 +2683,11 @@ certificate	SHA-256 digest	Impronta SHA-256
 	Checking page {d} of {t}…	Controllo della pagina {d} di {t}…
 	No blank pages found	Nessuna pagina vuota trovata
 	A document must keep at least one page: uncheck a page to keep it.	Un documento deve conservare almeno una pagina: deseleziona una pagina per mantenerla.
+	Rasterize pages…	Rasterizza pagine…
+	Rasterize page	Rasterizza pagina
+	Rasterize pages	Rasterizza pagine
+	Keep as comments	Mantieni come commenti
+	Burn into the image	Incorpora nell'immagine
+	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Il testo di queste pagine non sarà più ricercabile né copiabile. Esegui poi Riconosci testo per renderlo di nuovo ricercabile.
+	Rasterize	Rasterizza
+	Couldn't rasterize the pages: {e}	Impossibile rasterizzare le pagine: {e}
