@@ -571,6 +571,9 @@ pub struct PdfCraftApp {
     ui_scale_applied: Option<f32>,
     /// Preferences: bake Fill & Sign marks into the page when saving. Off, so a normal save stays editable.
     pub flatten_fill_sign_on_save: bool,
+    /// Preferences: Save As to a new file writes it linearized (Fast Web View, ISO 32000-2 Annex F).
+    /// A preference rather than a picker checkbox: the system file dialog can't hold one. Off.
+    pub fast_web_view_on_save_as: bool,
     /// Point size for new Fill & Sign text and dates, kept across launches.
     pub fill_text_size: f64,
     pub dialog: Option<Dialog>,
@@ -958,6 +961,7 @@ impl PdfCraftApp {
             system_text_scale: 1.0,
             ui_scale_applied: None,
             flatten_fill_sign_on_save: false,
+            fast_web_view_on_save_as: false,
             fill_text_size: fill_sign::TEXT_SIZE,
             dialog: None,
             update_source: None,
@@ -2348,6 +2352,7 @@ impl PdfCraftApp {
         v["redact_prefs"] = self.redact_defaults.to_json();
         // Set outside json! above, which is at serde_json's macro recursion limit.
         v["hide_empty_highlight_hover"] = serde_json::Value::Bool(self.comment_prefs.hide_empty_highlight_hover);
+        v["fast_web_view_on_save_as"] = serde_json::Value::Bool(self.fast_web_view_on_save_as);
         v.to_string()
     }
 
@@ -2422,6 +2427,9 @@ impl PdfCraftApp {
         }
         if let Some(on) = v["flatten_fill_sign"].as_bool() {
             self.flatten_fill_sign_on_save = on;
+        }
+        if let Some(on) = v["fast_web_view_on_save_as"].as_bool() {
+            self.fast_web_view_on_save_as = on;
         }
         if let Some(size) = v["fill_text_size"].as_f64().and_then(fill_sign::valid_text_size) {
             self.fill_text_size = size;
@@ -2789,6 +2797,13 @@ impl PdfCraftApp {
                     "true" => true,
                     "false" => false,
                     _ => return Err("flatten-fill-sign must be true or false".into()),
+                };
+            }
+            ("fast-web-view", _) => {
+                self.fast_web_view_on_save_as = match value {
+                    "true" => true,
+                    "false" => false,
+                    _ => return Err("fast-web-view must be true or false".into()),
                 };
             }
             ("comment", Some(v)) => {

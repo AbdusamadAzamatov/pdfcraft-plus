@@ -2463,3 +2463,8 @@ animation effects	Off	Изключени
 	Lab colours	Lab цветове
 	Other colours	Други цветове
 	Inline images	Вградени изображения
+	Fast Web View	Бърз уеб изглед
+	Save As writes Fast Web View files	„Запиши като“ създава файлове с бърз уеб изглед
+	The first page shows while the rest downloads. Files get larger.	Първата страница се показва, докато останалото се изтегля. Файловете стават по-големи.
+	Saved without Fast Web View: {e}	Записано без бърз уеб изглед: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Подписаните документи се записват инкрементално, без бърз уеб изглед.

@@ -670,10 +670,11 @@ fn check_one(args: &[String]) -> Result<(), CliError> {
     Ok(())
 }
 
-/// Open with cos, touch every object, edit the catalog, save incrementally and in full (both
-/// output styles), and reopen each result. Errors are fine; panics, hangs and aborts are bugs.
+/// Open with cos, touch every object, edit the catalog, save incrementally, in full (both
+/// output styles) and linearized (Fast Web View), and reopen each result. Errors are fine;
+/// panics, hangs and aborts are bugs.
 fn edit_round_trip(bytes: &[u8]) {
-    use pdfcraft_cos::{Document, Object, SaveOptions, write_full, write_incremental};
+    use pdfcraft_cos::{Document, Object, SaveOptions, is_linearized, write_full, write_incremental, write_linearized};
     let Ok(mut doc) = Document::open(Arc::new(bytes.to_vec())) else { return };
     for num in doc.object_numbers().into_iter().take(20_000) {
         if let Ok(o) = doc.try_get(num)
@@ -686,10 +687,16 @@ fn edit_round_trip(bytes: &[u8]) {
         let _ = doc.update_dict(root, |d| d.set(b"PdfCraftFuzz".to_vec(), Object::Bool(true)));
     }
     let classic = SaveOptions { object_streams: false, ..SaveOptions::default() };
-    for out in [write_incremental(&doc, &SaveOptions::default()), write_full(&doc, &SaveOptions::default()), write_full(&doc, &classic)]
-        .into_iter()
-        .flatten()
+    for out in [
+        write_incremental(&doc, &SaveOptions::default()),
+        write_full(&doc, &SaveOptions::default()),
+        write_full(&doc, &classic),
+        write_linearized(&doc, &SaveOptions::default()),
+    ]
+    .into_iter()
+    .flatten()
     {
+        let _ = is_linearized(&out);
         if let Ok(again) = Document::open(Arc::new(out)) {
             let _ = again.root().map(|r| again.get(r));
         }

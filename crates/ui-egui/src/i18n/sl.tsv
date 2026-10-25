@@ -2505,3 +2505,8 @@ animation effects	Off	Izklopljeni
 	Lab colours	Barve Lab
 	Other colours	Druge barve
 	Inline images	Vgrajene slike
+	Fast Web View	Hiter spletni ogled
+	Save As writes Fast Web View files	Shrani kot zapiše datoteke s hitrim spletnim ogledom
+	The first page shows while the rest downloads. Files get larger.	Prva stran se prikaže, medtem ko se preostanek prenaša. Datoteke so večje.
+	Saved without Fast Web View: {e}	Shranjeno brez hitrega spletnega ogleda: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Podpisani dokumenti se shranijo postopno, brez hitrega spletnega ogleda.

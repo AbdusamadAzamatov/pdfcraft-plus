@@ -2712,3 +2712,8 @@ certificate	SHA-256 digest	Impronta SHA-256
 	Lab colours	Colori Lab
 	Other colours	Altri colori
 	Inline images	Immagini in linea
+	Fast Web View	Visualizzazione web veloce
+	Save As writes Fast Web View files	Salva con nome scrive file con visualizzazione web veloce
+	The first page shows while the rest downloads. Files get larger.	La prima pagina appare mentre il resto si scarica. I file diventano più grandi.
+	Saved without Fast Web View: {e}	Salvato senza visualizzazione web veloce: {e}
+	Signed documents are saved incrementally, without Fast Web View.	I documenti firmati vengono salvati in modo incrementale, senza visualizzazione web veloce.

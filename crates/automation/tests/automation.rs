@@ -7075,3 +7075,44 @@ fn doc_grayscale_turns_every_colour_gray_in_one_undo_step() {
     assert!(a.call("doc_grayscale", &json!({ "doc": 999 })).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// doc_save with linearize: true writes a Fast Web View file (the cos tests check it with
+/// qpdf): doc_info reports it, the pages render the same after reopening, an incremental save
+/// ends it, and signed documents and full: false are refused.
+#[test]
+fn fast_web_view_saves_through_tools() {
+    let dir = workdir("fast-web-view");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc }))["fast_web_view"], false);
+    let pixels = |a: &mut Automation, doc: u64| (1..=3).map(|p| a.render_pixels(doc, p, 1.0).unwrap().2.as_ref().to_vec()).collect::<Vec<_>>();
+    let before = pixels(&mut a, doc);
+    let r = ok(&mut a, "doc_save", json!({ "doc": doc, "path": "web.pdf", "linearize": true }));
+    assert_eq!((r["linearized"].as_bool(), r["incremental"].as_bool()), (Some(true), Some(false)), "{r}");
+    assert!(pdfcraft_cos::is_linearized(&std::fs::read(dir.join("web.pdf")).unwrap()));
+    assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc }))["fast_web_view"], true);
+    let mut b = auto(&dir);
+    let web = ok(&mut b, "doc_open", json!({ "path": "web.pdf" }))["doc"].as_u64().unwrap();
+    assert_eq!(ok(&mut b, "doc_info", json!({ "doc": web }))["fast_web_view"], true);
+    assert_eq!(pixels(&mut b, web), before, "the linearized file renders the same");
+    assert!(matches!(err(&mut b, "doc_save", json!({ "doc": web, "linearize": true, "full": false })), ToolError::InvalidArgs(_)));
+    // An incremental save still works, and the file is no longer linearized.
+    ok(&mut b, "doc_set_info", json!({ "doc": web, "key": "Title", "value": "Updated" }));
+    let r = ok(&mut b, "doc_save", json!({ "doc": web }));
+    assert_eq!(r["incremental"].as_bool(), Some(true), "{r}");
+    assert_eq!(ok(&mut b, "doc_info", json!({ "doc": web }))["fast_web_view"], false);
+    assert!(!pdfcraft_cos::is_linearized(&std::fs::read(dir.join("web.pdf")).unwrap()));
+    // Signed documents are only ever saved incrementally.
+    ok(&mut a, "sign_id_create", json!({ "name": "Ada Lovelace", "key": "p256", "password": "secret12", "path": "ada.p12" }));
+    ok(
+        &mut a,
+        "sign_document",
+        json!({ "doc": doc, "id": "ada.p12", "password": "secret12", "page": 1, "rect": [20, 200, 180, 250], "out": "signed.pdf" }),
+    );
+    let signed = ok(&mut a, "doc_open", json!({ "path": "signed.pdf" }))["doc"].as_u64().unwrap();
+    match err(&mut a, "doc_save", json!({ "doc": signed, "path": "signed-web.pdf", "linearize": true })) {
+        ToolError::Failed(m) => assert!(m.contains("signed"), "{m}"),
+        other => panic!("a signed document must be refused: {other:?}"),
+    }
+    assert!(!dir.join("signed-web.pdf").exists());
+}

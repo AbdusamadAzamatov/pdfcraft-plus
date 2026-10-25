@@ -208,7 +208,7 @@ fn record_link_scan() {
     });
 }
 
-use pdfcraft_cos::{SaveOptions, write_full, write_incremental};
+use pdfcraft_cos::{SaveOptions, write_full, write_incremental, write_linearized};
 use pdfcraft_render::{DocInfo, Layer, LayerOp, OpenError, ReadingColors, RenderConfig, RenderPool, inspect};
 
 /// Stable identifier of an open document within a session.
@@ -871,6 +871,12 @@ impl Document {
     /// to. This stays that file when undo has restored an older snapshot.
     pub fn saved_bytes(&self) -> Arc<Vec<u8>> {
         self.editor.as_ref().map_or_else(|| self.bytes.clone(), |e| e.saved.clone())
+    }
+
+    /// Fast Web View: whether the file as last opened or saved is linearized (ISO 32000-2
+    /// Annex F). An incremental save appends to the file, so it is no longer linearized after one.
+    pub fn fast_web_view(&self) -> bool {
+        pdfcraft_cos::is_linearized(&self.saved_bytes())
     }
 
     /// Notes about damage repaired while opening (Document Properties ▸ Advanced, notices).
@@ -4317,6 +4323,20 @@ impl Session {
         let editor = doc.editor.as_ref().ok_or_else(|| EditError::ReadOnly(doc.read_only_reason.clone().unwrap_or_default()))?;
         let opts = SaveOptions { mod_date: self.now().map(pdfcraft_cos::pdf_date), ..SaveOptions::default() };
         guard(|| write_full(&editor.cos, &opts)).map_err(EditError::Write)?.map(Arc::new).map_err(|e| EditError::Write(e.to_string()))
+    }
+
+    /// A linearized rewrite (Fast Web View, ISO 32000-2 Annex F): the first page displays before
+    /// the rest of the file has downloaded. Same security as the document (the same keys unless
+    /// protection was changed), no object streams. Refused for signed documents, like any full
+    /// rewrite. Write with [`Self::check_save`] and [`Self::mark_saved`] as for the other saves.
+    pub fn save_linearized_bytes(&self, id: DocId) -> Result<Arc<Vec<u8>>, EditError> {
+        let doc = self.get(id).ok_or(EditError::NoDocument)?;
+        if doc.is_signed() {
+            return Err(EditError::Signed);
+        }
+        let editor = doc.editor.as_ref().ok_or_else(|| EditError::ReadOnly(doc.read_only_reason.clone().unwrap_or_default()))?;
+        let opts = SaveOptions { mod_date: self.now().map(pdfcraft_cos::pdf_date), ..SaveOptions::default() };
+        guard(|| write_linearized(&editor.cos, &opts)).map_err(EditError::Write)?.map(Arc::new).map_err(|e| EditError::Write(e.to_string()))
     }
 
     /// Check that `bytes`, from [`Self::save_bytes`] or [`Self::save_full_bytes`], reopen as this

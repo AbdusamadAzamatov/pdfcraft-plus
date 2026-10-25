@@ -2498,3 +2498,8 @@ animation effects	Off	Өшірулі
 	Lab colours	Lab түстері
 	Other colours	Басқа түстер
 	Inline images	Кірістірілген суреттер
+	Fast Web View	Жылдам веб-көрініс
+	Save As writes Fast Web View files	«Басқаша сақтау» жылдам веб-көрініс файлдарын жазады
+	The first page shows while the rest downloads. Files get larger.	Қалғаны жүктеліп жатқанда бірінші бет көрсетіледі. Файлдар үлкейеді.
+	Saved without Fast Web View: {e}	Жылдам веб-көрініссіз сақталды: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Қолтаңба қойылған құжаттар жылдам веб-көрініссіз, қосымша жаңарту ретінде сақталады.

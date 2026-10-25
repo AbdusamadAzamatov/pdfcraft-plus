@@ -2514,3 +2514,8 @@ animation effects	Off	Desativados
 	Lab colours	Cores Lab
 	Other colours	Outras cores
 	Inline images	Imagens embutidas
+	Fast Web View	Exibição rápida na Web
+	Save As writes Fast Web View files	Salvar como grava arquivos com exibição rápida na Web
+	The first page shows while the rest downloads. Files get larger.	A primeira página aparece enquanto o resto é baixado. Os arquivos ficam maiores.
+	Saved without Fast Web View: {e}	Salvo sem exibição rápida na Web: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Documentos assinados são salvos de forma incremental, sem exibição rápida na Web.

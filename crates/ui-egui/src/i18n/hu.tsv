@@ -2499,3 +2499,8 @@ animation effects	Off	Ki
 	Lab colours	Lab színek
 	Other colours	Egyéb színek
 	Inline images	Beágyazott képek
+	Fast Web View	Gyors webes megjelenítés
+	Save As writes Fast Web View files	A Mentés másként gyors webes megjelenítésű fájlokat ír
+	The first page shows while the rest downloads. Files get larger.	Az első oldal megjelenik, amíg a többi letöltődik. A fájlok nagyobbak lesznek.
+	Saved without Fast Web View: {e}	Mentve gyors webes megjelenítés nélkül: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Az aláírt dokumentumok növekményesen mentődnek, gyors webes megjelenítés nélkül.

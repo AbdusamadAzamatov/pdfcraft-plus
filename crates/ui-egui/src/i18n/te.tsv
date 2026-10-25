@@ -2409,3 +2409,8 @@ animation effects	Off	ఆఫ్
 	Lab colours	Lab రంగులు
 	Other colours	ఇతర రంగులు
 	Inline images	ఇన్‌లైన్ చిత్రాలు
+	Fast Web View	వేగవంతమైన వెబ్ వీక్షణ
+	Save As writes Fast Web View files	వేరే పేరుతో సేవ్ చేయి వేగవంతమైన వెబ్ వీక్షణ ఫైళ్లను రాస్తుంది
+	The first page shows while the rest downloads. Files get larger.	మిగతాది డౌన్‌లోడ్ అవుతుండగానే మొదటి పేజీ కనిపిస్తుంది. ఫైళ్లు పెద్దవవుతాయి.
+	Saved without Fast Web View: {e}	వేగవంతమైన వెబ్ వీక్షణ లేకుండా సేవ్ చేయబడింది: {e}
+	Signed documents are saved incrementally, without Fast Web View.	సంతకం చేసిన పత్రాలు వేగవంతమైన వెబ్ వీక్షణ లేకుండా, పెంపుదలగా సేవ్ చేయబడతాయి.

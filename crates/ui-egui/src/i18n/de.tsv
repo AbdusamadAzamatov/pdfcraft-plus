@@ -2501,3 +2501,8 @@ animation effects	Off	Aus
 	Lab colours	Lab-Farben
 	Other colours	Andere Farben
 	Inline images	Inline-Bilder
+	Fast Web View	Schnelle Webanzeige
+	Save As writes Fast Web View files	„Speichern unter“ schreibt Dateien mit schneller Webanzeige
+	The first page shows while the rest downloads. Files get larger.	Die erste Seite erscheint, während der Rest lädt. Dateien werden größer.
+	Saved without Fast Web View: {e}	Ohne schnelle Webanzeige gespeichert: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Signierte Dokumente werden inkrementell gespeichert, ohne schnelle Webanzeige.

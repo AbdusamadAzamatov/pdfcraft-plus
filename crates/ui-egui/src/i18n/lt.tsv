@@ -2751,3 +2751,8 @@ theme	Appearance	Išvaizda
 	Lab colours	Lab spalvos
 	Other colours	Kitos spalvos
 	Inline images	Įterptiniai paveikslėliai
+	Fast Web View	Greitas žiniatinklio rodinys
+	Save As writes Fast Web View files	„Įrašyti kaip“ įrašo greito žiniatinklio rodinio failus
+	The first page shows while the rest downloads. Files get larger.	Pirmas puslapis rodomas, kol atsisiunčiama likusi dalis. Failai tampa didesni.
+	Saved without Fast Web View: {e}	Įrašyta be greito žiniatinklio rodinio: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Pasirašyti dokumentai įrašomi papildant, be greito žiniatinklio rodinio.

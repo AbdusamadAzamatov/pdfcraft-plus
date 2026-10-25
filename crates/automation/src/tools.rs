@@ -163,7 +163,7 @@ pub fn tools() -> Vec<ToolDef> {
             .cmd("file.open")
             .with(schema(json!({ "path": { "type": "string" }, "password": { "type": "string", "description": "User or owner password for encrypted files." } }), &["path"])),
         t("doc_list", "List open documents", "List the open documents with their ids, page counts and unsaved state.").ro().with(schema(json!({}), &[])),
-        t("doc_info", "Inspect a document", "Metadata, page sizes and labels, bookmarks, annotations, form fields, links, layers, page transitions and display times, attachments, fonts, security and repair notes.")
+        t("doc_info", "Inspect a document", "Metadata, page sizes and labels, bookmarks, annotations, form fields, links, layers, page transitions and display times, attachments, fonts, security, repair notes, and fast_web_view (whether the file as last opened or saved is linearized).")
             .ro()
             .cmd("file.properties")
             .with(schema(json!({ "doc": doc() }), &["doc"])),
@@ -182,7 +182,8 @@ pub fn tools() -> Vec<ToolDef> {
                 "doc": doc(),
                 "path": { "type": "string", "description": "Save as this file. Omit to save in place." },
                 "full": { "type": "boolean", "description": "Force a full rewrite (or, with false, an incremental update)." },
-                "flatten_fill_sign": { "type": "boolean", "description": "Bake Fill & Sign marks into the page before writing. Default false." }
+                "flatten_fill_sign": { "type": "boolean", "description": "Bake Fill & Sign marks into the page before writing. Default false." },
+                "linearize": { "type": "boolean", "description": "Write a linearized file (Fast Web View, ISO 32000-2 Annex F): a full rewrite without object streams whose first page displays before the rest downloads. Same security as the document. Refused for signed documents and with full: false. A later incremental save makes the file no longer linearized (doc_info fast_web_view). Default false." }
             }),
             &["doc"],
         )),

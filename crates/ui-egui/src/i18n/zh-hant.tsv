@@ -2450,3 +2450,8 @@ animation effects	Off	關
 	Lab colours	Lab 顏色
 	Other colours	其他顏色
 	Inline images	內嵌圖片
+	Fast Web View	快速網頁檢視
+	Save As writes Fast Web View files	「另存新檔」寫入支援快速網頁檢視的檔案
+	The first page shows while the rest downloads. Files get larger.	其餘部分下載時即可顯示第一頁。檔案會變大。
+	Saved without Fast Web View: {e}	已儲存，但未啟用快速網頁檢視：{e}
+	Signed documents are saved incrementally, without Fast Web View.	已簽署的文件以增量方式儲存，不啟用快速網頁檢視。

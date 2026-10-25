@@ -31,6 +31,8 @@ doc.free(r);
 
 let bytes = write_incremental(&doc, &SaveOptions::default())?;  // append a revision
 let bytes = write_full(&doc, &SaveOptions::default())?;         // garbage-collected rewrite
+let bytes = write_linearized(&doc, &SaveOptions::default())?;   // Fast Web View (Annex F)
+let fast = is_linearized(&bytes);                               // what Properties reports
 ```
 
 Both writers **return the bytes**; the caller decides where they go, which is what lets the engine
@@ -72,19 +74,32 @@ garbage-collecting path. By default (`SaveOptions::object_streams`) it packs non
 into compressed object streams with a cross-reference stream (PDF 1.5+); turning that off writes a
 classic table any reader accepts.
 
+`write_linearized` (`writer/linearize.rs`) is a full rewrite laid out for Fast Web View (ISO 32000-2
+Annex F): the linearization dictionary first, the first-page cross-reference table, the catalog and
+document-level objects, the primary hint stream (page offset, shared object and outline hint
+tables), the first page, the other pages in order with their private objects, the objects later
+pages share, everything else, then the main table. Classic tables and no object streams, so nothing
+the first page needs sits in a compressed container. Hint offsets are counted as if the hint stream
+were absent, so the file is laid out in two passes: serialize every object once, build the hint
+tables, insert the hint stream, re-render the fixed-width header. Inherited page attributes are
+copied onto the pages and dropped from the page tree. Encryption is the document's output security,
+as for `write_full`. qpdf's `--check-linearization` is the oracle (`tests/linearize.rs`).
+`is_linearized` checks a file as saved: a linearization dictionary in the first 1024 bytes whose
+`/L` is the file length, so an appended incremental update makes it false.
+
 Dictionaries keep their key order and streams keep their *encoded* bytes, so rewritten objects stay
 recognisable in a diff and byte-stable when re-serialized.
 
 ## Errors
 
 `CosError`: `NotPdf`, `Syntax { offset, detail }`, `MissingObject`, `NotADictionary`, `Filter`,
-`NeedsPassword`, `WrongPassword`, `Security`, `Poisoned`.
+`NeedsPassword`, `WrongPassword`, `Security`, `Poisoned`, `ReadOnlyLimit`, `Linearize` (why a
+document can't be saved for Fast Web View: no pages, a malformed page tree, over 4 GiB).
 
 ## Not done here
 
 - Streaming very large files within a memory budget (`ByteSource`, `core.lazy-loading`); files are
   read whole today.
-- Linearized output, Fast Web View (`core.linearization`, M11).
 - Structural validation against the Arlington model (`core.arlington-validation`), which will live
   in the reserved `arlington` crate.
 - Image codecs. `pdfcraft-filters` carries the non-image filters; DCT, JPX, JBIG2 and CCITT are

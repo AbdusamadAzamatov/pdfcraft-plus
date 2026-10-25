@@ -2464,3 +2464,8 @@ animation effects	Off	关
 	Lab colours	Lab 颜色
 	Other colours	其他颜色
 	Inline images	内嵌图片
+	Fast Web View	快速 Web 查看
+	Save As writes Fast Web View files	“另存为”写入支持快速 Web 查看的文件
+	The first page shows while the rest downloads. Files get larger.	其余部分下载时即可显示第一页。文件会变大。
+	Saved without Fast Web View: {e}	已保存，但未启用快速 Web 查看：{e}
+	Signed documents are saved incrementally, without Fast Web View.	已签名的文档以增量方式保存，不启用快速 Web 查看。

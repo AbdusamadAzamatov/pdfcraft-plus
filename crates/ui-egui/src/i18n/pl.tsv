@@ -2476,3 +2476,8 @@ animation effects	Off	Wyłączone
 	Lab colours	Kolory Lab
 	Other colours	Inne kolory
 	Inline images	Obrazy wbudowane
+	Fast Web View	Szybki widok w sieci Web
+	Save As writes Fast Web View files	Zapisz jako tworzy pliki z szybkim widokiem w sieci Web
+	The first page shows while the rest downloads. Files get larger.	Pierwsza strona pojawia się, zanim pobierze się reszta. Pliki są większe.
+	Saved without Fast Web View: {e}	Zapisano bez szybkiego widoku w sieci Web: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Podpisane dokumenty są zapisywane przyrostowo, bez szybkiego widoku w sieci Web.

@@ -2640,3 +2640,8 @@ animation effects	Off	Desactivados
 	Lab colours	Colores Lab
 	Other colours	Otros colores
 	Inline images	Imágenes en línea
+	Fast Web View	Vista rápida en la Web
+	Save As writes Fast Web View files	Guardar como escribe archivos con vista rápida en la Web
+	The first page shows while the rest downloads. Files get larger.	La primera página se muestra mientras se descarga el resto. Los archivos ocupan más.
+	Saved without Fast Web View: {e}	Guardado sin vista rápida en la Web: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Los documentos firmados se guardan de forma incremental, sin vista rápida en la Web.

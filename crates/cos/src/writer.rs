@@ -6,6 +6,8 @@
 //! * `write_full` writes only objects reachable from the trailer, renumbered densely, with a
 //!   cross-reference table or stream — the "Save As" / garbage-collecting path. Unknown trailer
 //!   entries are copied, including objects reachable only from them.
+//! * `write_linearized` (child module `linearize`) writes a full rewrite laid out for Fast Web
+//!   View (Annex F), and `is_linearized` recognises one.
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, VecDeque};
@@ -14,6 +16,9 @@ use std::io::Write;
 use crate::CosError;
 use crate::document::{Document, ObjectReader};
 use crate::object::{Dict, ObjRef, Object, PdfString, Stream};
+
+mod linearize;
+pub use linearize::{is_linearized, write_linearized};
 
 /// Serialize one object. Deterministic: same object → same bytes.
 pub fn serialize(o: &Object, out: &mut Vec<u8>) {

@@ -2496,3 +2496,8 @@ animation effects	Off	Kapalı
 	Lab colours	Lab renkleri
 	Other colours	Diğer renkler
 	Inline images	Satır içi resimler
+	Fast Web View	Hızlı Web Görünümü
+	Save As writes Fast Web View files	Farklı kaydet, Hızlı Web Görünümü dosyaları yazar
+	The first page shows while the rest downloads. Files get larger.	Geri kalanı inerken ilk sayfa görünür. Dosyalar büyür.
+	Saved without Fast Web View: {e}	Hızlı Web Görünümü olmadan kaydedildi: {e}
+	Signed documents are saved incrementally, without Fast Web View.	İmzalı belgeler Hızlı Web Görünümü olmadan, artımlı olarak kaydedilir.

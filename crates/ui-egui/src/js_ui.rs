@@ -474,6 +474,14 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
     ui.label(
         egui::RichText::new(tl!("Text, marks and signatures become part of the page. Other comments stay editable.")).small().color(t.text_muted),
     );
+    // Fast Web View (Acrobat: Preferences ▸ Documents). The web build saves through the browser.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        ui.add_space(8.0);
+        ui.label(egui::RichText::new(tl!("Fast Web View")).font(theme::semibold(13.0)));
+        ui.add(widgets::checkbox(&mut app.fast_web_view_on_save_as, tl!("Save As writes Fast Web View files")));
+        ui.label(egui::RichText::new(tl!("The first page shows while the rest downloads. Files get larger.")).small().color(t.text_muted));
+    }
     ui.add_space(8.0);
     date_format(ui, app, t);
     ui.add_space(8.0);

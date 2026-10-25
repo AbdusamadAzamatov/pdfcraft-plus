@@ -2872,6 +2872,7 @@ fn signing_saving_trusting_and_commenting_afterwards() {
     let sig = &doc.signatures[0];
     assert_eq!((sig.status, sig.page, sig.date.as_deref()), (SignatureStatus::Unknown, Some(1), Some("D:20270115080000Z")));
     assert_eq!(s.save_full_bytes(id).unwrap_err(), EditError::Signed);
+    assert_eq!(s.save_linearized_bytes(id).unwrap_err(), EditError::Signed, "Fast Web View is a full rewrite too");
     // Trusting the signer makes it valid; a later comment is permitted.
     s.set_trusted_certificates(vec![digital_id.certificate.clone()]);
     assert_eq!(s.get(id).unwrap().signatures[0].status, SignatureStatus::Valid);
@@ -6491,4 +6492,44 @@ fn grayscale_converts_the_document_in_one_undo_step() {
     let signed = s.sign(id, &digital_id, SignOptions { page: 0, rect: Some([20.0, 20.0, 180.0, 60.0]), ..SignOptions::default() }).unwrap();
     s.mark_signed(id, signed, None).unwrap();
     assert_eq!(s.grayscale(id).unwrap_err(), EditError::Signed);
+}
+
+/// Every page's pixels, rendered from the document's current bytes.
+fn all_pixels(s: &Session, id: DocId) -> Vec<Vec<u8>> {
+    let doc = s.get(id).unwrap();
+    let mut r = pdfcraft_render::PageRenderer::new(doc.bytes.clone(), doc.config.clone());
+    (0..doc.info.pages.len())
+        .map(|page| {
+            let out = r.render(pdfcraft_render::RenderRequest { page, scale: 1.0, ..Default::default() });
+            assert!(out.error.is_none(), "{:?}", out.error);
+            out.rgba.to_vec()
+        })
+        .collect()
+}
+
+#[test]
+fn a_fast_web_view_save_renders_the_same_and_an_incremental_save_ends_it() {
+    let (mut s, id) = session_with(3);
+    s.apply(id, rect_comment(0, [80.0, 80.0, 120.0, 120.0])).unwrap();
+    s.apply(id, Edit::RotatePages { pages: vec![2], degrees: 90 }).unwrap();
+    let before = all_pixels(&s, id);
+    assert!(!s.get(id).unwrap().fast_web_view(), "the fixture is not linearized");
+    let linearized = s.save_linearized_bytes(id).unwrap();
+    assert!(pdfcraft_cos::is_linearized(&linearized));
+    s.check_save(id, &linearized).unwrap();
+    s.mark_saved(id, linearized, None).unwrap();
+    let doc = s.get(id).unwrap();
+    assert!(doc.fast_web_view() && !doc.dirty);
+    assert_eq!(all_pixels(&s, id), before, "identical renders after the rewrite");
+    assert_eq!(page_texts(&s, id), ["Page 1", "Page 2", "Page 3"]);
+    // An incremental save appends to the linearized file: it still works, and the file is no
+    // longer linearized.
+    s.apply(id, Edit::RotatePages { pages: vec![1], degrees: 90 }).unwrap();
+    let updated = s.save_bytes(id).unwrap();
+    s.check_save(id, &updated).unwrap();
+    s.mark_saved(id, updated, None).unwrap();
+    let doc = s.get(id).unwrap();
+    assert!(!doc.fast_web_view(), "an incremental update ends Fast Web View");
+    assert_eq!(doc.revision_ends().len(), 2);
+    assert_eq!(doc.info.pages[1].rotation, 90);
 }

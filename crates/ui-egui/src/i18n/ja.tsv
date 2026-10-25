@@ -2500,3 +2500,8 @@ animation effects	Off	オフ
 	Lab colours	Lab カラー
 	Other colours	その他の色
 	Inline images	インライン画像
+	Fast Web View	高速 Web 表示
+	Save As writes Fast Web View files	「別名で保存」で高速 Web 表示用のファイルを書き出す
+	The first page shows while the rest downloads. Files get larger.	残りのダウンロード中に最初のページが表示されます。ファイルは大きくなります。
+	Saved without Fast Web View: {e}	高速 Web 表示なしで保存しました: {e}
+	Signed documents are saved incrementally, without Fast Web View.	署名済みの文書は高速 Web 表示なしで増分保存されます。

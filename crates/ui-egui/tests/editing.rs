@@ -5029,3 +5029,53 @@ fn convert_to_grayscale_asks_converts_and_reports() {
     let toast = h.state().toast.as_ref().map(|t| t.0.clone()).unwrap_or_default();
     assert!(toast.contains("Convert to grayscale failed") && toast.contains("no colour"), "{toast}");
 }
+
+/// Preferences ▸ Fast Web View is off by default and kept across launches; with it on, Save As
+/// writes a linearized file and Document Properties ▸ Advanced says Yes, until an incremental
+/// save appends to the file.
+#[test]
+fn fast_web_view_preference_makes_save_as_linearized_and_properties_say_so() {
+    let mut app = PdfCraftApp::new();
+    assert!(!app.fast_web_view_on_save_as);
+    app.set_option("fast-web-view", "true").unwrap();
+    assert!(app.set_option("fast-web-view", "yes").is_err());
+    let mut restored = PdfCraftApp::new();
+    restored.restore(&app.persist());
+    assert!(restored.fast_web_view_on_save_as);
+    restored.set_option("fast-web-view", "false").unwrap();
+    let mut again = PdfCraftApp::new();
+    again.restore(&restored.persist());
+    assert!(!again.fast_web_view_on_save_as);
+
+    let out = temp_path("fast-web-view.pdf");
+    let mut h = organize(3);
+    // Rows that say Yes in Properties ▸ Advanced: Tagged PDF and JavaScript are No here.
+    let yes_rows = |h: &mut Harness<'static, PdfCraftApp>| {
+        h.state_mut().dialog = Some(Dialog::Properties(pdfcraft_ui_egui::PropsTab::Advanced));
+        h.run_steps(3);
+        h.get_by_label("Fast Web View");
+        let n = h.query_all_by_label("Yes").count();
+        h.state_mut().dialog = None;
+        h.run_steps(2);
+        n
+    };
+    assert_eq!(yes_rows(&mut h), 0);
+    h.get_by_label("Rotate clockwise").click();
+    h.run_steps(3);
+    h.state_mut().set_option("fast-web-view", "true").unwrap();
+    h.state_mut().save_override = Some(out.to_string_lossy().into_owned());
+    assert!(h.state_mut().save_active(pdfcraft_ui_egui::SaveTarget::As));
+    let saved = std::fs::read(&out).expect("file written");
+    assert!(pdfcraft_cos::is_linearized(&saved), "Save As wrote a Fast Web View file");
+    assert!(!dirty(&h));
+    assert_eq!(page_texts(h.state()), ["Page 1", "Page 2", "Page 3"]);
+    assert_eq!(yes_rows(&mut h), 1, "Properties: Fast Web View Yes");
+    // Save (in place) appends an incremental update: the file is no longer linearized.
+    h.get_by_label("Rotate clockwise").click();
+    h.run_steps(3);
+    assert!(h.state_mut().save_active(pdfcraft_ui_egui::SaveTarget::InPlace));
+    let updated = std::fs::read(&out).unwrap();
+    assert!(updated.starts_with(&saved) && !pdfcraft_cos::is_linearized(&updated));
+    assert_eq!(yes_rows(&mut h), 0, "Properties: Fast Web View No");
+    let _ = std::fs::remove_file(out);
+}

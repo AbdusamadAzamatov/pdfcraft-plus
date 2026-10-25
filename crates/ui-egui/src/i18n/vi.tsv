@@ -2753,3 +2753,8 @@ key	Space	Space
 	Lab colours	Màu Lab
 	Other colours	Màu khác
 	Inline images	Hình ảnh nội tuyến
+	Fast Web View	Xem nhanh trên web
+	Save As writes Fast Web View files	Lưu thành ghi tệp xem nhanh trên web
+	The first page shows while the rest downloads. Files get larger.	Trang đầu hiện ra trong khi phần còn lại đang tải. Tệp sẽ lớn hơn.
+	Saved without Fast Web View: {e}	Đã lưu mà không có xem nhanh trên web: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Tài liệu đã ký được lưu tăng dần, không có xem nhanh trên web.

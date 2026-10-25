@@ -2777,3 +2777,8 @@ certificate	Version	الإصدار
 	Lab colours	ألوان Lab
 	Other colours	ألوان أخرى
 	Inline images	الصور المضمّنة
+	Fast Web View	عرض ويب سريع
+	Save As writes Fast Web View files	يحفظ «حفظ باسم» الملفات بعرض ويب سريع
+	The first page shows while the rest downloads. Files get larger.	تظهر الصفحة الأولى بينما يُنزَّل الباقي. تصبح الملفات أكبر.
+	Saved without Fast Web View: {e}	تم الحفظ دون عرض ويب سريع: {e}
+	Signed documents are saved incrementally, without Fast Web View.	تُحفظ المستندات الموقّعة تزايديًا، دون عرض ويب سريع.

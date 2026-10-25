@@ -2414,3 +2414,8 @@ animation effects	Off	Выкл
 	Lab colours	Цвета Lab
 	Other colours	Другие цвета
 	Inline images	Встроенные изображения
+	Fast Web View	Быстрый веб-просмотр
+	Save As writes Fast Web View files	«Сохранить как» записывает файлы с быстрым веб-просмотром
+	The first page shows while the rest downloads. Files get larger.	Первая страница показывается, пока загружается остальное. Файлы становятся больше.
+	Saved without Fast Web View: {e}	Сохранено без быстрого веб-просмотра: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Подписанные документы сохраняются добавочно, без быстрого веб-просмотра.

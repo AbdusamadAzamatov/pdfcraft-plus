@@ -367,11 +367,11 @@ title = "Linearized save (Fast Web View)"
 area = "A"
 tier = "P1"
 milestone = "M11"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "shipped"
+commands = ["file.save_as", "file.properties"]
+tools = ["doc_save", "doc_info"]
+evidence = ["crates/cos/tests/linearize.rs::qpdf_checks_linearization", "crates/cos/tests/linearize.rs::qpdf_checks_encrypted_linearization", "crates/cos/tests/linearize.rs::an_encrypted_file_is_linearized_with_the_same_keys", "crates/cos/tests/linearize.rs::qpdf_checks_forms_outlines_and_open_actions", "crates/cos/tests/linearize.rs::the_layout_follows_annex_f", "crates/cos/tests/linearize.rs::an_incremental_save_after_linearizing_is_not_linearized", "crates/cos/tests/linearize.rs::random_sharing_round_trips", "crates/engine/src/tests.rs::a_fast_web_view_save_renders_the_same_and_an_incremental_save_ends_it", "crates/automation/tests/automation.rs::fast_web_view_saves_through_tools", "crates/ui-egui/tests/editing.rs::fast_web_view_preference_makes_save_as_linearized_and_properties_say_so"]
+notes = "pdfcraft_cos::write_linearized (ISO 32000-2 Annex F): a full rewrite with classic xref tables and no object streams at all (so none in the first-page section); qpdf --check-linearization reports no errors or warnings for 1, 2, 3, 7 and 100-page fixtures, every encryption algorithm (re-encrypted with the document's own keys and /ID), forms, outlines (UseNone and UseOutlines) and random page sharing. Hint offsets are computed as if the hint stream were absent, so the file is laid out in two passes. Inherited page attributes are pushed onto the pages and removed from the page tree (qpdf requires it). Part 4 holds the catalog, encryption, /ViewerPreferences, /OpenAction, /AcroForm (with its widgets) and /Threads; /Info sits in part 9, as qpdf computes; the outline tree is one group with an outline hint table (in the first-page section with /PageMode /UseOutlines). Page thumbnails (/Thumb) are not part of their page (part 9), as qpdf computes. Hint simplifications: one object per shared group, no MD5 signatures, no fractional-position numerators, field widths rounded up to 8/16/32 bits; no thread or other generic hint tables beyond outlines (qpdf does not ask for them on these fixtures). Signed documents are refused (a full rewrite breaks signatures); files over 4 GiB are refused. doc_save takes linearize: true (refused with full: false); doc_info and Document Properties ▸ Advanced report fast_web_view from the file as last opened or saved, so an incremental save turns it to No. The desktop Save As uses a remembered preference (Preferences ▸ Fast Web View) instead of a checkbox in the native file dialog, which can't hold one; if linearizing fails it saves a normal full copy and says why. Not in the web build (it saves through the browser). Malformed page trees (cycles) are kept as they are, so qpdf still reports the loop on such files."
 
 [[feature]]
 id = "core.revision-list"

@@ -2574,3 +2574,8 @@ animation effects	Off	Vypnuto
 	Lab colours	Barvy Lab
 	Other colours	Jiné barvy
 	Inline images	Vložené obrázky
+	Fast Web View	Rychlé zobrazení webu
+	Save As writes Fast Web View files	Uložit jako zapisuje soubory s rychlým zobrazením webu
+	The first page shows while the rest downloads. Files get larger.	První stránka se zobrazí, zatímco se zbytek stahuje. Soubory budou větší.
+	Saved without Fast Web View: {e}	Uloženo bez rychlého zobrazení webu: {e}
+	Signed documents are saved incrementally, without Fast Web View.	Podepsané dokumenty se ukládají přírůstkově, bez rychlého zobrazení webu.

@@ -730,20 +730,31 @@ impl PdfCraftApp {
         if !self.commit_typing_in(id) || !self.flatten_fill_sign_for_save(id) {
             return false;
         }
-        let Some((name, full)) = self.session.get(id).map(|d| {
+        let Some((name, full, signed_copy)) = self.session.get(id).map(|d| {
             // Save As to another file is a clean copy, without the earlier revisions that still
             // hold deleted pages or replaced text (#2165). A signed document stays incremental so
             // its signatures keep covering the file.
-            let full = target == SaveTarget::As
-                && !d.path.as_deref().is_some_and(|p| crate::same_file(p, dest))
-                && d.read_only_reason.is_none()
-                && !d.is_signed();
-            (d.name.clone(), full)
+            let copy = target == SaveTarget::As && !d.path.as_deref().is_some_and(|p| crate::same_file(p, dest));
+            let full = copy && d.read_only_reason.is_none() && !d.is_signed();
+            (d.name.clone(), full, copy && d.is_signed())
         }) else {
             self.notify_tr("The document was closed before it could be saved.");
             return false;
         };
-        let bytes = if full { self.session.save_full_bytes(id) } else { self.session.save_bytes(id) };
+        // Fast Web View (Preferences) applies to the clean copies Save As writes.
+        let bytes = if full && self.fast_web_view_on_save_as {
+            self.session.save_linearized_bytes(id).or_else(|e| {
+                self.notify_fmt("Saved without Fast Web View: {e}", &[("e", &e.to_string())]);
+                self.session.save_full_bytes(id)
+            })
+        } else if full {
+            self.session.save_full_bytes(id)
+        } else {
+            if signed_copy && self.fast_web_view_on_save_as {
+                self.notify_tr("Signed documents are saved incrementally, without Fast Web View.");
+            }
+            self.session.save_bytes(id)
+        };
         let bytes = match bytes.and_then(|b| self.session.check_save(id, &b).map(|()| b)) {
             Ok(b) => b,
             Err(e) => {
