@@ -6,6 +6,10 @@
 /// The release version from the workspace `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// The fork's product name: window title, About, and the per-user settings and recovery folder
+/// (`~/Library/Application Support/PdfCraft Plus` on macOS), kept apart from upstream PdfCraft's.
+pub const APP_NAME: &str = "PdfCraft Plus";
+
 /// The compile-time build label, if any.
 pub const LABEL: Option<&str> = option_env!("PDFCRAFT_BUILD_LABEL");
 

@@ -599,12 +599,17 @@ mod tests {
         assert!(pdf.contains("<key>CFBundleTypeIconFile</key>"), "declares document icon file for Finder");
     }
 
-    // The bundle id must match the app id the binary uses; renames change both (#174).
+    // The macOS bundle id must match the one the app checks file associations against (#174).
+    // PdfCraft Plus has its own bundle id so it never takes over upstream PdfCraft's identity;
+    // the freedesktop APP_ID stays upstream's because the fork ships no Linux packages.
     #[test]
     fn macos_bundle_id_matches_app_id() {
-        assert!(read("packaging/macos/Info.plist.in").contains("<string>ai.storyteller.pdfcraft</string>"), "bundle id");
+        const BUNDLE_ID: &str = "io.github.abdusamadazamatov.pdfcraft-plus";
+        assert!(read("packaging/macos/Info.plist.in").contains(&format!("<string>{BUNDLE_ID}</string>")), "bundle id");
+        let association = read("crates/ui-egui/src/macos_association.rs");
+        assert!(association.contains(&format!(r#"const BUNDLE_ID: &str = "{BUNDLE_ID}""#)), "macos_association drifted from the bundle id");
         let main = read("apps/pdfcraft/src/main.rs");
-        assert!(main.contains(r#"const APP_ID: &str = "ai.storyteller.pdfcraft""#), "APP_ID drifted from the bundle id");
+        assert!(main.contains(r#"const APP_ID: &str = "ai.storyteller.pdfcraft""#), "APP_ID drifted from the packaging id");
     }
 
     // Committed file with `<!-- -->` comments stripped, so a commented-out claim cannot pass.

@@ -7,13 +7,17 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>PdfCraft</string>
+  <string>PdfCraft Plus</string>
   <key>CFBundleName</key>
-  <string>PdfCraft</string>
+  <string>PdfCraft Plus</string>
+  <!-- The executable and icon keep upstream's file names (package.sh copies them under these). -->
   <key>CFBundleExecutable</key>
   <string>PdfCraft</string>
+  <!-- A fork's own identifier: macOS keeps its settings, permissions and file associations apart
+       from upstream PdfCraft's (ai.storyteller.pdfcraft). Keep in sync with
+       crates/ui-egui/src/macos_association.rs (BUNDLE_ID). -->
   <key>CFBundleIdentifier</key>
-  <string>ai.storyteller.pdfcraft</string>
+  <string>io.github.abdusamadazamatov.pdfcraft-plus</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -43,9 +47,9 @@
   <key>NSRequiresAquaSystemAppearance</key>
   <false/>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright © the PdfCraft authors. MIT OR Apache-2.0.</string>
+  <string>PdfCraft Plus, based on PdfCraft. Copyright © the PdfCraft and PdfCraft Plus authors. MIT OR Apache-2.0.</string>
 
-  <!-- Documents PdfCraft opens (#73): it is offered under Open With and can be made the default
+  <!-- Documents PdfCraft Plus opens (#73): it is offered under Open With and can be made the default
        for PDFs, without taking over from the system's viewer on install ("Alternate"). Declared by
        UTI (LSItemContentTypes, what modern macOS filters Open With > Recommended Applications on),
        plus extension and MIME type for backward compatibility. Finder hands the

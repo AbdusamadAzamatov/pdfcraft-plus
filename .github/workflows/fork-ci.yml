@@ -1,0 +1,77 @@
+# PdfCraft Plus CI on free GitHub-hosted runners. Upstream's ci.yml gate and packaging-lint.yml run
+# through storytold/craft-common-actions with storytold's settings and only run in
+# storytold/pdfcraft; this is the fork's own, smaller set of the same checks (CLAUDE.md quality
+# gates, without craft-fonts, cargo-deny or the wasm check).
+name: Fork CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  packaging-lint:
+    name: Packaging lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Shell scripts
+        run: |
+          set -euo pipefail
+          for f in packaging/env.sh packaging/macos/*.sh; do bash -n "$f"; done
+          shellcheck -x packaging/env.sh packaging/macos/*.sh
+      - name: Info.plist template
+        run: |
+          set -euo pipefail
+          sed -e 's/@VERSION@/0.0.0/g' -e 's/@SHORT_VERSION@/0.0.0/g' -e 's/@BUILD_SHA@/0/g' \
+            packaging/macos/Info.plist.in > "$RUNNER_TEMP/Info.plist"
+          python3 - "$RUNNER_TEMP/Info.plist" <<'PY'
+          import plistlib, sys
+          plist = plistlib.load(open(sys.argv[1], "rb"))
+          assert plist["CFBundleName"] == "PdfCraft Plus", plist["CFBundleName"]
+          assert plist["CFBundleIdentifier"] == "io.github.abdusamadazamatov.pdfcraft-plus"
+          print("Info.plist.in OK")
+          PY
+
+  rust:
+    name: fmt, clippy, test, layers, assets (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: System packages
+        # egui/winit/rfd, and the independent oracles (crates/oracle); the same list as ci.yml.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev \
+            libgtk-3-dev qpdf poppler-utils
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: fork-ci-linux
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: cargo xtask layers
+      - run: cargo xtask assets

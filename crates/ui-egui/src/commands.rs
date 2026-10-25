@@ -890,17 +890,18 @@ mod tests {
         let ctx = egui::Context::default();
         for os in [OperatingSystem::Windows, OperatingSystem::Nix] {
             ctx.set_os(os);
-            crate::i18n::set_current(crate::i18n::Lang::from_code("de").unwrap());
-            assert_eq!(shortcut_label(&ctx, Shortcut::cmd("K")), "Strg+K");
-            assert_eq!(shortcut_label(&ctx, Shortcut::cmd_shift("S")), "Strg+Umschalt+S");
-            assert_eq!(command_shortcut_label(&ctx, "view.read_mode"), "Strg+H");
-            assert_eq!(command_modifier_label(&ctx), "Strg");
+            // Russian keeps the Latin key names Ctrl and Shift (ru.tsv `key` rows).
+            crate::i18n::set_current(crate::i18n::Lang::from_code("ru").unwrap());
+            assert_eq!(shortcut_label(&ctx, Shortcut::cmd("K")), "Ctrl+K");
+            assert_eq!(shortcut_label(&ctx, Shortcut::cmd_shift("S")), "Ctrl+Shift+S");
+            assert_eq!(command_shortcut_label(&ctx, "view.read_mode"), "Ctrl+H");
+            assert_eq!(command_modifier_label(&ctx), "Ctrl");
             assert_eq!(Shortcut::cmd_shift("S").label(false), "Ctrl+Shift+S", "engine/control labels keep their stable spelling");
             crate::i18n::set_current(crate::i18n::Lang::EN);
             assert_eq!(shortcut_label(&ctx, Shortcut::cmd_shift("S")), "Ctrl+Shift+S");
         }
         ctx.set_os(OperatingSystem::Mac);
-        crate::i18n::set_current(crate::i18n::Lang::from_code("de").unwrap());
+        crate::i18n::set_current(crate::i18n::Lang::from_code("ru").unwrap());
         assert_eq!(shortcut_label(&ctx, Shortcut::cmd_shift("S")), "⇧⌘S");
         assert_eq!(command_shortcut_label(&ctx, "view.read_mode"), "⌃⌘H");
         assert_eq!(command_modifier_label(&ctx), "⌘");

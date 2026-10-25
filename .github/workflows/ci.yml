@@ -65,7 +65,9 @@ jobs:
           PY
 
   gate:
-    if: github.event.action != 'labeled' || github.event.label.name == 'full-ci'
+    # PdfCraft Plus: the shared gate is storytold's (craft-fonts, their runners and settings), so it
+    # runs only upstream; the fork's checks are in fork-ci.yml.
+    if: github.repository == 'storytold/pdfcraft' && (github.event.action != 'labeled' || github.event.label.name == 'full-ci')
     # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository.
     uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
     with:

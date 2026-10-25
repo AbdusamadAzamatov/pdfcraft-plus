@@ -7,7 +7,7 @@ use std::{io, path::Path};
 
 const OPEN_WITH: &str = "com.apple.LaunchServices.OpenWith";
 const QUARANTINE: &str = "com.apple.quarantine";
-const BUNDLE_ID: &str = "ai.storyteller.pdfcraft";
+const BUNDLE_ID: &str = "io.github.abdusamadazamatov.pdfcraft-plus";
 const MAX_ATTRIBUTE: usize = 64 * 1024;
 
 /// A bounded snapshot used only to decide whether native association recovery is eligible.
@@ -353,7 +353,17 @@ mod tests {
         let hex = "62706c6973743030d30102030405065776657273696f6e54706174685f101062756e646c656964656e74696669657210005f101a2f4170706c69636174696f6e732f50646643726166742e6170705f101761692e73746f727974656c6c65722e7064666372616674080f171c2f314e0000000000000101000000000000000700000000000000000000000000000068";
         let captured: Vec<u8> =
             hex.as_bytes().as_chunks::<2>().0.iter().map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap()).collect();
-        assert!(points_to_this_app(&captured, Path::new("/Applications/PdfCraft.app")));
+        // The capture is of upstream PdfCraft: its identifier is not this fork's, so it is refused,
+        // and the same native schema carrying this fork's identifier and bundle is accepted.
+        assert!(!points_to_this_app(&captured, Path::new("/Applications/PdfCraft.app")));
+        let mut fork = plist::from_bytes::<plist::Value>(&captured).unwrap();
+        let entries = fork.as_dictionary_mut().unwrap();
+        assert_eq!(entries.get("bundleidentifier").and_then(plist::Value::as_string), Some("ai.storyteller.pdfcraft"));
+        entries.insert("bundleidentifier".into(), plist::Value::String(BUNDLE_ID.into()));
+        entries.insert("path".into(), plist::Value::String("/Applications/PdfCraft Plus.app".into()));
+        let mut rewritten = Vec::new();
+        fork.to_writer_binary(&mut rewritten).unwrap();
+        assert!(points_to_this_app(&rewritten, Path::new("/Applications/PdfCraft Plus.app")));
         let package = plist::from_bytes::<plist::Value>(include_bytes!("../../../packaging/macos/Info.plist.in")).unwrap();
         assert_eq!(package.as_dictionary().unwrap().get("CFBundleIdentifier").unwrap().as_string(), Some(BUNDLE_ID));
     }

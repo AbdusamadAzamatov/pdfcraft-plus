@@ -1,4 +1,4 @@
-//! Parser and lookup tables for translation catalogs (`*.tsv`, format documented in `ja.tsv`).
+//! Parser and lookup tables for translation catalogs (`*.tsv`, format documented in `ru.tsv`).
 //!
 //! Validation is strict (unknown escapes, unknown `@` contexts, placeholder, ellipsis and plural
 //! form mismatches, duplicates), but a bad line is only skipped and reported: the rest of the

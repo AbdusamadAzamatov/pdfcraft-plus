@@ -40,7 +40,8 @@ pub fn rasterize_page_content(doc: &Document, pages: &[usize], raster: &Raster, 
         let mut cos = pdfcraft_cos::Document::open_with_password(src.bytes.clone(), config.password.as_deref()).map_err(|e| e.to_string())?;
         for page in pdfcraft_model::pages(&cos).into_iter().enumerate().filter(|(i, _)| pages.contains(i)).map(|(_, p)| p) {
             let annots = page.dict.get(b"Annots").and_then(|a| cos.resolve(a).as_array().cloned()).unwrap_or_default();
-            let kept: Vec<Object> = annots.iter().filter(|a| cos.resolve(a).as_dict().and_then(|d| d.name(b"Subtype")) != Some(b"Widget")).cloned().collect();
+            let kept: Vec<Object> =
+                annots.iter().filter(|a| cos.resolve(a).as_dict().and_then(|d| d.name(b"Subtype")) != Some(b"Widget")).cloned().collect();
             if kept.len() != annots.len() {
                 cos.update_dict(page.obj, |d| d.set(b"Annots".to_vec(), Object::Array(kept))).map_err(|e| e.to_string())?;
             }
@@ -52,7 +53,13 @@ pub fn rasterize_page_content(doc: &Document, pages: &[usize], raster: &Raster, 
 
 /// An image-only PDF of `pages` of `bytes`, one picture per page at `raster`'s resolution (lower
 /// for a page too large for the renderer), each page the size of its source page.
-fn images_pdf(bytes: std::sync::Arc<Vec<u8>>, config: pdfcraft_render::RenderConfig, sizes: &[(f32, f32)], pages: &[usize], raster: &Raster) -> Result<Vec<u8>, String> {
+fn images_pdf(
+    bytes: std::sync::Arc<Vec<u8>>,
+    config: pdfcraft_render::RenderConfig,
+    sizes: &[(f32, f32)],
+    pages: &[usize],
+    raster: &Raster,
+) -> Result<Vec<u8>, String> {
     let dpi = raster.dpi.clamp(72.0, 600.0);
     let mut renderer = PageRenderer::new(bytes, config);
     let mut images: Vec<(String, Vec<u8>)> = Vec::with_capacity(pages.len());

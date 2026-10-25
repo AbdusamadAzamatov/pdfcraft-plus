@@ -1641,25 +1641,11 @@ mod tests {
     /// left): never a mix, and never a label signing would refuse.
     #[test]
     fn appearance_labels_are_translated_or_all_english() {
-        use crate::i18n::{Lang, has, tr};
+        use crate::i18n::Lang;
         let english = AppearanceLabels::default();
         assert_eq!(appearance_labels(Lang::EN), (english.clone(), false));
-        // Latin-script catalogs the signature's font can draw: stamped in the language once every
-        // label is translated there.
-        for code in ["de", "es", "fr", "it", "pt-br", "pl", "tr", "sl", "hu"] {
-            let lang = Lang::from_code(code).unwrap();
-            if !english.fields().into_iter().all(|(_, source)| has(lang, source)) {
-                continue;
-            }
-            let (labels, in_english) = appearance_labels(lang);
-            assert!(!in_english, "{code}: {labels:?}");
-            for ((field, ours), (_, source)) in labels.fields().into_iter().zip(english.fields()) {
-                assert_eq!(ours, tr(lang, source), "{code}: {field}");
-            }
-        }
-        for code in ["zh-hans", "zh-hant", "ja", "ru", "uk", "bg", "kk", "el", "te", "cs", "lt", "ar"] {
-            assert_eq!(appearance_labels(Lang::from_code(code).unwrap()), (english.clone(), true), "{code}");
-        }
+        // Russian is Cyrillic, which the signature's standard font can't draw: stamped in English.
+        assert_eq!(appearance_labels(Lang::from_code("ru").unwrap()), (english.clone(), true));
         for lang in Lang::all() {
             let (labels, in_english) = appearance_labels(lang);
             assert_eq!(labels.first_undrawable(), None, "{}: signing would refuse {labels:?}", lang.code());
@@ -1671,14 +1657,14 @@ mod tests {
     /// its label, in the words given, and only the values when the labels are off.
     #[test]
     fn preview_lines_use_the_labels_signing_stamps() {
-        let (de, _) = appearance_labels(crate::i18n::Lang::from_code("de").unwrap());
+        let labels = AppearanceLabels::default();
         let all = Appearance { reason: true, location: true, ..Appearance::default() };
-        let lines = detail_lines(&all, &de, "Ada", " Genehmigt ", "Berlin", "2026.10.14 09:30:00 Z");
-        assert_eq!(lines, ["Digital signiert von", "Ada", "Grund: Genehmigt", "Ort: Berlin", "Datum: 2026.10.14 09:30:00 Z"]);
+        let lines = detail_lines(&all, &labels, "Ada", " Approved ", "Berlin", "2026.10.14 09:30:00 Z");
+        assert_eq!(lines, ["Digitally signed by", "Ada", "Reason: Approved", "Location: Berlin", "Date: 2026.10.14 09:30:00 Z"]);
         let bare = Appearance { labels: false, ..all.clone() };
-        assert_eq!(detail_lines(&bare, &de, "Ada", "Genehmigt", "", "D"), ["Ada", "Genehmigt", "D"]);
+        assert_eq!(detail_lines(&bare, &labels, "Ada", "Approved", "", "D"), ["Ada", "Approved", "D"]);
         let nothing = Appearance { name: false, date: false, ..all };
-        assert!(detail_lines(&nothing, &de, "Ada", "  ", "", "D").is_empty());
+        assert!(detail_lines(&nothing, &labels, "Ada", "  ", "", "D").is_empty());
     }
 
     fn signature(certify: Option<u8>, status: SignatureStatus) -> SignatureInfo {

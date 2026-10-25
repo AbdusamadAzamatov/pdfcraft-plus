@@ -1691,11 +1691,11 @@ mod revert_draft_tests {
         assert_eq!(app.session.get(app.views[0].id).unwrap().form.iter().find(|f| f.name == "name").unwrap().value, ["张三"]);
         // The shell sets the drawing language each frame; here, directly (per thread).
         let previous = crate::i18n::current();
-        crate::i18n::set_current(crate::i18n::Lang::from_code("zh-hans").expect("registered"));
+        crate::i18n::set_current(crate::i18n::Lang::from_code("ru").expect("registered"));
         assert!(fill(&mut app, "李四"));
         crate::i18n::set_current(previous);
         let toast = app.toast.as_ref().map(|t| t.0.clone()).expect("a notice");
-        assert!(toast.contains("此字段的字体无法显示“李”（U+674E）"), "{toast}");
+        assert!(toast.contains("Шрифт этого поля не может отобразить «李» (U+674E)"), "{toast}");
         app.toast = None;
         assert!(fill(&mut app, "Ada"));
         assert!(app.toast.is_none(), "{:?}", app.toast);

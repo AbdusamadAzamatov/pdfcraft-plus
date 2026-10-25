@@ -266,62 +266,6 @@ fn system_fallback_covers_hebrew() {
     assert!(layout_widths(&mut fonts, HEBREW).iter().all(|w| w.is_finite() && *w > 0.0));
 }
 
-/// The Han characters of a catalog's translations.
-fn catalog_han(catalog: &str) -> String {
-    let mut han: Vec<char> = catalog
-        .lines()
-        .filter(|l| !l.starts_with('#'))
-        .filter_map(|l| l.split('\t').nth(2))
-        .flat_map(str::chars)
-        .filter(|c| matches!(*c, '\u{3400}'..='\u{9fff}' | '\u{f900}'..='\u{faff}'))
-        .collect();
-    han.sort_unstable();
-    han.dedup();
-    han.into_iter().collect()
-}
-
-/// In a Chinese interface built without a `Hans` face (every release so far, #826), a Chinese
-/// face installed on this machine goes before the Japanese faces, which lack hundreds of the
-/// catalog's characters, and draws every Han character of both Chinese catalogs.
-#[test]
-fn chinese_ui_uses_an_installed_chinese_face() {
-    if !pdfcraft_fonts::ui_chinese_fonts().is_empty() {
-        eprintln!("skipping chinese_ui_uses_an_installed_chinese_face: a Hans face is bundled");
-        return;
-    }
-    for (cjk, catalog) in [
-        (theme::CjkPreference::SimplifiedChinese, include_str!("../../src/i18n/zh-hans.tsv")),
-        (theme::CjkPreference::TraditionalChinese, include_str!("../../src/i18n/zh-hant.tsv")),
-    ] {
-        let defs = theme::installed_font_definitions(cjk);
-        if !defs.font_data.contains_key(theme::SYSTEM_FALLBACK) {
-            eprintln!("skipping chinese_ui_uses_an_installed_chinese_face: no installed Chinese face (or PDFCRAFT_SYSTEM_FONTS=0)");
-            return;
-        }
-        for (family, stack) in &defs.families {
-            let system = stack.iter().position(|n| n == theme::SYSTEM_FALLBACK).expect("in every family");
-            assert_eq!(stack.iter().filter(|n| *n == theme::SYSTEM_FALLBACK).count(), 1, "{family:?}");
-            let own = stack.iter().position(|n| n.starts_with("Inter") || n == "JetBrainsMono").expect("the app's own font");
-            assert!(own < system, "{family:?}: {stack:?}");
-            if let Some(first_ja) = stack.iter().position(|n| n.starts_with("BIZ UDPGothic")) {
-                assert!(system < first_ja, "{family:?}: {stack:?}");
-            }
-        }
-        let han = catalog_han(catalog);
-        assert!(han.contains('欢') || han.contains('說'), "{cjk:?}");
-        let mut fonts = Fonts::new(TextOptions::default(), defs);
-        for id in families() {
-            let missing: String = han.chars().filter(|c| !fonts.has_glyphs(&id, &c.to_string())).collect();
-            assert!(missing.is_empty(), "{cjk:?} {id:?} lacks {missing}");
-        }
-    }
-    // Other languages keep the installed face last, as before.
-    let defs = theme::installed_font_definitions(theme::CjkPreference::Default);
-    for stack in defs.families.values() {
-        assert!(stack.iter().position(|n| n == theme::SYSTEM_FALLBACK).is_none_or(|i| i + 1 == stack.len()), "{stack:?}");
-    }
-}
-
 /// Without craft-fonts the interface fonts still install and lay out any text (Japanese falls
 /// back to egui's replacement glyph) without panicking; Latin text is unaffected.
 #[test]
@@ -337,7 +281,7 @@ fn ui_fonts_work_without_craft_fonts() {
     theme::install_fonts(&ctx);
 }
 
-/// Latin- and Cyrillic-script catalogs (Czech, Brazilian Portuguese, German, Spanish, French, Russian, Bulgarian, Kazakh, Hungarian, Ukrainian, Italian, Slovene, Lithuanian, Greek, Turkish, Indonesian, Vietnamese, Albanian, Catalan) are drawn entirely by the app's own faces
+/// The Russian catalog (and the Latin and Cyrillic letters in general) is drawn entirely by the app's own faces
 /// (Inter, JetBrains Mono with Inter fallback): no letter falls through to egui's defaults or a CJK fallback. (egui's
 /// `has_glyphs` can't answer this: with only the primary face it is also the replacement face.)
 #[test]
@@ -348,30 +292,7 @@ fn primary_ui_fonts_cover_latin_and_cyrillic_catalogs() {
     let fallback = &defs.font_data["Inter"];
     let fallback_font = skrifa::FontRef::from_index(&fallback.font, fallback.index).unwrap();
     let fallback_charmap = fallback_font.charmap();
-    for (code, catalog) in [
-        ("cs", include_str!("../../src/i18n/cs.tsv")),
-        ("el", include_str!("../../src/i18n/el.tsv")),
-        ("pt-br", include_str!("../../src/i18n/pt-br.tsv")),
-        ("de", include_str!("../../src/i18n/de.tsv")),
-        ("es", include_str!("../../src/i18n/es.tsv")),
-        ("fr", include_str!("../../src/i18n/fr.tsv")),
-        ("ru", include_str!("../../src/i18n/ru.tsv")),
-        ("kk", include_str!("../../src/i18n/kk.tsv")),
-        ("bg", include_str!("../../src/i18n/bg.tsv")),
-        ("hu", include_str!("../../src/i18n/hu.tsv")),
-        ("uk", include_str!("../../src/i18n/uk.tsv")),
-        ("it", include_str!("../../src/i18n/it.tsv")),
-        ("tr", include_str!("../../src/i18n/tr.tsv")),
-        ("sl", include_str!("../../src/i18n/sl.tsv")),
-        ("lt", include_str!("../../src/i18n/lt.tsv")),
-        ("id", include_str!("../../src/i18n/id.tsv")),
-        ("vi", include_str!("../../src/i18n/vi.tsv")),
-        ("fi", include_str!("../../src/i18n/fi.tsv")),
-        ("sq", include_str!("../../src/i18n/sq.tsv")),
-        ("ca", include_str!("../../src/i18n/ca.tsv")),
-        ("ro", include_str!("../../src/i18n/ro.tsv")),
-        ("nb", include_str!("../../src/i18n/nb.tsv")),
-    ] {
+    for (code, catalog) in [("ru", include_str!("../../src/i18n/ru.tsv"))] {
         // Vietnamese stacks its diacritics: the precomposed letters and the base letters they
         // combine with, including `đ` and the tone marks `ạ ả ấ ầ ẩ ẫ ậ ắ ằ ẳ ẵ ặ ế ề ể ễ ệ`.
         let mut text = String::from(

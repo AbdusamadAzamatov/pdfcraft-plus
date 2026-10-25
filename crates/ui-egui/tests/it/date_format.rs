@@ -105,15 +105,15 @@ fn month_names_follow_the_date_language_or_else_the_interface_language() {
         let mut app = PdfCraftApp::new();
         app.set_option("language", "en").unwrap();
         app.set_option("date-format", "d mmmm yyyy").unwrap();
-        app.set_option("language", "cs").unwrap();
+        app.set_option("language", "ru").unwrap();
         app.set_option("dialog", "preferences").unwrap();
         app
     });
     h.run_steps(3);
     let text = |h: &Harness<'static, PdfCraftApp>| h.state().date_text(None).unwrap();
-    assert_eq!(text(&h), h.state().session.today_text(None, Some("cs")).unwrap(), "follows the interface (Czech)");
-    // The picker offers following the interface first, then the interface languages.
-    assert!(shows(&h, "Stejný jako rozhraní (Čeština)"));
+    assert_eq!(text(&h), h.state().session.today_text(None, Some("ru")).unwrap(), "follows the interface (Russian)");
+    // The picker offers following the interface first, then the date languages.
+    assert!(shows(&h, "Как в интерфейсе (Русский)"));
     h.state_mut().set_option("date-language", "es").unwrap();
     h.run_steps(2);
     assert_eq!(text(&h), h.state().session.today_text(None, Some("es")).unwrap());

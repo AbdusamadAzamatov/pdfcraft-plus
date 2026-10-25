@@ -8,6 +8,7 @@ Runs on any OS, no Mac needed. Both outputs come from this script alone, so they
 from the machine that made them: no local paths, user or disk names, dates or volume UUIDs.
 
     python3 packaging/macos/dmg/generate.py
+    python3 packaging/macos/dmg/generate.py --layout-only   # .DS_Store only; no resvg needed
 """
 
 import datetime
@@ -23,13 +24,14 @@ from PIL import Image, ImageCms
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# Keep in sync with package.sh (volume name) and README.md (layout).
-VOLUME = "PdfCraft"
+# Keep in sync with package.sh (APP_NAME, the volume name and the app's file name) and README.md
+# (layout). Finder matches the icon position by file name and the background alias by volume name.
+VOLUME = "PdfCraft Plus"
 WIDTH, HEIGHT = 660, 400  # window content, pt; the background's 1x size
 TITLE_BAR = 32
 ICON_SIZE = 128
 PALETTE = 16  # colours in background.tiff
-ICONS = {"PdfCraft.app": (326, 205), "Applications": (574, 205)}
+ICONS = {"PdfCraft Plus.app": (326, 205), "Applications": (574, 205)}
 # A fixed date for the alias and the colour profile. Finder never matches it against the image
 # (each build is a new volume): it finds the background by volume name and path.
 FIXED_DATE = datetime.datetime(2026, 10, 8, tzinfo=datetime.timezone.utc)
@@ -148,6 +150,10 @@ def write_ds_store(out):
 
 
 def main():
+    # --layout-only rewrites dmg-layout.DS_Store alone (no resvg needed), for a name change.
+    if "--layout-only" in sys.argv[1:]:
+        write_ds_store(os.path.join(HERE, "dmg-layout.DS_Store"))
+        return
     if not shutil.which("resvg"):
         sys.exit("error: resvg not found (brew install resvg / cargo install resvg --locked)")
     write_tiff(os.path.join(HERE, "background.svg"), os.path.join(HERE, "background.tiff"))

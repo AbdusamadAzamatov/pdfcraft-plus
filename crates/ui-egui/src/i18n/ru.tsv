@@ -1,5 +1,14 @@
-# Russian (ru) catalog. Format: see the header of ja.tsv
-# (context <TAB> source <TAB> translation; @id, @plural and other contexts; escapes \n \t \\).
+# Russian (ru) catalog. Columns, separated by a TAB:  context <TAB> source <TAB> translation
+#
+#   context  empty                a plain UI string; `source` is the English text in the code
+#            @id                  a command id (e.g. file.saveAs): wins over the English text for
+#                                 that menu item, so one id can read differently from its twin
+#            @plural              `source` is "one|other" (English forms); the translation lists the
+#                                 language's forms separated by "|" (see `plural` in i18n/mod.rs)
+#            anything else        a disambiguating context passed to `tr_ctx`
+#   escapes  \n  \t  \\  inside a column. `{name}` placeholders must appear in both columns.
+#   lines starting with # and blank lines are ignored.
+#
 # Plural forms (see `plural_russian` in i18n/mod.rs): one (1) | few (2-4) | many (0, 5+).
 #
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
@@ -89,7 +98,6 @@
 	Flatten Fill & Sign when saving	Расплющить «Заполнить и подписать» при сохранении
 	Text, marks and signatures become part of the page. Other comments stay editable.	Текст, пометки и подписи становятся частью страницы. Остальные комментарии можно по-прежнему править.
 	OK	OK
-	Join our Discord	Присоединяйтесь к нашему Discord
 	Close	Закрыть
 	Next / previous match	Следующее / предыдущее совпадение
 	Copy selected text	Копировать выделенный текст
@@ -158,10 +166,8 @@
 	Previous page	Предыдущая страница
 	Current page — type a page number or label (such as iv) and press Enter	Текущая страница — введите номер или метку страницы (например, iv) и нажмите Enter
 	Zoom — type a percentage and press Enter	Масштаб — введите процент и нажмите Enter
-	Welcome to PdfCraft	Добро пожаловать в PdfCraft
+	Welcome to PdfCraft Plus	Добро пожаловать в PdfCraft Plus
 	An open-source PDF workbench — local, private, and scriptable.	Открытый PDF-редактор — локальный, приватный и программируемый.
-	Join the ArtCraft community	Присоединяйтесь к сообществу ArtCraft
-	Get help, share feedback and follow development on Discord.	Получайте помощь, делитесь отзывами и следите за разработкой в Discord.
 	Recommended tools	Рекомендуемые инструменты
 	Use now	Использовать сейчас
 	Open file	Открыть файл
@@ -306,12 +312,8 @@
 	Split document…	Разделить документ…
 	Number pages…	Пронумеровать страницы…
 	Keyboard shortcuts	Горячие клавиши
-	Join the ArtCraft Discord	Присоединяйтесь к Discord ArtCraft
-	PdfCraft web page	Веб-страница PdfCraft
-	PdfCraft on GitHub	PdfCraft на GitHub
-	ArtCraft website	Веб-сайт ArtCraft
 	Check for updates…	Проверить обновления…
-	About PdfCraft	О программе PdfCraft
+	About PdfCraft Plus	О программе PdfCraft Plus
 	Export a PDF	Экспортировать PDF
 	Export to	Экспортировать в
 	Microsoft Word (.docx)	Microsoft Word (.docx)
@@ -883,10 +885,10 @@
 	Couldn't open the signed version: {e}	Не удалось открыть подписанную версию: {e}
 	Sign with a Digital ID	Подписать цифровым идентификатором
 	Choose the digital ID that you want to use for signing:	Выберите цифровой идентификатор для подписи:
-	Keychain  ·  	Keychain  ·
-	Windows store  ·  	Хранилище Windows  ·
-	Issued by: 	Выдан:
-	, Expires: 	, Истекает:
+	Keychain  ·  	Keychain  ·  
+	Windows store  ·  	Хранилище Windows  ·  
+	Issued by: 	Выдан: 
+	, Expires: 	, Истекает: 
 	Digitally signed by	Цифровая подпись
 	DN: 	DN: 
 	Reason: 	Причина: 
@@ -1445,12 +1447,11 @@
 	just now	только что
 	{n} min ago	{n} мин назад
 	{n} h ago	{n} ч назад
-	 · password-protected	  · защищён паролем
+	 · password-protected	 · защищён паролем
 	Recover	Восстановить
 	Discard	Отклонить
 	Version {v}	Версия {v}
 	A clean-room, open-source PDF application written in Rust. MIT OR Apache-2.0.	Открытое PDF-приложение с чистой комнатой, написанное на Rust. MIT OR Apache-2.0.
-	Part of	Часть
 	Summarize Options	Параметры суммирования
 	Choose a layout:	Выберите макет:
 	Comments only	Только комментарии
@@ -2469,6 +2470,7 @@ animation effects	Off	Выкл
 	Lab colours	Цвета Lab
 	Other colours	Другие цвета
 	Inline images	Встроенные изображения
+	Page content	Содержимое страницы
 	Fast Web View	Быстрый веб-просмотр
 	Save As writes Fast Web View files	«Сохранить как» записывает файлы с быстрым веб-просмотром
 	The first page shows while the rest downloads. Files get larger.	Первая страница показывается, пока загружается остальное. Файлы становятся больше.
@@ -2554,3 +2556,9 @@ animation effects	Off	Выкл
 	Rotate the selected pages clockwise	Повернуть выбранные страницы по часовой стрелке
 	Extract the selected pages…	Извлечь выбранные страницы…
 	Delete the selected pages	Удалить выбранные страницы
+	Report a problem	Сообщить о проблеме
+	PdfCraft Plus releases	Выпуски PdfCraft Plus
+	PdfCraft Plus on GitHub	PdfCraft Plus на GitHub
+	Original PdfCraft project	Исходный проект PdfCraft
+	Report problems and download new versions on GitHub.	Сообщайте о проблемах и скачивайте новые версии на GitHub.
+	A personal fork of PdfCraft by the ArtCraft team.	Личный форк PdfCraft от команды ArtCraft.
