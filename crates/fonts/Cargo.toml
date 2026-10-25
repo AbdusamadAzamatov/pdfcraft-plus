@@ -15,3 +15,5 @@ skrifa = "0.44"
 # Arabic shaping for text written into PDFs; already in the tree via egui, on the same read-fonts.
 harfrust = "0.12"
 unicode-bidi = "0.3"
+# Checksums of the look-alike fonts the app downloads (PdfCraft Plus); already in the tree.
+sha2 = "0.11"

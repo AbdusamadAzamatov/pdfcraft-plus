@@ -591,7 +591,7 @@ pub(super) fn rewrite_styled_block(
             }) {
                 name.clone()
             } else if let Some(face) =
-                pdfcraft_fonts::embedding::matching_faces(&source.base_font).into_iter().find(|f| pdfcraft_fonts::embedding::covers(f.bytes, &s))
+                pdfcraft_fonts::embedding::editing_faces(&source.base_font).into_iter().find(|f| pdfcraft_fonts::embedding::covers(f.bytes, &s))
             {
                 let key = face.name();
                 if let Some(name) = full_faces.get(&key) {

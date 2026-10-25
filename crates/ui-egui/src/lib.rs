@@ -98,6 +98,7 @@ mod files;
 pub mod fill_sign;
 mod fling;
 pub mod folders_ui;
+pub mod font_suggest;
 mod format_text_ui;
 pub mod forms_ui;
 mod grayscale_ui;
@@ -739,6 +740,9 @@ pub struct PdfCraftApp {
     /// How to ask for the latest release (the desktop app sets it; see `updates`).
     pub update_source: Option<updates::UpdateSource>,
     pub(crate) updates: updates::Updates,
+    /// How to download a free look-alike font (the desktop app sets it; see `font_suggest`).
+    pub font_fetch: Option<font_suggest::FontFetch>,
+    pub(crate) font_downloads: font_suggest::Downloads,
     /// Lists the Print dialog's printers in the background (the desktop app sets it; see
     /// [`PrinterSource`]).
     pub printer_source: Option<PrinterSource>,
@@ -1194,6 +1198,8 @@ impl PdfCraftApp {
             dialog: None,
             update_source: None,
             updates: updates::Updates::default(),
+            font_fetch: None,
+            font_downloads: font_suggest::Downloads::default(),
             printer_source: None,
             options_source: None,
             print_tasks: print_ui::PrintTasks::default(),
@@ -3709,6 +3715,7 @@ impl eframe::App for PdfCraftApp {
             }
         }
         self.poll_updates();
+        self.poll_font_downloads();
         self.poll_print();
         // Shortcuts deferred last frame: the text field has taken that frame's typing since.
         let deferred = std::mem::take(&mut self.deferred_commands);

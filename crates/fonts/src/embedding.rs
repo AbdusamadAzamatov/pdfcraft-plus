@@ -22,6 +22,17 @@ pub fn matching_faces(name: &str) -> Vec<&'static crate::CraftFont> {
     crate::CRAFT_FONTS.iter().filter(|f| face_key(f.family) == key || face_key(&f.name()) == key).collect()
 }
 
+/// [`matching_faces`] for editing text: when the source family has no full face, the free
+/// look-alike the user installed for it ([`crate::lookalike`]), which has the same widths. Display
+/// never uses a look-alike; only new letters typed into such a paragraph do.
+pub fn editing_faces(name: &str) -> Vec<&'static crate::CraftFont> {
+    let mut faces = matching_faces(name);
+    if faces.is_empty() {
+        faces.extend(crate::lookalike::face_for(name));
+    }
+    faces
+}
+
 /// Whether a complete font program can show every non-newline character.
 pub fn covers(bytes: &[u8], text: &str) -> bool {
     FontRef::new(bytes).is_ok_and(|f| text.chars().all(|c| matches!(c, '\n' | '\r') || f.charmap().map(c).is_some_and(|g| g.to_u32() != 0)))

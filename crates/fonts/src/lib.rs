@@ -13,6 +13,7 @@ mod craft;
 pub mod embedding;
 mod encodings;
 pub mod fallback;
+pub mod lookalike;
 pub mod pdf;
 mod script;
 mod shaping;

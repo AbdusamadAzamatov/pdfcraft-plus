@@ -9890,3 +9890,47 @@ fn page_render_draws_stamps_without_an_appearance() {
     let grey = custom.iter().filter(|p| p[0].abs_diff(p[1]) < 24 && p[1].abs_diff(p[2]) < 24).count();
     assert!(grey > 100 && grey == custom.len(), "an unknown name is a grey placeholder: {grey} of {}", custom.len());
 }
+
+/// PdfCraft Plus: `font_lookalikes` names a page's partly embedded fonts and the free look-alike
+/// for each (pinned url, checksum), and `font_lookalike_install` takes only the catalogue's files.
+#[test]
+fn missing_fonts_are_listed_with_their_free_look_alike_and_only_catalogue_files_install() {
+    let dir = workdir("font-lookalikes");
+    let body = "BT /F1 12 Tf 72 700 Td (Hello) Tj ET BT /F2 12 Tf 72 680 Td (World) Tj ET BT /F3 12 Tf 72 660 Td (Plain) Tj ET";
+    let objs: Vec<String> = vec![
+        "<< /Type /Catalog /Pages 2 0 R >>".into(),
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 612 792] >>".into(),
+        "<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> >> >>".into(),
+        format!("<< /Length {} >>\nstream\n{body}\nendstream", body.len()),
+        "<< /Type /Font /Subtype /TrueType /BaseFont /ABCDEF+TimesNewRomanPS-BoldMT /Encoding /WinAnsiEncoding >>".into(),
+        "<< /Type /Font /Subtype /TrueType /BaseFont /GHIJKL+Georgia /Encoding /WinAnsiEncoding >>".into(),
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>".into(),
+    ];
+    let refs: Vec<&str> = objs.iter().map(String::as_str).collect();
+    std::fs::write(dir.join("fonts.pdf"), pdf_of(&refs)).unwrap();
+    std::fs::write(dir.join("not-a-font.ttf"), b"not a font").unwrap();
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "fonts.pdf" }))["doc"].as_u64().unwrap();
+    let listed = ok(&mut a, "font_lookalikes", json!({ "doc": doc, "page": 1 }));
+    let fonts = listed["fonts"].as_array().unwrap();
+    assert_eq!(fonts.len(), 2, "only the subsets: {listed}");
+    let times = &fonts[0];
+    assert_eq!(times["font"], "ABCDEF+TimesNewRomanPS-BoldMT");
+    assert_eq!(times["lookalike"]["family"], "Tinos");
+    assert_eq!(times["lookalike"]["needed"], "Tinos-Bold.ttf");
+    let files = times["lookalike"]["files"].as_array().unwrap();
+    assert_eq!(files.len(), 4);
+    assert!(
+        files.iter().all(|f| f["url"].as_str().unwrap().starts_with("https://raw.githubusercontent.com/google/fonts/")
+            && f["sha256"].as_str().unwrap().len() == 64)
+    );
+    assert_eq!(fonts[1]["font"], "GHIJKL+Georgia");
+    assert!(fonts[1]["lookalike"].is_null(), "no look-alike for Georgia");
+    let out = ok(&mut a, "font_lookalike_install", json!({ "paths": ["not-a-font.ttf"] }));
+    assert!(out["installed"].as_array().unwrap().is_empty());
+    assert!(out["refused"][0]["error"].as_str().unwrap().contains("checksum"), "{out}");
+    assert!(a.call("font_lookalike_install", &json!({ "paths": ["/etc/hosts"] })).is_err(), "root confinement");
+    assert!(a.call("font_lookalike_install", &json!({ "paths": [] })).is_err());
+    let def = tools().into_iter().find(|t| t.name == "font_lookalikes").unwrap();
+    assert!(def.read_only);
+}

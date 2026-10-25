@@ -733,6 +733,55 @@ impl Automation {
                 }
                 out
             }
+            "font_lookalikes" => {
+                let page = self.page(&a)?;
+                let lines = self.doc(&a)?.text_lines(page);
+                let mut fonts: Vec<String> = Vec::new();
+                for line in lines {
+                    let subset = line.base_font.split_once('+').is_some_and(|(tag, _)| tag.len() == 6 && tag.bytes().all(|b| b.is_ascii_uppercase()));
+                    if subset && !fonts.contains(&line.base_font) {
+                        fonts.push(line.base_font);
+                    }
+                }
+                let listed: Vec<Value> = fonts
+                    .iter()
+                    .map(|base| {
+                        let lookalike = pdfcraft_fonts::lookalike::for_font(base).map(|(l, bold, italic)| {
+                            let files: Vec<Value> = l
+                                .files
+                                .iter()
+                                .map(|f| json!({"style": f.style, "file": f.file, "url": f.url, "sha256": f.sha256, "size": f.size, "installed": pdfcraft_fonts::lookalike::is_installed(f)}))
+                                .collect();
+                            let needed = l.file(bold, italic).map(|f| f.file);
+                            json!({"family": l.family, "replaces": l.replaces, "licence": l.licence, "needed": needed, "files": files})
+                        });
+                        json!({"font": base, "subset": true, "lookalike": lookalike})
+                    })
+                    .collect();
+                json!({"page": page + 1, "fonts": listed})
+            }
+            "font_lookalike_install" => {
+                let paths =
+                    a.get("paths").and_then(Value::as_array).ok_or_else(|| ToolError::InvalidArgs("paths must list the downloaded files".into()))?;
+                if paths.is_empty() || paths.len() > 20 {
+                    return Err(ToolError::InvalidArgs("paths must list 1 to 20 files".into()));
+                }
+                let mut installed = Vec::new();
+                let mut refused = Vec::new();
+                for p in paths {
+                    let p = p.as_str().ok_or_else(|| ToolError::InvalidArgs("each path must be a string".into()))?;
+                    let path = self.resolve(p, false)?;
+                    use std::io::Read;
+                    let mut bytes = Vec::new();
+                    // Every catalogue file is under 1 MB.
+                    let read = std::fs::File::open(&path).and_then(|f| f.take((1 << 20) + 1).read_to_end(&mut bytes));
+                    match read.map_err(|e| e.to_string()).and_then(|_| pdfcraft_fonts::lookalike::install(bytes)) {
+                        Ok(f) => installed.push(json!({"path": p, "file": f.file})),
+                        Err(e) => refused.push(json!({"path": p, "error": e})),
+                    }
+                }
+                json!({"installed": installed, "refused": refused})
+            }
             "text_fonts" => {
                 let page = self.page(&a)?;
                 json!({"fonts": self.doc(&a)?.text_editor_fonts(page).into_iter().map(|f| json!({"resource":f.resource,"font":f.face,"full_face":f.resource.starts_with("PCFull"),"preview_only":f.resource.starts_with("PCApproved")})).collect::<Vec<_>>()})

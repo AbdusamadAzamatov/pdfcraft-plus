@@ -380,6 +380,19 @@ impl LineEditor {
     }
 
     /// Adopt the rewritten paragraph's current geometry before the next overlay frame.
+    /// The `/BaseFont` of every run in the paragraph, in order, each once.
+    pub(crate) fn source_base_fonts(&self) -> Vec<String> {
+        let mut fonts: Vec<String> = Vec::new();
+        if let Some((block, lines)) = &self.source {
+            for line in block.lines.iter().filter_map(|i| lines.get(*i)) {
+                if !fonts.contains(&line.base_font) {
+                    fonts.push(line.base_font.clone());
+                }
+            }
+        }
+        fonts
+    }
+
     pub(crate) fn refresh_source(&mut self, block: &pdfcraft_engine::TextBlock, lines: Vec<pdfcraft_engine::TextLine>) {
         self.source_rect = block.rect.map(|v| v as f32);
         self.multiline = block.rows.len() > 1;

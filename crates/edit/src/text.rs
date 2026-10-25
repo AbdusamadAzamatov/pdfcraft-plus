@@ -137,7 +137,7 @@ pub fn text_editor_fonts(doc: &Document, page: usize) -> Result<Vec<TextEditorFo
     // display newly inserted glyphs before Apply without changing the source text's face.
     let source_faces: Vec<_> = result.iter().map(|p| p.face.clone()).collect();
     for face in source_faces {
-        for full in pdfcraft_fonts::embedding::matching_faces(&face) {
+        for full in pdfcraft_fonts::embedding::editing_faces(&face) {
             if full.bytes.len() > budget || result.iter().any(|p| p.resource == format!("PCApproved{}", full.name())) {
                 continue;
             }
@@ -2920,7 +2920,7 @@ fn rewrite_block_from(
                 // A row break, `\n` or a carriage return, takes the path that keeps untouched rows.
                 draft.contains(['\n', '\r'])
                     || pdfcraft_fonts::source_shaping::required(draft)
-                    || !pdfcraft_fonts::embedding::matching_faces(&b.base_font).is_empty()
+                    || !pdfcraft_fonts::embedding::editing_faces(&b.base_font).is_empty()
             }) || registered_face
                 || text.is_some_and(|draft| source_program_completes(doc, &fonts_res, first, draft))
                 || b.rows.iter().any(|row| row.len() > 1)

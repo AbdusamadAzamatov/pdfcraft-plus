@@ -1527,6 +1527,11 @@ pub fn tools() -> Vec<ToolDef> {
         t("text_fonts", "List document fonts", "List validated embedded source faces and approved full preview faces for a page. Full registered resources can be selected by text_edit.font_resource; preview_only faces are not PDF resource names.")
             .ro().cmd("edit.edit_text")
             .with(schema(json!({"doc":doc(), "page":{"type":"integer","minimum":1}}), &["doc","page"])),
+        t("font_lookalikes", "Missing fonts and free look-alikes", "PdfCraft Plus: the fonts on a page that the PDF holds only partly (subsets), so letters they lack can't be typed in their own face. For Times New Roman, Arial/Helvetica, Courier New, Calibri and Cambria a free look-alike with the same widths exists (Tinos, Arimo, Cousine, Carlito, Caladea): each font lists it with its licence and its files (style, file name, pinned url, sha256, size, installed). Download the files yourself (e.g. curl the url), then install them with font_lookalike_install; new letters typed with text_edit then use the look-alike. Fonts with no look-alike have lookalike null.")
+            .ro().cmd("edit.edit_text")
+            .with(schema(json!({"doc":doc(), "page":{"type":"integer","minimum":1}}), &["doc","page"])),
+        t("font_lookalike_install", "Install free look-alike fonts", "PdfCraft Plus: install downloaded look-alike font files (paths, at most 20) for this session's editing. Only the catalogue's files are accepted, by SHA-256 (see font_lookalikes); anything else is refused with the reason and nothing is installed from it. Respects root confinement. Installing changes no document.")
+            .with(schema(json!({"paths":{"type":"array","items":{"type":"string"},"minItems":1,"maxItems":20}}), &["paths"])),
         t("text_paragraphs", "List paragraphs", "The paragraphs on a page (adjacent source runs grouped into aligned visual rows, including mixed fonts, sizes and colours): number, text, editor_text (visual rows separated by newlines), rows and source line numbers, box (top-left-origin points), font and size. Use the number with text_edit's paragraph: until you list the page again, a number names the paragraph listed here, even after edits regroup the page.")
             .ro()
             .cmd("edit.edit_text")

@@ -541,6 +541,7 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
             .collect();
         let shown = ed.font_shown(&sources);
         let out = crate::format_text_ui::panel(ui, t, &mut ed.look, Some(&mut ed.extras), Fonts { sources: Some(&sources), shown });
+        crate::font_suggest::section(app, ui, t, &ed.source_base_fonts());
         let mut changed = out.changed;
         match out.font {
             Some(FontChoice::KeepSource) => {

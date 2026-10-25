@@ -35,6 +35,7 @@ mod apple_events;
 mod compositor_gpu;
 mod decorations;
 mod logging;
+mod lookalikes;
 #[cfg(target_os = "windows")]
 mod motion;
 mod reopen;
@@ -392,6 +393,12 @@ fn app_creator<'a>(
             app.motion.source = Some(motion::source());
         }
         app.update_source = Some(std::sync::Arc::new(updates::latest_release));
+        // Free look-alike fonts downloaded earlier are ready before the first paragraph opens.
+        let fonts_dir = settings_dir().map(|d| d.join("fonts"));
+        if let Some(dir) = &fonts_dir {
+            lookalikes::install_saved(dir);
+        }
+        app.font_fetch = Some(lookalikes::fetcher(fonts_dir));
         app.printer_source = Some(pdfcraft_ui_egui::system_printers());
         app.os_key_store_ids = cfg!(any(target_os = "macos", target_os = "windows"));
         #[cfg(target_os = "macos")]

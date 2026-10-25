@@ -52,6 +52,7 @@ mod javascript;
 mod layer_actions;
 mod links;
 mod marks;
+mod missing_fonts;
 mod object_selection;
 mod ocr;
 mod open_action;

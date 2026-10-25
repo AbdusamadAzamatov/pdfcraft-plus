@@ -3947,6 +3947,8 @@ dependencies = [
  "fmv-macos-events",
  "log",
  "pdfcraft-engine",
+ "pdfcraft-fonts",
+ "pdfcraft-platform",
  "pdfcraft-ui-egui",
  "pollster 1.0.1",
  "raw-window-handle",
@@ -4171,6 +4173,7 @@ version = "0.14.0"
 dependencies = [
  "harfrust",
  "pdfcraft-cos",
+ "sha2 0.11.0",
  "skrifa 0.44.0",
  "unicode-bidi",
 ]
