@@ -208,6 +208,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Pages per sheet (N-up)…", "grid-3x3", "page.nup", Ready),
                     item("Booklet…", "book-open", "page.booklet", Ready),
                     item("Poster (tile)…", "maximize", "page.poster", Ready),
+                    item("Stitch pages…", "rows-3", "page.stitch", Ready),
                     item("Interleave files…", "arrow-left-right", "page.interleave", Ready),
                     item("Divide pages", "columns-2", "page.divide", Ready),
                     item("Rotate by angle", "rotate-cw", "page.rotate_angle", Ready),

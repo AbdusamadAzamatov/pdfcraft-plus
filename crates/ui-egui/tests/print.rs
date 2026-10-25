@@ -457,3 +457,36 @@ fn n_up_dialog_opens_from_the_layout_tools_and_creates_a_second_tab() {
     assert_eq!(src.info.pages.len(), pages);
     assert!(!src.dirty, "the document itself is unchanged");
 }
+
+/// Organize ▸ Layout ▸ Stitch pages (PL6): the dialog opens from the Layout tools of the
+/// Organize pages panel, says what is not carried over, and Create opens the pages on one long
+/// page in a second tab while the document stays as it was.
+#[test]
+fn stitch_dialog_opens_from_the_layout_tools_and_creates_one_long_page_in_a_second_tab() {
+    let mut h = harness();
+    let source = h.state().views[0].id;
+    let src = h.state().session.get(source).unwrap();
+    let pages = src.info.pages.len();
+    let length: f32 = src.info.pages.iter().map(|p| p.height).sum();
+    let widest = src.info.pages.iter().map(|p| p.width).fold(0.0, f32::max);
+    h.state_mut().set_option("tool", "organize").unwrap();
+    h.run_steps(4);
+    h.get_by_label("Stitch pages…").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::Stitch));
+    h.get_by_label("Vertical");
+    h.get_by_label("Links and comments are not carried over.");
+    h.get_by_role_and_label(Role::Button, "Create").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, None);
+    assert_eq!(h.state().views.len(), 2, "a second tab");
+    let new = h.state().views[1].id;
+    let doc = h.state().session.get(new).unwrap();
+    assert_eq!(doc.name, "form (stitched).pdf");
+    assert_eq!(doc.info.pages.len(), 1, "one long page");
+    assert!((doc.info.pages[0].height - length).abs() < 0.5 && (doc.info.pages[0].width - widest).abs() < 0.5);
+    assert!(doc.dirty, "the new document is unsaved");
+    let src = h.state().session.get(source).unwrap();
+    assert_eq!(src.info.pages.len(), pages);
+    assert!(!src.dirty, "the document itself is unchanged");
+}

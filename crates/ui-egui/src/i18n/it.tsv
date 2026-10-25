@@ -2723,3 +2723,8 @@ certificate	SHA-256 digest	Impronta SHA-256
 	Pages trimmed: {n}	Pagine ritagliate: {n}
 	Pages trimmed: {n}. Left alone: {pages}	Pagine ritagliate: {n}. Invariate: {pages}
 	No white margins to remove	Nessun margine bianco da rimuovere
+	Stitch pages…	Unisci pagine…
+	Gap:	Spaziatura:
+	Background:	Sfondo:
+	White	Bianco
+	Links and comments are not carried over.	Collegamenti e commenti non vengono riportati.

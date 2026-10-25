@@ -382,6 +382,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("page.nup", "Pages per sheet (N-up)…", PAGES, None, Assembly, "grid-3x3"),
     c("page.booklet", "Booklet…", PAGES, None, Assembly, "book-open"),
     c("page.poster", "Poster (tile)…", PAGES, None, Assembly, "maximize"),
+    c("page.stitch", "Stitch pages…", PAGES, None, Assembly, "rows-3"),
     c("page.split", "Split document…", PAGES, None, Assembly, "scissors"),
     c("page.number", "Number pages…", PAGES, None, Assembly, "hash"),
     c("help.shortcuts", "Keyboard shortcuts", HELP, None, Nothing, "circle-help"),

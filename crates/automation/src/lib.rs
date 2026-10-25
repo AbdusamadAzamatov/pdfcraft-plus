@@ -820,6 +820,7 @@ impl Automation {
             "content_delete" => self.content_delete(&a)?,
             "doc_print" => self.doc_print(&a)?,
             "doc_impose" => self.doc_impose(&a)?,
+            "doc_stitch" => self.doc_stitch(&a)?,
             "doc_remove_hidden" => self.doc_remove_hidden(&a)?,
             "doc_audit_redactions" => self.doc_audit_redactions(&a)?,
             "fill_sign_add" => self.fill_sign_add(&a)?,
@@ -1352,6 +1353,55 @@ impl Automation {
         }
         let mut out = self.apply(a, Edit::DividePages { pages, cols, rows, rtl })?;
         out["page_sizes"] = json!(self.doc(a)?.info.pages.iter().map(|p| [p.width, p.height]).collect::<Vec<_>>());
+        Ok(out)
+    }
+
+    /// Organize ▸ Layout ▸ Stitch pages: the pages on one long page, as a new document (opened,
+    /// written to `out`, or both). The document itself is not changed.
+    fn doc_stitch(&mut self, a: &Args) -> Result<Value> {
+        use pdfcraft_engine::{StitchAlign, StitchDirection, StitchOptions};
+        let (id, name, n) = {
+            let d = self.doc(a)?;
+            (d.id, d.name.clone(), d.info.pages.len())
+        };
+        let pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => (0..n).collect(),
+        };
+        let direction = match a.opt_str("direction")?.unwrap_or("vertical") {
+            "vertical" => StitchDirection::Vertical,
+            "horizontal" => StitchDirection::Horizontal,
+            d => return Err(ToolError::InvalidArgs(format!("unknown direction {d:?} (vertical, horizontal)"))),
+        };
+        let white = match a.opt_str("background")?.unwrap_or("white") {
+            "white" => true,
+            "none" => false,
+            b => return Err(ToolError::InvalidArgs(format!("unknown background {b:?} (white, none)"))),
+        };
+        let align = match a.opt_str("align")?.unwrap_or("centre") {
+            "start" => StitchAlign::Start,
+            "centre" | "center" => StitchAlign::Centre,
+            "end" => StitchAlign::End,
+            x => return Err(ToolError::InvalidArgs(format!("unknown align {x:?} (start, centre, end)"))),
+        };
+        let gap = a.opt_num("gap")?.unwrap_or(0.0);
+        if !gap.is_finite() || !(0.0..=pdfcraft_engine::MAX_STITCH_GAP).contains(&gap) {
+            return Err(ToolError::InvalidArgs(format!("gap must be from 0 to {} points (got {gap})", pdfcraft_engine::MAX_STITCH_GAP)));
+        }
+        if pages.len() > pdfcraft_engine::MAX_STITCH_PAGES {
+            return Err(ToolError::InvalidArgs(format!(
+                "{} pages can't go on one page: stitch at most {} pages at a time",
+                pages.len(),
+                pdfcraft_engine::MAX_STITCH_PAGES
+            )));
+        }
+        let opts = StitchOptions { direction, gap, white, align };
+        let (bytes, layout) = self.session.stitch_new(id, &pages, &opts).map_err(failed)?;
+        let mut out = self.deliver(a, &pdfcraft_engine::stitch_name(&name), bytes)?;
+        out["pages"] = json!(pages.len());
+        out["width"] = json!(layout.size.0);
+        out["height"] = json!(layout.size.1);
+        out["user_unit"] = json!(layout.user_unit);
         Ok(out)
     }
 

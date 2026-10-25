@@ -62,6 +62,7 @@ mod search_ui;
 mod sign_ui;
 mod stamps_ui;
 mod standards_ui;
+mod stitch_ui;
 mod zoom_snap;
 /// Header & footer / watermark / background dialog types (tests and automation).
 pub mod marks {
@@ -296,6 +297,8 @@ pub enum Dialog {
     PageBoxes,
     /// Organize ▸ Layout ▸ Pages per sheet (N-up), Booklet or Poster: the sheets as a new document.
     Impose(print_ui::Handling),
+    /// Organize ▸ Layout ▸ Stitch pages: the pages on one long page, as a new document.
+    Stitch,
     /// Organize pages ▸ Divide pages.
     DividePages,
     /// Organize ▸ Layout ▸ Remove blank pages: the pages that look blank, checked for removal.
@@ -797,6 +800,8 @@ pub struct PdfCraftApp {
     pub boxes_draft: pageboxes::BoxesDraft,
     /// Organize ▸ Layout ▸ N-up, Booklet and Poster dialog state.
     pub impose_draft: impose_ui::ImposeDraft,
+    /// Organize ▸ Layout ▸ Stitch pages dialog state.
+    pub stitch_draft: stitch_ui::StitchDraft,
     /// Divide Pages dialog state.
     pub divide_draft: divide_ui::DivideDraft,
     /// Organize ▸ Layout ▸ Remove blank pages dialog state (options, search, results).
@@ -1096,6 +1101,7 @@ impl PdfCraftApp {
             protect_draft: Default::default(),
             boxes_draft: Default::default(),
             impose_draft: Default::default(),
+            stitch_draft: Default::default(),
             divide_draft: Default::default(),
             blank_draft: Default::default(),
             rasterize_draft: Default::default(),
@@ -2601,6 +2607,7 @@ impl PdfCraftApp {
                     "protect" => Some(Dialog::Protect),
                     "page-boxes" => Some(Dialog::PageBoxes),
                     "divide-pages" => Some(Dialog::DividePages),
+                    "stitch-pages" => Some(Dialog::Stitch),
                     "rotate-angle" => Some(Dialog::RotateAngle),
                     "resize-pages" => Some(Dialog::ResizePages),
                     "header-footer" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter)),

@@ -60,6 +60,8 @@ pub use pdfcraft_organize::LabelStyle;
 /// The most columns, and the most rows, Divide Pages cuts a page into.
 pub use pdfcraft_organize::MAX_DIVIDE;
 pub use pdfcraft_organize::view::{InitialView, Layout as InitialLayout, Magnification, Navigation};
+/// Stitch pages (PL6): its options, layout and limits.
+pub use pdfcraft_organize::{MAX_STITCH_GAP, MAX_STITCH_PAGES, StitchAlign, StitchDirection, StitchLayout, StitchOptions, stitch_layout};
 
 pub use pdfcraft_cos::Algorithm;
 pub use pdfcraft_create::{CONVERTIBLE, CreateError, ImageResolution, SourceKind, decode_text, source_kind};
@@ -2952,6 +2954,12 @@ pub fn impose_name(name: &str, layout: &print::Layout) -> String {
     format!("{stem} ({what}).pdf")
 }
 
+/// The name [`Session::stitch_new`]'s result opens under: `<name> (stitched).pdf`.
+pub fn stitch_name(name: &str) -> String {
+    let stem = name.strip_suffix(".pdf").or_else(|| name.strip_suffix(".PDF")).unwrap_or(name);
+    format!("{stem} (stitched).pdf")
+}
+
 /// Parse another PDF to copy pages from.
 fn open_source(name: &str, bytes: &Arc<Vec<u8>>) -> Result<pdfcraft_cos::Document, EditError> {
     open_source_with(name, bytes, None)
@@ -4668,6 +4676,28 @@ impl Session {
         let sheets = pdfcraft_organize::page_count(&out)?;
         pdfcraft_render::check_pages(bytes.clone(), None, sheets).map_err(|e| EditError::Reopen(e.to_string()))?;
         Ok(bytes)
+    }
+
+    /// Organize ▸ Layout ▸ Stitch pages: `pages` (0-based, in this order) placed one after another
+    /// on a single long page, as a **new** PDF (to open with [`Self::open_new`], named with
+    /// [`stitch_name`]), with where everything went. The pages come as they are now, unsaved
+    /// changes included, and their layers as shown; links, comments and form fields are not
+    /// carried over. The document itself is not changed.
+    ///
+    /// The result is not encrypted, so a restricted document needs the Assembly permission (or
+    /// the owner password), as [`Self::impose_new`] does.
+    pub fn stitch_new(&self, id: DocId, pages: &[usize], opts: &StitchOptions) -> Result<(Arc<Vec<u8>>, StitchLayout), EditError> {
+        let src = self.cos(id)?;
+        if src.permissions().is_some_and(|p| !p.assemble()) {
+            return Err(EditError::NotPermitted("making a new document from its pages"));
+        }
+        let doc = self.get(id).ok_or(EditError::NoDocument)?;
+        let mut cos = src.clone();
+        if !doc.config.layers.is_empty() {
+            set_default_layer_state(&mut cos, &doc.info.layers);
+        }
+        let (out, layout) = guard(|| pdfcraft_organize::stitch_pages(&cos, pages, opts)).map_err(EditError::Write)??;
+        Ok((self.write_new(&out)?, layout))
     }
 
     /// Combine whole files, in order, into new PDF bytes (one bookmark per file).

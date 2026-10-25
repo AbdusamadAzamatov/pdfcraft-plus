@@ -595,6 +595,25 @@ pub fn tools() -> Vec<ToolDef> {
             })),
             &["doc", "layout"],
         )),
+        t(
+            "doc_stitch",
+            "Stitch pages onto one long page",
+            "Place pages one after another on a single long page, as a new PDF (Organize ▸ Layout ▸ Stitch pages): pages (1-based, in the order given, a page may repeat; default all, at most 1000), direction vertical (default, top to bottom) or horizontal (left to right), gap between pages in points (0–72, default 0), background white (default) or none, align start/centre/end (default centre: where a narrower page sits across the strip; start is the left edge, or the top edge when horizontal). Pages keep their size as shown; a strip longer than 14,400 pt gets a /UserUnit (reported as user_unit) so viewers can show it. Only page content is copied: links, comments and form fields are not carried over. The result opens as a new unsaved document named \"<name> (stitched).pdf\", and/or is written to out; it reports width and height in points. The document itself is not changed (nothing to undo). The new file is not encrypted, so a restricted document needs the page-assembly permission or the owner password.",
+        )
+        .cmd("page.stitch")
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("to stitch, in order (default: all)"),
+                "direction": { "type": "string", "enum": ["vertical", "horizontal"] },
+                "gap": { "type": "number", "minimum": 0, "maximum": 72, "description": "Space between pages in points (default 0)." },
+                "background": { "type": "string", "enum": ["white", "none"] },
+                "align": { "type": "string", "enum": ["start", "centre", "end"] },
+                "out": { "type": "string", "description": "File to write. Omit to open the result as a new unsaved document instead." },
+                "open": { "type": "boolean", "description": "Also open the result as a new document (default: only when out is omitted)." },
+            }),
+            &["doc"],
+        )),
         t("content_list", "List added content", "Text and images added with page_add_text/page_add_image (or Edit a PDF ▸ Add content), per page with a 1-based index, rect (points from the top-left of the page), and text style.")
             .ro()
             .with(schema(json!({ "doc": doc() }), &["doc"])),

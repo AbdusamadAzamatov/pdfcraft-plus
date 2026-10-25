@@ -7158,3 +7158,69 @@ fn page_trim_margins_crops_to_the_text_and_reports_blank_pages() {
     assert!(matches!(err(&mut a, "page_trim_margins", json!({ "doc": doc, "pages": [9] })), ToolError::InvalidArgs(m) if m.contains("page 9")));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Organize ▸ Layout ▸ Stitch pages (PL6): `doc_stitch` puts the pages on one long page in a new
+/// unsaved document without touching the source, writes it atomically inside --root with `out`,
+/// and refuses bad options, paths outside the root and a document that withholds page assembly.
+#[test]
+fn doc_stitch_puts_pages_on_one_long_page_as_a_new_document() {
+    let dir = workdir("stitch");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    // Three 200 × 300 pages with a 10 pt gap.
+    let r = ok(&mut a, "doc_stitch", json!({ "doc": doc, "gap": 10 }));
+    assert_eq!((r["width"].as_f64(), r["height"].as_f64(), r["user_unit"].as_u64()), (Some(200.0), Some(920.0), Some(1)), "{r}");
+    assert_eq!(r["pages"].as_u64(), Some(3));
+    assert_eq!(r["document"]["name"], "a (stitched).pdf");
+    assert_eq!(r["document"]["pages"].as_u64(), Some(1));
+    assert!(r.get("path").is_none(), "nothing written without out");
+    let new = r["document"]["doc"].as_u64().unwrap();
+    assert_ne!(new, doc, "a new document");
+    let text = page_text(&mut a, new).join(" ");
+    for p in ["Page 1", "Page 2", "Page 3"] {
+        assert!(text.contains(p), "{text}");
+    }
+    let source = ok(&mut a, "doc_info", json!({ "doc": doc }))["document"].clone();
+    assert_eq!((source["pages"].as_u64(), source["dirty"].as_bool()), (Some(3), Some(false)), "the source is unchanged");
+
+    // Pages 3 and 1 side by side, written to a file and not opened.
+    let r = ok(
+        &mut a,
+        "doc_stitch",
+        json!({ "doc": doc, "pages": [3, 1], "direction": "horizontal", "background": "none", "align": "end", "out": "strips/h.pdf" }),
+    );
+    assert_eq!((r["width"].as_f64(), r["height"].as_f64()), (Some(400.0), Some(300.0)));
+    assert!(r.get("document").is_none(), "out alone doesn't open it");
+    assert_eq!(std::fs::read_dir(dir.join("strips")).unwrap().count(), 1, "no staging file is left behind");
+    let reopened = ok(&mut a, "doc_open", json!({ "path": "strips/h.pdf" }))["doc"].as_u64().unwrap();
+    let info = ok(&mut a, "doc_info", json!({ "doc": reopened }))["document"].clone();
+    assert_eq!(info["pages"].as_u64(), Some(1));
+
+    let outside = dir.parent().unwrap().join(format!("pdfcraft-stitch-escape-{}.pdf", std::process::id()));
+    assert!(a.call("doc_stitch", &json!({ "doc": doc, "out": "../".to_string() + outside.file_name().unwrap().to_str().unwrap() })).is_err());
+    assert!(!outside.exists(), "nothing written outside --root");
+    for (bad, says) in [
+        (json!({ "doc": doc, "gap": 73 }), "gap"),
+        (json!({ "doc": doc, "gap": -1 }), "gap"),
+        (json!({ "doc": doc, "direction": "diagonal" }), "direction"),
+        (json!({ "doc": doc, "background": "black" }), "background"),
+        (json!({ "doc": doc, "align": "middle" }), "align"),
+        (json!({ "doc": doc, "pages": [4] }), "out of range"),
+        (json!({ "doc": doc, "pages": vec![1; 1001] }), "at most 1000"),
+    ] {
+        assert!(matches!(err(&mut a, "doc_stitch", bad.clone()), ToolError::InvalidArgs(m) if m.contains(says)), "{bad}");
+    }
+
+    // A document that withholds page assembly (no password to open it) is refused.
+    let restricted = {
+        use pdfcraft_engine::{Edit, Protection, Session};
+        let mut s = Session::new();
+        let id = s.open("r.pdf", None, std::sync::Arc::new(fixture(2)), None).unwrap();
+        s.apply(id, Edit::Protect(Protection { permissions_password: Some("owner".into()), ..Default::default() })).unwrap();
+        s.save_bytes(id).unwrap().as_ref().clone()
+    };
+    std::fs::write(dir.join("r.pdf"), restricted).unwrap();
+    let r = ok(&mut a, "doc_open", json!({ "path": "r.pdf" }))["doc"].as_u64().unwrap();
+    assert!(matches!(err(&mut a, "doc_stitch", json!({ "doc": r })), ToolError::Failed(m) if m.contains("don't allow")));
+    let _ = std::fs::remove_dir_all(&dir);
+}

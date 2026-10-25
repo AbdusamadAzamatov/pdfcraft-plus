@@ -6533,3 +6533,118 @@ fn a_fast_web_view_save_renders_the_same_and_an_incremental_save_ends_it() {
     assert_eq!(doc.revision_ends().len(), 2);
     assert_eq!(doc.info.pages[1].rotation, 90);
 }
+
+/// Three 100 × 200 pt pages for Stitch pages (PL6), each with a different picture: a coloured
+/// block in a different place and its number in black.
+fn stitch_fixture() -> Vec<u8> {
+    let bodies = [
+        "1 0 0 rg 10 120 50 60 re f BT /F1 40 Tf 0 0 0 rg 20 20 Td (1) Tj ET",
+        "0 0.6 0 rg 40 60 50 100 re f BT /F1 40 Tf 0 0 0 rg 50 150 Td (2) Tj ET",
+        "0 0 1 rg 0 0 100 30 re f BT /F1 40 Tf 0 0 0 rg 30 80 Td (3) Tj ET",
+    ];
+    let mut objs: Vec<String> = vec![
+        "<< /Type /Catalog /Pages 2 0 R >>".into(),
+        "<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 /MediaBox [0 0 100 200] >>".into(),
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into(),
+    ];
+    for (i, body) in bodies.iter().enumerate() {
+        objs.push(format!("<< /Type /Page /Parent 2 0 R /Contents {} 0 R /Resources << /Font << /F1 3 0 R >> >> >>", 5 + 2 * i));
+        objs.push(format!("<< /Length {} >>\nstream\n{body}\nendstream", body.len()));
+    }
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{o}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    out
+}
+
+/// Stitch pages (PL6): three 100 × 200 pages with a 10 pt gap make one 100 × 620 page in a new
+/// document, each 200 pt slice of it renders as its source page does, and the source is unchanged.
+#[test]
+fn stitch_new_puts_three_pages_on_one_100_by_620_page_whose_slices_match_the_sources() {
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let id = s.open("strip.pdf", None, Arc::new(stitch_fixture()), None).unwrap();
+    let before = s.save_bytes(id).unwrap();
+    let opts = StitchOptions { gap: 10.0, ..StitchOptions::default() };
+    let (bytes, layout) = s.stitch_new(id, &[0, 1, 2], &opts).unwrap();
+    assert_eq!((layout.size, layout.user_unit), ((100.0, 620.0), 1));
+    let name = stitch_name(&s.get(id).unwrap().name);
+    assert_eq!(name, "strip (stitched).pdf");
+    let new = s.open_new(name, bytes).unwrap();
+    let d = s.get(new).unwrap();
+    assert_eq!(d.info.pages.len(), 1);
+    assert_eq!((d.info.pages[0].width, d.info.pages[0].height), (100.0, 620.0));
+    assert!(d.dirty, "the new document is unsaved");
+    assert!(!s.get(id).unwrap().dirty, "the source is unchanged");
+    assert_eq!(s.save_bytes(id).unwrap(), before);
+    let render = |doc: DocId, page: usize| {
+        let d = s.get(doc).unwrap();
+        let out = pdfcraft_render::PageRenderer::new(d.bytes.clone(), d.config.clone()).render(pdfcraft_render::RenderRequest {
+            page,
+            scale: 1.0,
+            ..Default::default()
+        });
+        assert!(out.error.is_none(), "{:?}", out.error);
+        out
+    };
+    let strip = render(new, 0);
+    assert_eq!((strip.width, strip.height), (100, 620));
+    for page in 0..3usize {
+        let src = render(id, page);
+        assert_eq!((src.width, src.height), (100, 200));
+        let top = page * 210;
+        let row = 100 * 4;
+        let slice = &strip.rgba[top * row..(top + 200) * row];
+        let differing = slice.iter().zip(src.rgba.iter()).filter(|(a, b)| a.abs_diff(**b) > 8).count();
+        assert!(differing < 40, "page {} slice differs in {differing} channels", page + 1);
+        // The gap under it is white (the background).
+        if page < 2 {
+            let gap = &strip.rgba[(top + 205) * row..(top + 206) * row];
+            assert!(gap.iter().all(|c| *c == 255), "gap after page {}", page + 1);
+        }
+    }
+}
+
+/// Two hundred pages are longer than viewers allow a page side (14,400 units), so the stitched
+/// page uses `/UserUnit` and still shows every page at its size.
+#[test]
+fn stitch_new_of_two_hundred_pages_sets_a_user_unit() {
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let id = s.open("long.pdf", None, Arc::new(fixture(200)), None).unwrap();
+    let pages: Vec<usize> = (0..200).collect();
+    let (bytes, layout) = s.stitch_new(id, &pages, &StitchOptions::default()).unwrap();
+    assert_eq!(layout.size, (200.0, 60_000.0));
+    assert_eq!(layout.user_unit, 5, "60,000 pt needs a unit of 5 to fit 14,400");
+    let out = pdfcraft_cos::Document::open(bytes.clone()).unwrap();
+    let page = pdfcraft_model::pages(&out).remove(0);
+    assert_eq!(page.user_unit(&out), 5.0);
+    assert_eq!(page.display_size(&out), (200.0, 60_000.0));
+    let new = s.open_new("long (stitched).pdf", bytes).unwrap();
+    let info = &s.get(new).unwrap().info.pages[0];
+    assert_eq!((info.width, info.height), (200.0, 60_000.0));
+    // Too many pages, or none, is refused with what to do.
+    let many = vec![0; MAX_STITCH_PAGES + 1];
+    assert!(matches!(s.stitch_new(id, &many, &StitchOptions::default()), Err(EditError::Organize(e)) if e.to_string().contains("at most 1000")));
+}
+
+/// The stitched file is not encrypted, so a document whose security withholds page assembly is
+/// refused unless the owner password opened it.
+#[test]
+fn stitch_new_refuses_a_document_without_the_assembly_permission() {
+    let bytes = protected("", "owner", 0b0100); // print only, no password to open
+    let mut s = Session::new();
+    let id = s.open("r.pdf", None, bytes.clone(), None).unwrap();
+    let opts = StitchOptions::default();
+    assert_eq!(s.stitch_new(id, &[0, 1], &opts).map(|_| ()), Err(EditError::NotPermitted("making a new document from its pages")));
+    let owner = s.open("r.pdf", None, bytes, Some("owner")).unwrap();
+    let (out, _) = s.stitch_new(owner, &[0, 1], &opts).unwrap();
+    assert!(pdfcraft_cos::Document::open(out).is_ok(), "the owner's copy opens without a password");
+}

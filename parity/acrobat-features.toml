@@ -2924,6 +2924,18 @@ evidence = ["crates/automation/tests/automation.rs::doc_impose_makes_a_booklet_a
 notes = "Organize ▸ Layout ▸ Poster (tile)…: the print.poster layout (tile scale, overlap, cut marks; at most 1024 sheets per page) as a new unsaved document '<name> (poster).pdf'; same dialog and permission rule as organize.nup-to-pdf. The automation test writes a poster only to check --root confinement; tiling itself is covered by the print.poster tests."
 
 [[feature]]
+id = "organize.stitch-pages"
+title = "Stitch pages into one long page"
+area = "D"
+tier = "P3"
+milestone = "M4"
+status = "shipped"
+commands = ["page.stitch"]
+tools = ["doc_stitch"]
+evidence = ["crates/organize/src/stitch.rs::stitching_three_pages_with_a_gap_makes_one_100_by_620_page", "crates/organize/src/stitch.rs::two_hundred_pages_get_a_user_unit_and_keep_their_size_in_points", "crates/engine/src/tests.rs::stitch_new_puts_three_pages_on_one_100_by_620_page_whose_slices_match_the_sources", "crates/engine/src/tests.rs::stitch_new_of_two_hundred_pages_sets_a_user_unit", "crates/engine/src/tests.rs::stitch_new_refuses_a_document_without_the_assembly_permission", "crates/automation/tests/automation.rs::doc_stitch_puts_pages_on_one_long_page_as_a_new_document", "crates/ui-egui/tests/print.rs::stitch_dialog_opens_from_the_layout_tools_and_creates_one_long_page_in_a_second_tab"]
+notes = "Organize ▸ Layout ▸ Stitch pages…: the chosen pages (all, the selection or a range; doc_stitch takes any order, repeats allowed) one after another on a single page of a new unsaved document '<name> (stitched).pdf'. Direction vertical (default) or horizontal, gap 0–72 pt, background white (default) or none, alignment start/centre/end across the strip (default centre; start is left, or top when horizontal). Each page is a Form XObject copy (page_as_form) placed with cm, so it stays vector, keeps its rotation as shown and its own /UserUnit; shared fonts and images are merged. Past 14,400 pt the page gets the smallest whole /UserUnit that brings both sides within 14,400 units (ISO 32000-2 §14.11.2); more than 1,000 pages, or a strip needing a unit above 75,000, is refused. Only page content comes over: links, comments, form fields, bookmarks, tags and document info are not carried (the dialog says so). The result is unencrypted, so a restricted document needs the page-assembly permission or the owner password. Not done: no live preview of the strip in the dialog, and a page's own optional-content (layer) settings follow the document as shown."
+
+[[feature]]
 id = "organize.remove-blank-pages"
 title = "Remove blank pages"
 area = "D"

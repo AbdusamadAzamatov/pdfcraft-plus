@@ -77,7 +77,7 @@ fn rect_object(r: [f64; 4]) -> Object {
 }
 
 /// A content-stream number: up to six decimals, without trailing zeros.
-fn num(v: f64) -> String {
+pub(crate) fn num(v: f64) -> String {
     let r = (v * 1.0e6).round() / 1.0e6;
     if r == 0.0 || !r.is_finite() {
         return "0".into();
