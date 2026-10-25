@@ -2793,3 +2793,10 @@ certificate	Version	الإصدار
 	Background:	الخلفية:
 	White	أبيض
 	Links and comments are not carried over.	لا تُنقل الروابط والتعليقات.
+	Straighten scans…	تقويم الصفحات الممسوحة…
+	Only pages that are scans	الصفحات الممسوحة ضوئيًا فقط
+	Minimum angle	أدنى زاوية
+	No tilted pages found	لم يُعثر على صفحات مائلة
+	Straighten	تقويم
+	Pages with comments or form fields are left as they are	تُترك الصفحات التي تحتوي على تعليقات أو حقول نماذج كما هي
+	Straighten pages	تقويم الصفحات

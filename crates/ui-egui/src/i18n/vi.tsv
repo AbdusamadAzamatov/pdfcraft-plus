@@ -2769,3 +2769,10 @@ key	Space	Space
 	Background:	Nền:
 	White	Trắng
 	Links and comments are not carried over.	Liên kết và nhận xét không được giữ lại.
+	Straighten scans…	Làm thẳng bản quét…
+	Only pages that are scans	Chỉ các trang là bản quét
+	Minimum angle	Góc tối thiểu
+	No tilted pages found	Không tìm thấy trang bị nghiêng
+	Straighten	Làm thẳng
+	Pages with comments or form fields are left as they are	Các trang có nhận xét hoặc trường biểu mẫu được giữ nguyên
+	Straighten pages	Làm thẳng trang

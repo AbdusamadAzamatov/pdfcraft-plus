@@ -7224,3 +7224,52 @@ fn doc_stitch_puts_pages_on_one_long_page_as_a_new_document() {
     assert!(matches!(err(&mut a, "doc_stitch", json!({ "doc": r })), ToolError::Failed(m) if m.contains("don't allow")));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Straighten scans (PL9): a scan of a page turned 3° clockwise is found tilted by −3°
+/// (`detect_only` changes nothing), `page_deskew` straightens it in one undo step keeping the page
+/// size, and measuring again finds it straight. A page of text is not a scan, and bad options
+/// are refused with what is allowed.
+#[test]
+fn page_deskew_finds_the_tilt_of_a_scan_and_straightens_it() {
+    let dir = workdir("deskew");
+    let mut a = auto(&dir);
+    let line = "The quick brown fox jumps over the lazy dog while the scanner hums along.";
+    let text = ok(&mut a, "doc_create", json!({ "from": "text", "text": vec![line; 30].join("\n") }))["doc"].as_u64().unwrap();
+    let r = ok(&mut a, "page_deskew", json!({ "doc": text }));
+    assert_eq!(r["found"][0]["skipped"], "not_scan", "{r}");
+    assert_eq!(r["straightened"], json!([]));
+    assert!(r["note"].is_string());
+    ok(&mut a, "page_rotate_angle", json!({ "doc": text, "degrees": 3, "fit": "crop" }));
+    ok(&mut a, "doc_export_images", json!({ "doc": text, "folder": "scan", "dpi": 100, "pages": [1] }));
+    let png = std::fs::read_dir(dir.join("scan")).unwrap().next().unwrap().unwrap().path();
+    let scan = ok(&mut a, "doc_create", json!({ "from": "images", "paths": [png.to_string_lossy()], "dpi": 100 }))["doc"].as_u64().unwrap();
+    let size = |a: &mut Automation| {
+        let info = ok(a, "doc_info", json!({ "doc": scan }));
+        (info["pages"][0]["width"].as_f64().unwrap(), info["pages"][0]["height"].as_f64().unwrap())
+    };
+    let before = size(&mut a);
+
+    let r = ok(&mut a, "page_deskew", json!({ "doc": scan, "detect_only": true }));
+    let found = &r["found"][0];
+    assert_eq!(found["page"], 1);
+    assert!((found["angle"].as_f64().unwrap() + 3.0).abs() <= 0.1, "{r}");
+    assert!(found["confidence"].as_f64().unwrap() >= 0.35 && found["straighten"] == true, "{r}");
+    assert_eq!(r["to_straighten"], json!([1]));
+    let again = ok(&mut a, "page_deskew", json!({ "doc": scan, "detect_only": true }));
+    assert_eq!(again["found"], r["found"], "detect_only changes nothing");
+
+    let r = ok(&mut a, "page_deskew", json!({ "doc": scan }));
+    assert_eq!(r["straightened"], json!([1]), "{r}");
+    assert_eq!(r["undo"], "Straighten pages");
+    assert_eq!(size(&mut a), before, "the page keeps its size");
+    let r = ok(&mut a, "page_deskew", json!({ "doc": scan, "detect_only": true }));
+    assert!(r["found"][0]["angle"].as_f64().unwrap().abs() <= 0.1, "{r}");
+    assert_eq!(r["found"][0]["skipped"], "straight", "{r}");
+    assert!(a.call("page_render", &json!({ "doc": scan, "page": 1, "dpi": 36 })).is_ok(), "the straightened page renders");
+
+    for bad in [json!(-1), json!(20)] {
+        assert!(matches!(err(&mut a, "page_deskew", json!({ "doc": scan, "min_angle": bad })), ToolError::InvalidArgs(m) if m.contains("0 to 15")));
+    }
+    assert!(matches!(err(&mut a, "page_deskew", json!({ "doc": scan, "pages": [2] })), ToolError::InvalidArgs(_)));
+    let _ = std::fs::remove_dir_all(dir);
+}

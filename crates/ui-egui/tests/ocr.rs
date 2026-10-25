@@ -162,3 +162,58 @@ fn an_ocr_word_opens_for_editing_and_stays_open() {
     h.run_steps(4);
     assert_eq!(opened(&h).as_deref(), Some("Recognize"), "moving the pointer away keeps the word open");
 }
+
+/// A two-page scan at 100 dpi: thirty lines of prose turned 3° clockwise, then the same prose
+/// straight.
+fn tilted_scan() -> Vec<u8> {
+    let mut s = Session::new();
+    let line = "The quick brown fox jumps over the lazy dog while the scanner hums along.";
+    let text = s.create_from_text("t", &vec![line; 30].join("\n")).unwrap();
+    let id = s.open("text.pdf", None, text, None).unwrap();
+    let straight = export::Exporter::new(s.get(id).unwrap()).png(0, 100.0).unwrap();
+    s.apply(id, Edit::RotateContent { pages: vec![0], degrees: 3.0, fit: pdfcraft_engine::RotateFit::Crop }).unwrap();
+    let tilted = export::Exporter::new(s.get(id).unwrap()).png(0, 100.0).unwrap();
+    let images = [("a.png".to_string(), tilted), ("b.png".to_string(), straight)];
+    s.create_from_images_with_resolution(&images, pdfcraft_engine::ImageResolution::Dpi(100.0)).unwrap().to_vec()
+}
+
+/// Straighten scans (PL9): the dialog opens from the Scan & OCR tools, measures on its worker
+/// (inline here), lists only the tilted page with its angle, checked; Straighten turns it in one
+/// undo step, after which measuring again finds nothing to straighten.
+#[test]
+fn straighten_scans_lists_the_tilted_page_and_straightens_it_in_one_step() {
+    use egui::accesskit::{Role, Toggled};
+    use egui_kittest::kittest::NodeT;
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("scan.pdf", None, tilted_scan()).unwrap();
+        app.run_inline = true;
+        app
+    });
+    h.run_steps(4);
+    h.state_mut().set_option("tool", "scan").unwrap();
+    h.run_steps(4);
+    h.get_by_label("Straighten scans…").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, Some(pdfcraft_ui_egui::Dialog::Deskew));
+    h.get_by_label("Only pages that are scans");
+    let found = &h.state().deskew_draft.found;
+    assert_eq!(found.len(), 1, "only the tilted page is listed: {found:?}");
+    let (page, on) = found[0];
+    assert!(on && page.page == 0 && (page.angle.unwrap() + 3.0).abs() <= 0.1, "{page:?}");
+    let row = h.get_by_role_and_label(Role::CheckBox, "Page 1");
+    assert_eq!(row.accesskit_node().toggled(), Some(Toggled::True));
+    h.get_by_label_contains("-3.0");
+    h.get_by_role_and_label(Role::Button, "Straighten").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, None);
+    let id = h.state().active_ids().unwrap().1;
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), Some("Straighten pages"));
+
+    // Measured again, nothing is tilted any more.
+    assert!(h.state_mut().execute("page.deskew"));
+    h.run_steps(4);
+    h.get_by_label("No tilted pages found");
+    assert!(h.get_by_role_and_label(Role::Button, "Straighten").accesskit_node().is_disabled());
+}

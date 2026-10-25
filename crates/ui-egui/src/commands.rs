@@ -687,6 +687,7 @@ impl PdfCraftApp {
             "page.stitch" => self.open_stitch(),
             "page.remove_blank" => self.open_remove_blank(),
             "page.trim_margins" => self.open_trim_margins(),
+            "page.deskew" => self.open_deskew(),
             "page.rotate_dialog" => {
                 if let Some(i) = active {
                     let n = self.session.get(self.views[i].id).map_or(1, |d| d.info.pages.len());

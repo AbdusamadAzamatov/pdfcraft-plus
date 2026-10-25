@@ -6693,11 +6693,11 @@ title = "Deskew"
 area = "I"
 tier = "P1"
 milestone = "M10"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "partial"
+commands = ["page.deskew"]
+tools = ["page_deskew"]
+evidence = ["crates/engine/src/deskew.rs::a_text_page_turned_three_degrees_is_found_within_a_tenth", "crates/engine/src/deskew.rs::a_straight_page_reads_zero_and_wide_tilts_are_found_too", "crates/engine/src/deskew.rs::blank_pages_and_photos_are_skipped", "crates/engine/src/deskew.rs::short_empty_and_huge_rasters_say_nothing_and_never_panic", "crates/engine/src/deskew.rs::a_raster_too_large_to_read_in_full_is_sampled_without_a_bias_to_zero", "crates/engine/src/deskew.rs::a_tilted_scan_is_found_straightened_in_one_step_and_then_reads_straight", "crates/engine/src/deskew.rs::text_pages_comments_and_bad_options_are_reported_not_turned", "crates/automation/tests/automation.rs::page_deskew_finds_the_tilt_of_a_scan_and_straightens_it", "crates/ui-egui/tests/ocr.rs::straighten_scans_lists_the_tilted_page_and_straightens_it_in_one_step"]
+notes = "Organize ▸ Layout and Scan & OCR ▸ Straighten scans…: each page is drawn at 100 dpi in grey, split into ink and paper at Otsu's threshold, and its tilt found by a projection-profile search (ink pixels sheared by −15…15° at 1°, then ±1° at 0.05° around the best, scoring the variance of the row sums, refined between steps; within 0.1° on synthetic text). Confidence is 1 − median score ÷ best score; pages below 0.35, with less than 0.1% or more than 35% ink, or without two clearly different tones (blank pages, photos, very little text) are left alone. Options: only pages that are scans (default on: one image, not Form artwork, covering at least 80% of the crop box; MRC scans made of several images don't count) and the smallest angle to correct (default 0.2°; dialog 0–5°, tool 0–15°). Straightening is PL2's rotation in 'keep page size, crop' mode about the page centre, clockwise as shown and composed with /Rotate: the content (scan image and any OCR text layer) is wrapped in a transform, so the image is not resampled; all pages turn in one undo step ('Straighten pages'). Decision: pages with comments or form fields are measured but not straightened (their appearances can't turn inside an axis-aligned /Rect); the dialog says so and the tool reports skipped 'annotated' (flatten first, or use Rotate by angle). The dialog measures on a worker thread with progress, lists each tilted page with its angle, checked; changing an option measures again. page_deskew detect_only reports angle and confidence per page. Missing: deskew as a Recognize text option (OCR-time), pages that are mostly picture with some text (rejected by the ink share), tilts beyond 15°, upside-down or sideways pages (ocr.rotation-detection)."
 
 [[feature]]
 id = "ocr.despeckle"

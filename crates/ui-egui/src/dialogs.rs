@@ -60,6 +60,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut stitch_now = false;
     let mut divide_now = false;
     let mut blank_now = false;
+    let mut deskew_now = false;
     let mut rasterize_now = false;
     let mut gray_now = false;
     let mut trim_now = false;
@@ -1055,6 +1056,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = remove || cancel;
                 return;
             }
+            Dialog::Deskew => {
+                let (go, cancel) = crate::deskew_ui::body(ui, app, &t);
+                deskew_now = go;
+                close = go || cancel;
+                return;
+            }
             Dialog::Rasterize => {
                 let (go, cancel) = crate::rasterize_ui::body(ui, app, &t);
                 rasterize_now = go;
@@ -1462,6 +1469,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     if blank_now {
         app.remove_blank_with_draft();
     }
+    if deskew_now {
+        app.deskew_with_draft();
+    }
     if rasterize_now {
         app.rasterize_with_draft();
     }
@@ -1489,8 +1499,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     // Protect / Remove security replace the Properties dialog.
     let replaces = link_command.is_some_and(|c| c.starts_with("protect.")) || open_revision.is_some();
     if modal.should_close() || close || replaces {
-        // A search still under way for Remove blank pages has no one to report to.
+        // A search still under way for Remove blank pages or Straighten scans has no one to report to.
         app.blank_draft.cancel();
+        app.deskew_draft.cancel();
         app.dialog = None;
         app.props_draft = None;
         app.view_draft = None;

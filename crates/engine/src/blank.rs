@@ -65,7 +65,7 @@ pub struct BlankPage {
 }
 
 /// The luma (Rec. 601, 0–255) of a premultiplied RGBA pixel composed over white paper.
-fn luma_over_white(px: &[u8; 4]) -> u32 {
+pub(crate) fn luma_over_white(px: &[u8; 4]) -> u32 {
     let gap = 255 - u32::from(px[3]);
     let [r, g, b] = [px[0], px[1], px[2]].map(|c| (u32::from(c) + gap).min(255));
     ((299 * r + 587 * g + 114 * b) / 1000).min(255)

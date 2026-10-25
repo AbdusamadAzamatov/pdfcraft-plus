@@ -83,6 +83,7 @@ mod divide_ui;
 mod edit_text_ui;
 pub use edit_text_ui::CropMode;
 mod blank_ui;
+mod deskew_ui;
 mod editing;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file_watch;
@@ -305,6 +306,8 @@ pub enum Dialog {
     RemoveBlank,
     /// Organize ▸ Layout ▸ Trim white margins.
     TrimMargins,
+    /// Organize ▸ Layout / Scan & OCR ▸ Straighten scans: each tilted page with its angle, checked.
+    Deskew,
     /// Compress ▸ Clean up ▸ Rasterize pages.
     Rasterize,
     /// Compress ▸ Clean up ▸ Convert to grayscale: the confirmation, then the report.
@@ -806,6 +809,8 @@ pub struct PdfCraftApp {
     pub divide_draft: divide_ui::DivideDraft,
     /// Organize ▸ Layout ▸ Remove blank pages dialog state (options, search, results).
     pub blank_draft: blank_ui::BlankDraft,
+    /// Organize ▸ Layout / Scan & OCR ▸ Straighten scans dialog state (options, measurement, results).
+    pub deskew_draft: deskew_ui::DeskewDraft,
     /// Compress ▸ Clean up ▸ Rasterize pages dialog state.
     pub rasterize_draft: rasterize_ui::RasterizeDraft,
     /// Convert to grayscale: what the conversion did (`None` while the dialog asks first).
@@ -1104,6 +1109,7 @@ impl PdfCraftApp {
             stitch_draft: Default::default(),
             divide_draft: Default::default(),
             blank_draft: Default::default(),
+            deskew_draft: Default::default(),
             rasterize_draft: Default::default(),
             gray_result: None,
             trim_draft: Default::default(),

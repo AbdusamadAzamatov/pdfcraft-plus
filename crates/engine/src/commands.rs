@@ -373,6 +373,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("page.reverse", "Reverse pages", PAGES, None, Assembly, "arrow-up-down"),
     c("page.divide", "Divide pages…", PAGES, None, Assembly, "columns-2"),
     c("page.remove_blank", "Remove blank pages…", PAGES, None, Assembly, "file-minus"),
+    c("page.deskew", "Straighten scans…", PAGES, None, Assembly, "scan"),
     c("page.crop", "Crop pages", PAGES, None, Assembly, "crop"),
     c("page.trim_margins", "Trim white margins…", PAGES, None, Assembly, "crop"),
     c("page.boxes", "Set page boxes…", PAGES, None, Assembly, "square-dashed-mouse-pointer"),

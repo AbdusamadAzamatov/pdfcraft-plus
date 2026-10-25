@@ -304,6 +304,7 @@ impl Automation {
                 self.apply(&a, Edit::DeletePages { pages })?
             }
             "page_find_blank" => self.page_find_blank(&a)?,
+            "page_deskew" => self.page_deskew(&a)?,
             "page_move" => {
                 let pages = self.pages(&a, "pages")?;
                 let to = self.position(&a, "to")?;
@@ -2108,6 +2109,50 @@ impl Automation {
         if !numbers.is_empty() && numbers.len() == total {
             out["note"] = json!("every page looks blank: page_delete refuses to remove them all, since a document must keep at least one page");
         }
+        Ok(out)
+    }
+
+    /// `page_deskew`: each page's tilt (1-based pages), and unless `detect_only`, straighten the
+    /// pages that aren't skipped in one undo step.
+    fn page_deskew(&mut self, a: &Args) -> Result<Value> {
+        use pdfcraft_engine::deskew;
+        let id = self.doc(a)?.id;
+        let pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => Vec::new(),
+        };
+        let min_angle = a.opt_num("min_angle")?.unwrap_or(deskew::DEFAULT_MIN_ANGLE);
+        if !min_angle.is_finite() || !(0.0..=deskew::MAX_ANGLE).contains(&min_angle) {
+            return Err(ToolError::InvalidArgs(format!("min_angle is in degrees from 0 to 15 (default 0.2), not {min_angle}")));
+        }
+        let opts = pdfcraft_engine::DeskewOptions { only_scans: a.opt_bool("only_scans")?.unwrap_or(true), min_angle, pages };
+        let found = self.session.find_skew(id, &opts).map_err(failed)?;
+        let round = |v: f64| (v * 1000.0).round() / 1000.0;
+        let report: Vec<Value> = found
+            .iter()
+            .map(|p| {
+                let mut o = json!({ "page": p.page + 1, "angle": p.angle, "confidence": round(p.confidence), "straighten": p.straightens() });
+                if let Some(skip) = p.skip {
+                    o["skipped"] = json!(skip.name());
+                    o["reason"] = json!(skip.reason());
+                }
+                o
+            })
+            .collect();
+        let todo = deskew::to_straighten(&found);
+        let numbers: Vec<usize> = todo.iter().map(|(p, _)| p + 1).collect();
+        if a.opt_bool("detect_only")?.unwrap_or(false) || todo.is_empty() {
+            let mut out = json!({ "found": report, "straightened": [] });
+            if todo.is_empty() {
+                out["note"] = json!("no page needs straightening");
+            } else {
+                out["to_straighten"] = json!(numbers);
+            }
+            return Ok(out);
+        }
+        let mut out = self.apply(a, Edit::straighten(todo))?;
+        out["found"] = json!(report);
+        out["straightened"] = json!(numbers);
         Ok(out)
     }
 

@@ -288,6 +288,17 @@ pub fn tools() -> Vec<ToolDef> {
                 }),
                 &["doc"],
             )),
+        t("page_deskew", "Straighten scans", "Straighten tilted scans (Organize ▸ Layout or Scan & OCR ▸ Straighten scans). found lists each checked page (1-based page, angle, confidence, straighten; skipped and reason when left alone) and straightened the pages turned. Each page is drawn at 100 dpi in grey and its tilt found from how its lines of text line up (±15°, to 0.05°). angle is in degrees, positive when the lines rise to the right; straightening turns that page clockwise by angle about its centre (as page_rotate_angle with fit crop): the page keeps its size, the turned corners are cut off, and the content (scan image and any OCR text layer) is wrapped in a transform, not resampled. confidence (0–1) says how clearly lines were found; pages below 0.35 are left alone. A page is skipped, with skipped and reason, when it is not a scan (only_scans, default true: one image covering at least 80% of the page), has no clear lines of text (blank, a photo, little text), is tilted less than min_angle degrees (0–15, default 0.2), has comments or form fields (flatten them first, or use page_rotate_angle), or can't be drawn. detect_only true (default false) only reports; otherwise every page that isn't skipped is straightened in one undo step.")
+            .cmd("page.deskew")
+            .with(schema(
+                json!({
+                    "doc": doc(), "pages": pages("to check (default: all)"),
+                    "detect_only": { "type": "boolean", "description": "Only report each page's tilt; change nothing (default false)." },
+                    "only_scans": { "type": "boolean", "description": "Only pages that are scans: one image covering the page (default true)." },
+                    "min_angle": { "type": "number", "minimum": 0, "maximum": 15, "description": "The smallest tilt to correct, in degrees (default 0.2)." }
+                }),
+                &["doc"],
+            )),
         t("page_move", "Move pages", "Move pages so the first of them lands at position `to` (1-based, counted before the move). Undoable.").with(schema(
             json!({ "doc": doc(), "pages": pages("to move"), "to": { "type": "integer", "minimum": 1 } }),
             &["doc", "pages", "to"],

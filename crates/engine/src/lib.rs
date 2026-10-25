@@ -24,6 +24,7 @@ pub mod commands;
 pub mod compare;
 mod copy_image;
 pub mod dates;
+pub mod deskew;
 pub mod export;
 pub mod js;
 pub mod links;
@@ -45,6 +46,7 @@ pub mod word_count;
 pub mod xfa;
 
 pub use blank::{BlankOptions, BlankPage};
+pub use deskew::{DeskewOptions, DeskewPage, DeskewSkip};
 pub use signature_image::{ImageSignaturePreview, SignatureImage};
 pub use signature_scan::{PhotoRect, ScanError, SignaturePhoto, Turn};
 pub use text_preview::TextEditPreview;
@@ -2017,6 +2019,7 @@ pub const BATCH_LABELS: &[&str] = &[
     "Recognize text",
     "Flatten comments and rotate",
     "Remove white margins",
+    "Straighten pages",
 ];
 
 impl Edit {
