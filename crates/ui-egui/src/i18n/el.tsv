@@ -2485,3 +2485,13 @@ animation effects	Off	Ανενεργά
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Το κείμενο σε αυτές τις σελίδες δεν θα μπορεί πλέον να αναζητηθεί ή να αντιγραφεί. Εκτελέστε στη συνέχεια την Αναγνώριση κειμένου για να γίνει ξανά αναζητήσιμο.
 	Rasterize	Ραστεροποίηση
 	Couldn't rasterize the pages: {e}	Δεν ήταν δυνατή η ραστεροποίηση των σελίδων: {e}
+	Change page size	Αλλαγή μεγέθους σελίδας
+	Change page size…	Αλλαγή μεγέθους σελίδας…
+	Page size:	Μέγεθος σελίδας:
+	Same as page	Ίδιο με τη σελίδα
+	Match each page	Όπως κάθε σελίδα
+	Scale to fit	Κλιμάκωση για προσαρμογή
+	Scale to fill, crop	Κλιμάκωση για γέμισμα, περικοπή
+	No scaling	Χωρίς κλιμάκωση
+	Only pages of another size	Μόνο σελίδες άλλου μεγέθους
+	Every page already has this size.	Όλες οι σελίδες έχουν ήδη αυτό το μέγεθος.

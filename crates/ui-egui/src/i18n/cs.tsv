@@ -2553,3 +2553,13 @@ animation effects	Off	Vypnuto
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Text na těchto stránkách už nepůjde vyhledávat ani kopírovat. Potom spusťte Rozpoznat text, aby šel znovu vyhledávat.
 	Rasterize	Rastrovat
 	Couldn't rasterize the pages: {e}	Stránky nelze rastrovat: {e}
+	Change page size	Změnit velikost stránky
+	Change page size…	Změnit velikost stránky…
+	Page size:	Velikost stránky:
+	Same as page	Stejná jako stránka
+	Match each page	Podle každé stránky
+	Scale to fit	Přizpůsobit velikosti
+	Scale to fill, crop	Vyplnit a oříznout
+	No scaling	Bez změny měřítka
+	Only pages of another size	Jen stránky jiné velikosti
+	Every page already has this size.	Všechny stránky už mají tuto velikost.

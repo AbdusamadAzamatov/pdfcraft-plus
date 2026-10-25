@@ -224,7 +224,7 @@ fn check_angle(degrees: f64) -> Result<(), OrganizeError> {
 }
 
 /// The page's effective `/Rotate`: its own, else the inherited one.
-fn page_rotate(doc: &Document, page: ObjRef, inherited: &Dict) -> i64 {
+pub(crate) fn page_rotate(doc: &Document, page: ObjRef, inherited: &Dict) -> i64 {
     let own = doc.get(page);
     let attrs = own.as_dict().filter(|d| d.get(b"Rotate").is_some()).unwrap_or(inherited);
     resolved_rotation(doc, attrs)
@@ -297,7 +297,7 @@ fn content_list(doc: &Document, page: &Dict, index: usize) -> Result<Vec<Object>
 }
 
 /// The transform itself, after the page was found: validate everything, then write.
-fn apply(doc: &mut Document, index: usize, page: ObjRef, crop: [f64; 4], m: Matrix, new_media: [f64; 4]) -> Result<(), OrganizeError> {
+pub(crate) fn apply(doc: &mut Document, index: usize, page: ObjRef, crop: [f64; 4], m: Matrix, new_media: [f64; 4]) -> Result<(), OrganizeError> {
     let n = index.saturating_add(1);
     if !m.0.iter().all(|v| v.is_finite()) || m.invert().is_none() {
         return Err(invalid(format!("the transform for page {n} must be finite and invertible")));

@@ -2475,3 +2475,13 @@ animation effects	Off	Kapalı
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Bu sayfalardaki metin artık aranamaz ve kopyalanamaz. Yeniden aranabilir yapmak için ardından Metni tanı'yı çalıştırın.
 	Rasterize	Rasterleştir
 	Couldn't rasterize the pages: {e}	Sayfalar rasterleştirilemedi: {e}
+	Change page size	Sayfa boyutunu değiştir
+	Change page size…	Sayfa boyutunu değiştir…
+	Page size:	Sayfa boyutu:
+	Same as page	Şu sayfayla aynı
+	Match each page	Her sayfaya göre
+	Scale to fit	Sığacak şekilde ölçekle
+	Scale to fill, crop	Dolduracak şekilde ölçekle, kırp
+	No scaling	Ölçekleme yok
+	Only pages of another size	Yalnızca farklı boyuttaki sayfalar
+	Every page already has this size.	Tüm sayfalar zaten bu boyutta.

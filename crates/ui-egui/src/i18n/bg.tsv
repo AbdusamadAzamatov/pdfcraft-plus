@@ -2442,3 +2442,13 @@ animation effects	Off	Изключени
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Текстът на тези страници вече няма да може да се търси или копира. След това изпълнете „Разпознай текст“, за да може отново да се търси.
 	Rasterize	Растеризиране
 	Couldn't rasterize the pages: {e}	Страниците не можаха да се растеризират: {e}
+	Change page size	Промяна на размера на страницата
+	Change page size…	Промяна на размера на страницата…
+	Page size:	Размер на страницата:
+	Same as page	Като страница
+	Match each page	Според всяка страница
+	Scale to fit	Мащабиране за побиране
+	Scale to fill, crop	Мащабиране за запълване, изрязване
+	No scaling	Без мащабиране
+	Only pages of another size	Само страници с друг размер
+	Every page already has this size.	Всички страници вече са с този размер.

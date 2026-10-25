@@ -697,6 +697,10 @@ impl PdfCraftApp {
                 self.rotate_angle_draft.open(selected);
                 self.dialog = Some(Dialog::RotateAngle);
             }
+            "page.resize" => {
+                self.resize_draft.open(self.units);
+                self.dialog = Some(Dialog::ResizePages);
+            }
             "page.split" => self.dialog = Some(Dialog::Split),
             "help.shortcuts" => self.dialog = Some(Dialog::Shortcuts),
             "help.about" => self.dialog = Some(Dialog::About),

@@ -32,6 +32,7 @@ pub mod optimizer;
 pub mod print_raster;
 pub mod printcheck;
 pub mod rasterize;
+mod resize;
 mod rotate_angle;
 mod scan_colours;
 mod scan_fields;
@@ -47,7 +48,10 @@ pub use signature_image::{ImageSignaturePreview, SignatureImage};
 pub use signature_scan::{PhotoRect, ScanError, SignaturePhoto, Turn};
 pub use text_preview::TextEditPreview;
 
-pub use pdfcraft_organize::{BoxSpec, FieldConflicts, PageBox, RotateFit, SplitBy, Transition, TransitionSpec, split_ranges};
+pub use pdfcraft_organize::{
+    BoxSpec, FieldConflicts, MAX_PAGE_SIDE, PageBox, ResizeMode, RotateFit, SizeOrientation, SplitBy, Transition, TransitionSpec, split_ranges,
+};
+pub use resize::{RESIZE_PAPERS, paper_size};
 
 /// One file produced by a split: (1-based first page, last page, PDF bytes).
 pub use pdfcraft_organize::LabelStyle;
@@ -1281,6 +1285,16 @@ pub enum Edit {
         degrees: f64,
         fit: RotateFit,
     },
+    /// Change page size: give `pages` the size `width` × `height` (points, as the page is shown,
+    /// turned as `orientation` says), fitting, filling or re-centring the content as `mode` says.
+    /// The content is wrapped in a scale-and-move, not rewritten; comments scale with the page.
+    ResizePages {
+        pages: Vec<usize>,
+        width: f64,
+        height: f64,
+        orientation: SizeOrientation,
+        mode: ResizeMode,
+    },
     DeletePages {
         pages: Vec<usize>,
     },
@@ -1841,6 +1855,7 @@ pub const EDIT_LABELS: &[&str] = &[
     "Rotate page",
     "Change tag properties",
     "Rotate pages",
+    "Change page size",
     "Delete page",
     "Delete pages",
     "Move page",
@@ -1986,6 +2001,7 @@ impl Edit {
         match self {
             Edit::RotatePages { pages, .. } => plural("Rotate page", "Rotate pages", pages.len()),
             Edit::RotateContent { pages, .. } => plural("Rotate page", "Rotate pages", pages.len()),
+            Edit::ResizePages { .. } => Label::of("Change page size"),
             Edit::DeletePages { pages } => plural("Delete page", "Delete pages", pages.len()),
             Edit::MovePages { pages, .. } => plural("Move page", "Move pages", pages.len()),
             Edit::ReversePages { .. } => Label::of("Reverse pages"),
@@ -2174,6 +2190,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
     match edit {
         Edit::RotatePages { .. }
         | Edit::RotateContent { .. }
+        | Edit::ResizePages { .. }
         | Edit::DeletePages { .. }
         | Edit::MovePages { .. }
         | Edit::ReversePages { .. }
@@ -2389,6 +2406,9 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
     match edit {
         Edit::RotatePages { pages, degrees } => pdfcraft_organize::rotate_pages(doc, pages, *degrees)?,
         Edit::RotateContent { pages, degrees, fit } => pdfcraft_organize::rotate_content(doc, pages, *degrees, *fit)?,
+        Edit::ResizePages { pages, width, height, orientation, mode } => {
+            pdfcraft_organize::resize_pages(doc, pages, *width, *height, *orientation, *mode)?;
+        }
         Edit::DeletePages { pages } => pdfcraft_organize::delete_pages(doc, pages)?,
         Edit::MovePages { pages, to } => pdfcraft_organize::move_pages(doc, pages, *to)?,
         Edit::ReversePages { pages } => pdfcraft_organize::reverse_pages(doc, pages)?,

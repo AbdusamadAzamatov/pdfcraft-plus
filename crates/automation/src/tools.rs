@@ -245,6 +245,21 @@ pub fn tools() -> Vec<ToolDef> {
                 }),
                 &["doc", "degrees"],
             )),
+        t("page_resize", "Change page size", "Give pages (default all) a new size, as the page is shown. The target is exactly one of: size, a paper name (A3, A4, A5, Letter, Legal, Tabloid, or any print paper such as A6 or ARCH C); width and height in unit (pt by default, or mm, cm, in), 1 to 14400 pt each; or same_as_page, the shown size of that 1-based page. orientation: match (default; each page keeps the way round it is shown, so landscape pages get the landscape size), portrait or landscape. mode: fit (default; scale to fit, keep the aspect ratio, centre), fill (scale to cover the page, keep the aspect ratio, centre, crop what sticks out) or none (keep the content's size and centre it, growing or cropping the page). only_differing: true resizes only the pages whose size differs from the target by more than half a point (resized 0 when none do, and nothing changes). The content streams are wrapped in a scale-and-move, not rewritten; comments, links and form fields scale with the page. One undo step.")
+            .cmd("page.resize")
+            .with(schema(
+                json!({
+                    "doc": doc(), "pages": pages("to resize (default: all)"),
+                    "size": { "type": "string", "description": "A paper name: A3, A4, A5, Letter, Legal, Tabloid, …" },
+                    "width": { "type": "number", "exclusiveMinimum": 0 }, "height": { "type": "number", "exclusiveMinimum": 0 },
+                    "unit": { "type": "string", "enum": ["pt", "mm", "cm", "in"] },
+                    "same_as_page": { "type": "integer", "minimum": 1 },
+                    "orientation": { "type": "string", "enum": ["match", "portrait", "landscape"] },
+                    "mode": { "type": "string", "enum": ["fit", "fill", "none"] },
+                    "only_differing": { "type": "boolean" },
+                }),
+                &["doc"],
+            )),
         t("page_enhance_camera", "Enhance camera image", "Straighten a photographed document (Scan & OCR ▸ Enhance ▸ Camera image): the part of the page inside the four corners (x1, y1, … x4, y4 in top-left-origin points, any order, a convex quadrilateral; when omitted, the document's edges are found automatically, or an error says they could not be) is warped to an upright rectangle that replaces what the page shows, at the page picture's own resolution (at most 600 dpi). mode is how it looks: original, colour (default), greyscale or bw (black and white, stored losslessly). level (0–100, default 0) then cleans the photo up: even lighting so the paper turns white (casts, shadows, dark edges), more contrast, and from 60 no isolated specks; colour ink stays colour. For bw the level is the threshold (higher keeps fainter strokes black). The page's comments, links and bookmarks stay. Undoable.")
             .cmd("ocr.enhance_camera")
             .with(schema(

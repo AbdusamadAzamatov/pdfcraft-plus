@@ -2455,3 +2455,13 @@ animation effects	Off	Wyłączone
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Tekstu na tych stronach nie będzie już można wyszukiwać ani kopiować. Uruchom potem Rozpoznaj tekst, aby znów można go było wyszukiwać.
 	Rasterize	Rasteryzuj
 	Couldn't rasterize the pages: {e}	Nie można zrasteryzować stron: {e}
+	Change page size	Zmień rozmiar strony
+	Change page size…	Zmień rozmiar strony…
+	Page size:	Rozmiar strony:
+	Same as page	Jak strona
+	Match each page	Zgodnie z każdą stroną
+	Scale to fit	Skaluj, aby dopasować
+	Scale to fill, crop	Wypełnij i przytnij
+	No scaling	Bez skalowania
+	Only pages of another size	Tylko strony o innym rozmiarze
+	Every page already has this size.	Wszystkie strony mają już ten rozmiar.

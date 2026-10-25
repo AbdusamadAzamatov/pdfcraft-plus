@@ -2479,3 +2479,13 @@ animation effects	Off	Désactivés
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Le texte de ces pages ne pourra plus être recherché ni copié. Lancez ensuite Reconnaître le texte pour le rendre à nouveau consultable.
 	Rasterize	Pixelliser
 	Couldn't rasterize the pages: {e}	Impossible de pixelliser les pages : {e}
+	Change page size	Modifier la taille de page
+	Change page size…	Modifier la taille de page…
+	Page size:	Taille de page :
+	Same as page	Identique à la page
+	Match each page	Selon chaque page
+	Scale to fit	Mettre à l’échelle pour ajuster
+	Scale to fill, crop	Remplir et rogner
+	No scaling	Sans mise à l’échelle
+	Only pages of another size	Seulement les pages d’une autre taille
+	Every page already has this size.	Toutes les pages ont déjà cette taille.

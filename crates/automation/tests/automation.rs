@@ -6996,3 +6996,56 @@ fn page_rasterize_turns_pages_into_pictures_and_undoes() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Change page size (PL7): a preset, a size in millimetres or another page's size; only the
+/// pages that differ when asked; comments stay with the page; bad targets are refused.
+#[test]
+fn page_resize_sets_sizes_from_presets_units_and_pages_and_skips_matching_pages() {
+    let dir = workdir("page-resize");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    let size = |a: &mut Automation, p: usize| {
+        let info = ok(a, "doc_info", json!({ "doc": doc }));
+        (info["pages"][p]["width"].as_f64().unwrap(), info["pages"][p]["height"].as_f64().unwrap())
+    };
+    let a4 = |(w, h): (f64, f64)| (w - 595.28).abs() < 0.01 && (h - 841.89).abs() < 0.01;
+    let r = ok(&mut a, "page_resize", json!({ "doc": doc, "pages": [1], "size": "A4" }));
+    assert_eq!(r["resized"], 1);
+    assert_eq!(r["undo"], "Change page size");
+    assert!(a4(size(&mut a, 0)), "{:?}", size(&mut a, 0));
+    assert_eq!(size(&mut a, 1), (200.0, 300.0), "other pages untouched");
+    // 210 × 297 mm is A4 too; the comment on the page comes along.
+    ok(&mut a, "comment_add", json!({ "doc": doc, "page": 2, "type": "rectangle", "rect": [10, 10, 60, 40], "color": "blue", "width": 3 }));
+    ok(&mut a, "page_resize", json!({ "doc": doc, "pages": [2], "width": 210, "height": 297, "unit": "mm", "mode": "fill" }));
+    assert!(a4(size(&mut a, 1)), "{:?}", size(&mut a, 1));
+    assert_eq!(ok(&mut a, "doc_info", json!({ "doc": doc }))["annotations"].as_array().unwrap().len(), 1);
+    // Only the page that differs (page 3) changes; then none does.
+    let r = ok(&mut a, "page_resize", json!({ "doc": doc, "size": "a4", "only_differing": true }));
+    assert_eq!(r["resized"], 1);
+    assert!(a4(size(&mut a, 2)));
+    let r = ok(&mut a, "page_resize", json!({ "doc": doc, "size": "A4", "only_differing": true }));
+    assert_eq!(r["resized"], 0);
+    assert_eq!(r["undo"], "Change page size", "nothing new to undo");
+    // The size of page 1, turned landscape, without scaling.
+    ok(&mut a, "page_resize", json!({ "doc": doc, "pages": [3], "same_as_page": 1, "orientation": "landscape", "mode": "none" }));
+    let (w, h) = size(&mut a, 2);
+    assert!((w - 841.89).abs() < 0.01 && (h - 595.28).abs() < 0.01, "{w}×{h}");
+    assert!(a.call("page_render", &json!({ "doc": doc, "page": 3, "dpi": 36 })).is_ok(), "the resized page renders");
+    for bad in [
+        json!({ "doc": doc }),
+        json!({ "doc": doc, "size": "A4", "width": 100, "height": 100 }),
+        json!({ "doc": doc, "size": "B7" }),
+        json!({ "doc": doc, "width": 100 }),
+        json!({ "doc": doc, "width": 100, "height": 100, "unit": "ft" }),
+        json!({ "doc": doc, "size": "A4", "mode": "stretch" }),
+        json!({ "doc": doc, "size": "A4", "orientation": "sideways" }),
+        json!({ "doc": doc, "same_as_page": 9 }),
+    ] {
+        assert!(matches!(err(&mut a, "page_resize", bad.clone()), ToolError::InvalidArgs(_)), "{bad}");
+    }
+    match a.call("page_resize", &json!({ "doc": doc, "width": 300, "height": 0.2, "unit": "in" })) {
+        Err(ToolError::Failed(m)) => assert!(m.contains("from 1 to 14400 pt"), "{m}"),
+        other => panic!("{other:?}"),
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}

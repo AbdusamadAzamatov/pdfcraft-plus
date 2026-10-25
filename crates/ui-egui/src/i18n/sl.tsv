@@ -2484,3 +2484,13 @@ animation effects	Off	Izklopljeni
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Besedila na teh straneh ne bo več mogoče iskati ali kopirati. Nato zaženite Prepoznaj besedilo, da ga bo spet mogoče iskati.
 	Rasterize	Rastriraj
 	Couldn't rasterize the pages: {e}	Strani ni bilo mogoče rastrirati: {e}
+	Change page size	Spremeni velikost strani
+	Change page size…	Spremeni velikost strani…
+	Page size:	Velikost strani:
+	Same as page	Enako kot stran
+	Match each page	Kot pri vsaki strani
+	Scale to fit	Prilagodi velikosti
+	Scale to fill, crop	Zapolni in obreži
+	No scaling	Brez spreminjanja merila
+	Only pages of another size	Samo strani druge velikosti
+	Every page already has this size.	Vse strani so že te velikosti.

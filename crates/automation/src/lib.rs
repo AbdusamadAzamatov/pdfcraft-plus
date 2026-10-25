@@ -266,6 +266,7 @@ impl Automation {
                 out["rotated"] = json!(n);
                 out
             }
+            "page_resize" => self.page_resize(&a)?,
             "page_enhance_camera" => {
                 let page = self.page(&a)?;
                 let given = a.nums::<8>("corners")?;
@@ -1231,6 +1232,66 @@ impl Automation {
         if !doc.edit_notices.is_empty() {
             out["warnings"] = json!(doc.edit_notices.iter().map(ToString::to_string).collect::<Vec<_>>());
         }
+        Ok(out)
+    }
+
+    /// Change page size: the target from a preset, a size in a unit, or another page's size.
+    fn page_resize(&mut self, a: &Args) -> Result<Value> {
+        let bad = |m: String| ToolError::InvalidArgs(m);
+        let doc = self.doc(a)?;
+        let n = doc.info.pages.len();
+        let (size, width, height, same) = (a.opt_str("size")?, a.opt_num("width")?, a.opt_num("height")?, a.opt_int("same_as_page")?);
+        let given = usize::from(size.is_some()) + usize::from(width.is_some() || height.is_some()) + usize::from(same.is_some());
+        if given != 1 {
+            return Err(bad(
+                "give exactly one target: size (a paper name such as A4 or Letter), width and height (with unit), or same_as_page".into()
+            ));
+        }
+        let (width, height) = if let Some(name) = size {
+            pdfcraft_engine::paper_size(name)
+                .ok_or_else(|| bad(format!("unknown size {name:?}; choose one of {}", pdfcraft_engine::print::PAPERS.map(|(p, _)| p).join(", "))))?
+        } else if let Some(page) = same {
+            let info = usize::try_from(page).ok().and_then(|p| p.checked_sub(1)).and_then(|p| doc.info.pages.get(p));
+            let info = info.ok_or_else(|| bad(format!("same_as_page {page} is out of range: the document has {n} pages")))?;
+            (f64::from(info.width), f64::from(info.height))
+        } else {
+            let (Some(w), Some(h)) = (width, height) else {
+                return Err(bad("give both width and height".into()));
+            };
+            let per_point = match a.opt_str("unit")?.unwrap_or("pt") {
+                "pt" => 1.0,
+                "mm" => 25.4 / 72.0,
+                "cm" => 2.54 / 72.0,
+                "in" => 1.0 / 72.0,
+                u => return Err(bad(format!("unknown unit {u:?} (pt, mm, cm, in)"))),
+            };
+            (w / per_point, h / per_point)
+        };
+        let orientation = match a.opt_str("orientation")? {
+            None => pdfcraft_engine::SizeOrientation::Match,
+            Some(o) => pdfcraft_engine::SizeOrientation::from_name(o)
+                .ok_or_else(|| bad(format!("unknown orientation {o:?} (portrait, landscape, match)")))?,
+        };
+        let mode = match a.opt_str("mode")? {
+            None => pdfcraft_engine::ResizeMode::Fit,
+            Some(m) => pdfcraft_engine::ResizeMode::from_name(m).ok_or_else(|| bad(format!("unknown mode {m:?} (fit, fill, none)")))?,
+        };
+        let mut pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => (0..n).collect(),
+        };
+        if a.opt_bool("only_differing")?.unwrap_or(false) {
+            pages = self.doc(a)?.pages_of_other_size(&pages, width, height, orientation).map_err(failed)?;
+            if pages.is_empty() {
+                let mut out = summary(self.doc(a)?);
+                out["resized"] = json!(0);
+                out["note"] = json!("every page already has that size; nothing changed");
+                return Ok(out);
+            }
+        }
+        let count = pages.len();
+        let mut out = self.apply(a, Edit::ResizePages { pages, width, height, orientation, mode })?;
+        out["resized"] = json!(count);
         Ok(out)
     }
 

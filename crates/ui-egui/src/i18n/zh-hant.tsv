@@ -2429,3 +2429,13 @@ animation effects	Off	關
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	這些頁面上的文字將無法再被搜尋或複製。之後執行「辨識文字」即可讓它重新可供搜尋。
 	Rasterize	點陣化
 	Couldn't rasterize the pages: {e}	無法點陣化頁面：{e}
+	Change page size	變更頁面大小
+	Change page size…	變更頁面大小…
+	Page size:	頁面大小：
+	Same as page	與頁面相同
+	Match each page	與各頁一致
+	Scale to fit	縮放以符合
+	Scale to fill, crop	縮放以填滿並裁切
+	No scaling	不縮放
+	Only pages of another size	僅限大小不同的頁面
+	Every page already has this size.	所有頁面已是此大小。

@@ -3277,11 +3277,11 @@ title = "Change page size"
 area = "D"
 tier = "P2"
 milestone = "M11"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "shipped"
+commands = ["page.resize"]
+tools = ["page_resize"]
+evidence = ["crates/organize/src/resize/tests.rs::a_letter_page_made_a4_in_fit_mode_scales_by_the_smaller_factor_and_is_centred", "crates/organize/src/resize/tests.rs::an_annotation_rect_and_its_points_scale_with_the_page", "crates/organize/src/resize/tests.rs::only_pages_of_another_size_are_picked_and_a4_pages_are_left_byte_for_byte", "crates/organize/src/resize/tests.rs::sizes_are_as_the_page_is_shown_so_a_turned_page_gets_a_turned_box", "crates/organize/src/resize/tests.rs::fill_covers_and_crops_and_no_scaling_recentres", "crates/organize/src/resize/tests.rs::every_mode_keeps_its_promise", "crates/engine/src/resize.rs::renders_before_and_after_scaled_are_the_same_picture", "crates/automation/tests/automation.rs::page_resize_sets_sizes_from_presets_units_and_pages_and_skips_matching_pages", "crates/ui-egui/tests/editing.rs::change_page_size_dialog_resizes_pages_and_only_those_of_another_size"]
+notes = "Organize ▸ Layout ▸ Change page size: A3, A4, A5, US Letter, US Legal, Tabloid (from pdfcraft_print::PAPERS; the tool also takes any other print paper by name), the size of another page, or a custom width × height in mm, cm, in or pt (1 to 14400 pt a side). Sizes are as the page is shown: on a /Rotate 90 or 270 page the user-space box is turned, and /UserUnit is honoured. Orientation: match each page (default; a landscape page gets the landscape size, a square one counts as portrait), portrait or landscape. Fit (default; scale to fit, keep the aspect ratio, centre), fill (scale to cover, centre, crop) or no scaling (centre, growing or cropping the canvas). Pages: all, a range, or only those whose shown size differs from the target by more than half a point (the others' page dictionaries are left untouched). Built on pdfcraft_organize::transform_page's wrapper: the content streams stay byte for byte inside q <scale+move> cm <old crop box> re W n … Q, MediaBox and CropBox become [0 0 w h], Trim/Bleed/Art follow the content; annotation Rects and points scale exactly and appearances follow their Rect, so no flattening is needed. One undo step; needs the Assembly permission. Not yet: destinations (bookmarks, links) that point at a spot on a resized page keep their old coordinates; viewports (/VP) and article beads aren't transformed; no live preview in the dialog"
 
 [[feature]]
 id = "organize.page-transitions"

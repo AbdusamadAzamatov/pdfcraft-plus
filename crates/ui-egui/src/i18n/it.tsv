@@ -2691,3 +2691,13 @@ certificate	SHA-256 digest	Impronta SHA-256
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Il testo di queste pagine non sarà più ricercabile né copiabile. Esegui poi Riconosci testo per renderlo di nuovo ricercabile.
 	Rasterize	Rasterizza
 	Couldn't rasterize the pages: {e}	Impossibile rasterizzare le pagine: {e}
+	Change page size	Cambia dimensione pagina
+	Change page size…	Cambia dimensione pagina…
+	Page size:	Dimensione pagina:
+	Same as page	Come la pagina
+	Match each page	Come ogni pagina
+	Scale to fit	Ridimensiona per adattare
+	Scale to fill, crop	Riempi e ritaglia
+	No scaling	Nessun ridimensionamento
+	Only pages of another size	Solo pagine di altra dimensione
+	Every page already has this size.	Tutte le pagine hanno già questa dimensione.

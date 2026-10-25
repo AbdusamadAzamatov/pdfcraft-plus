@@ -2480,3 +2480,13 @@ animation effects	Off	Aus
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Der Text auf diesen Seiten ist danach nicht mehr durchsuchbar oder kopierbar. Führe anschließend Text erkennen aus, um ihn wieder durchsuchbar zu machen.
 	Rasterize	Rastern
 	Couldn't rasterize the pages: {e}	Die Seiten konnten nicht gerastert werden: {e}
+	Change page size	Seitengröße ändern
+	Change page size…	Seitengröße ändern…
+	Page size:	Seitengröße:
+	Same as page	Wie Seite
+	Match each page	Wie jede Seite
+	Scale to fit	Einpassen
+	Scale to fill, crop	Füllen und beschneiden
+	No scaling	Nicht skalieren
+	Only pages of another size	Nur Seiten anderer Größe
+	Every page already has this size.	Alle Seiten haben bereits diese Größe.

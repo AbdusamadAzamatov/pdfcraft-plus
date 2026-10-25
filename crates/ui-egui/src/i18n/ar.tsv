@@ -2756,3 +2756,13 @@ certificate	Version	الإصدار
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	لن يعود النص في هذه الصفحات قابلاً للبحث أو النسخ. شغّل «التعرف على النص» بعد ذلك لجعله قابلاً للبحث مجددًا.
 	Rasterize	تحويل إلى صور
 	Couldn't rasterize the pages: {e}	تعذّر تحويل الصفحات إلى صور: {e}
+	Change page size	تغيير حجم الصفحة
+	Change page size…	تغيير حجم الصفحة…
+	Page size:	حجم الصفحة:
+	Same as page	مثل الصفحة
+	Match each page	حسب كل صفحة
+	Scale to fit	تحجيم للملاءمة
+	Scale to fill, crop	تحجيم للملء مع القص
+	No scaling	بلا تحجيم
+	Only pages of another size	الصفحات ذات الحجم المختلف فقط
+	Every page already has this size.	كل الصفحات بهذا الحجم بالفعل.

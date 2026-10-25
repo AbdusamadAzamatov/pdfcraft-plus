@@ -2478,3 +2478,13 @@ animation effects	Off	Ki
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Az oldalak szövege ezután nem lesz kereshető és másolható. Utána futtassa a Szövegfelismerést, hogy újra kereshető legyen.
 	Rasterize	Raszterizálás
 	Couldn't rasterize the pages: {e}	Az oldalak raszterizálása nem sikerült: {e}
+	Change page size	Oldalméret módosítása
+	Change page size…	Oldalméret módosítása…
+	Page size:	Oldalméret:
+	Same as page	Mint az oldal
+	Match each page	Oldalanként megtartva
+	Scale to fit	Méretezés a beférésig
+	Scale to fill, crop	Kitöltés és vágás
+	No scaling	Méretezés nélkül
+	Only pages of another size	Csak az eltérő méretű oldalak
+	Every page already has this size.	Már minden oldal ekkora.

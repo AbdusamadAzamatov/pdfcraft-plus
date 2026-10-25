@@ -367,6 +367,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("page.insert_blank", "Insert blank page", PAGES, None, Assembly, "file-plus"),
     c("page.rotate_dialog", "Rotate pages…", PAGES, None, Assembly, "rotate-cw"),
     c("page.rotate_angle", "Rotate by angle…", PAGES, None, Assembly, "rotate-cw"),
+    c("page.resize", "Change page size…", PAGES, None, Assembly, "rectangle-horizontal"),
     c("page.duplicate", "Duplicate pages", PAGES, None, Assembly, "copy-plus"),
     c("page.reverse", "Reverse pages", PAGES, None, Assembly, "arrow-up-down"),
     c("page.divide", "Divide pages…", PAGES, None, Assembly, "columns-2"),

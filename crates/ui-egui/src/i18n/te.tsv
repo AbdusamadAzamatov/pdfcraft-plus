@@ -2388,3 +2388,13 @@ animation effects	Off	ఆఫ్
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	ఈ పేజీలలోని టెక్స్ట్‌ను ఇకపై శోధించడం లేదా కాపీ చేయడం సాధ్యం కాదు. మళ్లీ శోధించగలిగేలా చేయడానికి తర్వాత టెక్స్ట్‌ను గుర్తించు అమలు చేయండి.
 	Rasterize	చిత్రాలుగా మార్చు
 	Couldn't rasterize the pages: {e}	పేజీలను చిత్రాలుగా మార్చడం సాధ్యం కాలేదు: {e}
+	Change page size	పేజీ పరిమాణం మార్చు
+	Change page size…	పేజీ పరిమాణం మార్చు…
+	Page size:	పేజీ పరిమాణం:
+	Same as page	ఈ పేజీ లాగే
+	Match each page	ప్రతి పేజీకి తగినట్లు
+	Scale to fit	సరిపోయేలా స్కేల్ చేయి
+	Scale to fill, crop	నింపేలా స్కేల్ చేసి కత్తిరించు
+	No scaling	స్కేల్ చేయవద్దు
+	Only pages of another size	వేరే పరిమాణం ఉన్న పేజీలు మాత్రమే
+	Every page already has this size.	అన్ని పేజీలు ఇప్పటికే ఈ పరిమాణంలో ఉన్నాయి.

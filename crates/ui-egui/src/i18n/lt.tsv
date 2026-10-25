@@ -2730,3 +2730,13 @@ theme	Appearance	Išvaizda
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Šių puslapių teksto nebebus galima ieškoti ar kopijuoti. Vėliau paleiskite „Atpažinti tekstą“, kad jame vėl būtų galima ieškoti.
 	Rasterize	Rastrinti
 	Couldn't rasterize the pages: {e}	Nepavyko rastrinti puslapių: {e}
+	Change page size	Keisti puslapio dydį
+	Change page size…	Keisti puslapio dydį…
+	Page size:	Puslapio dydis:
+	Same as page	Kaip puslapis
+	Match each page	Pagal kiekvieną puslapį
+	Scale to fit	Keisti mastelį, kad tilptų
+	Scale to fill, crop	Užpildyti ir apkarpyti
+	No scaling	Nekeisti mastelio
+	Only pages of another size	Tik kito dydžio puslapiai
+	Every page already has this size.	Visi puslapiai jau yra šio dydžio.

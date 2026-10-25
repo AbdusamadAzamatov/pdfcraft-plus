@@ -2479,3 +2479,13 @@ animation effects	Off	オフ
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	これらのページのテキストは検索もコピーもできなくなります。検索できるようにするには、後で「テキストを認識」を実行してください。
 	Rasterize	ラスタライズ
 	Couldn't rasterize the pages: {e}	ページをラスタライズできませんでした: {e}
+	Change page size	ページサイズを変更
+	Change page size…	ページサイズを変更…
+	Page size:	ページサイズ:
+	Same as page	指定ページと同じ
+	Match each page	各ページに合わせる
+	Scale to fit	収まるように拡大縮小
+	Scale to fill, crop	全体を覆うように拡大縮小、はみ出しを切り取り
+	No scaling	拡大縮小しない
+	Only pages of another size	サイズが異なるページのみ
+	Every page already has this size.	すべてのページがすでにこのサイズです。

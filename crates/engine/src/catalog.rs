@@ -211,6 +211,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                     item("Divide pages", "columns-2", "page.divide", Ready),
                     item("Rotate by angle", "rotate-cw", "page.rotate_angle", Ready),
                     item("Remove blank pages…", "file-minus", "page.remove_blank", Ready),
+                    item("Change page size", "rectangle-horizontal", "page.resize", Ready),
                 ],
             },
             ToolSection {

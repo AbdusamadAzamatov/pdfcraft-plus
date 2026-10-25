@@ -2501,3 +2501,13 @@ animation effects	Off	Вимкнено
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Текст на цих сторінках більше не можна буде шукати й копіювати. Потім запустіть «Розпізнати текст», щоб у ньому знову можна було шукати.
 	Rasterize	Раструвати
 	Couldn't rasterize the pages: {e}	Не вдалося раструвати сторінки: {e}
+	Change page size	Змінити розмір сторінки
+	Change page size…	Змінити розмір сторінки…
+	Page size:	Розмір сторінки:
+	Same as page	Як у сторінки
+	Match each page	Як у кожної сторінки
+	Scale to fit	Вписати з масштабуванням
+	Scale to fill, crop	Заповнити й обрізати
+	No scaling	Без масштабування
+	Only pages of another size	Лише сторінки іншого розміру
+	Every page already has this size.	Усі сторінки вже такого розміру.

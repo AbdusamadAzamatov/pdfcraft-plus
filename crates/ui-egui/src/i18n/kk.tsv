@@ -2477,3 +2477,13 @@ animation effects	Off	Өшірулі
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Бұл беттердегі мәтінді енді іздеу не көшіру мүмкін болмайды. Қайта іздеуге болатындай ету үшін кейін «Мәтінді тану» әрекетін орындаңыз.
 	Rasterize	Растрлау
 	Couldn't rasterize the pages: {e}	Беттерді растрлау мүмкін болмады: {e}
+	Change page size	Бет өлшемін өзгерту
+	Change page size…	Бет өлшемін өзгерту…
+	Page size:	Бет өлшемі:
+	Same as page	Мына беттегідей
+	Match each page	Әр беттегідей
+	Scale to fit	Сыйғызып масштабтау
+	Scale to fill, crop	Толтырып масштабтау, кесу
+	No scaling	Масштабтаусыз
+	Only pages of another size	Тек өлшемі басқа беттер
+	Every page already has this size.	Барлық беттің өлшемі осындай.

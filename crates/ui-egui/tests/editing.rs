@@ -4910,3 +4910,72 @@ fn remove_blank_pages_lists_candidates_and_keeps_an_unchecked_one() {
     h.get_by_label_contains("must keep at least one page");
     assert!(h.get_by_role_and_label(Role::Button, "Remove").accesskit_node().is_disabled());
 }
+
+/// Organize ▸ Layout ▸ Change page size: the catalog item opens the dialog, OK resizes the chosen
+/// pages (A4, fit, each page as it is by default); "only pages of another size" leaves the A4
+/// pages alone, and says so when every page already has the size.
+#[test]
+fn change_page_size_dialog_resizes_pages_and_only_those_of_another_size() {
+    use pdfcraft_ui_egui::resize_ui::{Scope, Target};
+    let mut h = organize(3);
+    h.get_by_label("Change page size").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::ResizePages));
+    h.state_mut().resize_draft.scope = Scope::Range(1, 1);
+    h.run_steps(2);
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    let a4 = |w: f32, h: f32| (w - 595.28).abs() < 0.01 && (h - 841.89).abs() < 0.01;
+    {
+        let s = h.state();
+        assert_eq!(s.dialog, None);
+        let d = s.session.get(s.views[0].id).unwrap();
+        assert!(a4(d.info.pages[0].width, d.info.pages[0].height), "{:?}", (d.info.pages[0].width, d.info.pages[0].height));
+        assert_eq!((d.info.pages[1].width, d.info.pages[1].height), (200.0, 300.0), "page 2 untouched");
+        assert_eq!(d.can_undo(), Some("Change page size"));
+    }
+
+    // Only the pages of another size: pages 2 and 3.
+    h.state_mut().run_command("page.resize");
+    h.run_steps(2);
+    h.get_by_label("Only pages of another size").click();
+    h.run_steps(2);
+    // Page 1's dictionary as the saved file has it.
+    let first_page = |bytes: &std::sync::Arc<Vec<u8>>| {
+        let c = pdfcraft_cos::Document::open(bytes.clone()).unwrap();
+        let catalog = c.get(c.root().unwrap()).as_dict().cloned().unwrap();
+        let tree = c.get(catalog.reference(b"Pages").unwrap()).as_dict().cloned().unwrap();
+        let kids = c.resolve(tree.get(b"Kids").unwrap()).as_array().cloned().unwrap();
+        c.get(kids[0].as_ref().unwrap()).as_dict().cloned().unwrap()
+    };
+    let first = first_page(&h.state().session.get(h.state().views[0].id).unwrap().bytes);
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    {
+        let s = h.state();
+        let d = s.session.get(s.views[0].id).unwrap();
+        assert_eq!(first_page(&d.bytes), first, "page 1, already A4, is left alone");
+        assert!(a4(d.info.pages[1].width, d.info.pages[1].height), "page 2");
+        assert!(a4(d.info.pages[2].width, d.info.pages[2].height), "page 3");
+    }
+
+    // The size of page 1: turned landscape, every page differs; each page as it is, none does.
+    h.state_mut().run_command("page.resize");
+    h.run_steps(2);
+    let draft = &mut h.state_mut().resize_draft;
+    draft.target = Target::SameAsPage(1);
+    draft.scope = Scope::Differing;
+    h.run_steps(2);
+    h.get_by_label("Landscape").click();
+    h.run_steps(2);
+    assert!(h.query_by_label("Every page already has this size.").is_none());
+    h.get_by_label("Match each page").click();
+    h.run_steps(2);
+    assert!(h.query_by_label("Every page already has this size.").is_some());
+    h.get_by_label("OK").click();
+    h.run_steps(2);
+    assert_eq!(h.state().dialog, Some(Dialog::ResizePages), "nothing to do: the dialog stays open");
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert_eq!(h.state().dialog, None);
+}

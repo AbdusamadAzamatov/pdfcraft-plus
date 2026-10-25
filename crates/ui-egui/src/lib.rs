@@ -105,6 +105,7 @@ mod pickers;
 pub mod prepare;
 mod print_ui;
 mod rasterize_ui;
+pub mod resize_ui;
 pub mod rotate_angle_ui;
 mod signature_drag;
 pub mod units;
@@ -331,6 +332,8 @@ pub enum Dialog {
     RotatePages,
     /// Organize ▸ Layout ▸ Rotate by angle.
     RotateAngle,
+    /// Organize ▸ Layout ▸ Change page size.
+    ResizePages,
     /// Remove Hidden Information and Sanitize Document.
     RemoveHidden,
     Sanitize,
@@ -660,6 +663,7 @@ pub struct PdfCraftApp {
     pub extract_draft: ExtractDraft,
     pub rotate_draft: RotateDraft,
     pub rotate_angle_draft: rotate_angle_ui::RotateAngleDraft,
+    pub resize_draft: resize_ui::ResizeDraft,
     /// Summarize Comments: sort order.
     pub summary_sort: pdfcraft_engine::SummarySort,
     /// The signing dialogs' state.
@@ -1006,6 +1010,7 @@ impl PdfCraftApp {
             extract_draft: ExtractDraft::default(),
             rotate_draft: RotateDraft::default(),
             rotate_angle_draft: Default::default(),
+            resize_draft: Default::default(),
             summary_sort: Default::default(),
             sign_draft: None,
             digital_ids: Vec::new(),
@@ -2577,6 +2582,7 @@ impl PdfCraftApp {
                     "page-boxes" => Some(Dialog::PageBoxes),
                     "divide-pages" => Some(Dialog::DividePages),
                     "rotate-angle" => Some(Dialog::RotateAngle),
+                    "resize-pages" => Some(Dialog::ResizePages),
                     "header-footer" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter)),
                     "watermark" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Watermark)),
                     "background" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Background)),

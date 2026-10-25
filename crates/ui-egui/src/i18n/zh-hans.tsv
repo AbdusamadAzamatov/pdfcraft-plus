@@ -2443,3 +2443,13 @@ animation effects	Off	关
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	这些页面上的文本将无法再被搜索或复制。之后运行“识别文本”可使其重新可搜索。
 	Rasterize	栅格化
 	Couldn't rasterize the pages: {e}	无法栅格化页面：{e}
+	Change page size	更改页面大小
+	Change page size…	更改页面大小…
+	Page size:	页面大小：
+	Same as page	与页面相同
+	Match each page	与各页一致
+	Scale to fit	缩放以适应
+	Scale to fill, crop	缩放以填满并裁剪
+	No scaling	不缩放
+	Only pages of another size	仅限大小不同的页面
+	Every page already has this size.	所有页面已是此大小。

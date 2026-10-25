@@ -2732,3 +2732,13 @@ key	Space	Space
 	The text on these pages will no longer be searchable or copyable. Run Recognize text afterwards to make it searchable again.	Văn bản trên các trang này sẽ không còn tìm kiếm hay sao chép được. Hãy chạy Nhận dạng văn bản sau đó để tìm kiếm lại được.
 	Rasterize	Chuyển thành ảnh
 	Couldn't rasterize the pages: {e}	Không thể chuyển các trang thành ảnh: {e}
+	Change page size	Đổi kích thước trang
+	Change page size…	Đổi kích thước trang…
+	Page size:	Kích thước trang:
+	Same as page	Giống trang
+	Match each page	Theo từng trang
+	Scale to fit	Co giãn cho vừa
+	Scale to fill, crop	Co giãn để lấp đầy, cắt bớt
+	No scaling	Không co giãn
+	Only pages of another size	Chỉ các trang khác kích thước
+	Every page already has this size.	Mọi trang đã có kích thước này.
