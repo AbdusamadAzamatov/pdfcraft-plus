@@ -117,6 +117,7 @@ fn every_registered_command_is_implemented() {
                 replace: false,
                 file: None,
             });
+            app.apply_edit(Edit::InvertColors { pages: vec![0] });
         }
         if matches!(spec.id, "comment.flatten" | "comment.export" | "comment.summarize") {
             use pdfcraft_engine::{Edit, NewAnnotation, Shape, Style};
