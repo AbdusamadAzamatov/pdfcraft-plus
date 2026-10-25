@@ -61,3 +61,29 @@ fn download(file: &LookalikeFile) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("couldn't download {} ({e})", file.file))?;
     response.body_mut().with_config().limit(u64::from(file.size) + 1).read_to_vec().map_err(|e| format!("couldn't download {} ({e})", file.file))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The real download (needs the network, so only with `PDFCRAFT_NETWORK_TESTS=1`): the pinned
+    /// file arrives, passes its checksum, is kept in the fonts folder and installed, and a second
+    /// start installs it from there.
+    #[test]
+    fn a_look_alike_downloads_is_kept_and_installs() {
+        if std::env::var_os("PDFCRAFT_NETWORK_TESTS").is_none() {
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("pdfcraft-lookalikes-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let file = lookalike::CATALOGUE.iter().find(|l| l.family == "Caladea").and_then(|l| l.file(true, false)).unwrap();
+        fetcher(Some(dir.clone()))(file).expect("downloads and installs");
+        assert!(lookalike::is_installed(file));
+        let kept = std::fs::read(dir.join(file.file)).unwrap();
+        assert_eq!(kept.len() as u32, file.size);
+        assert_eq!(lookalike::identify(&kept).map(|(_, f)| f.file), Some(file.file));
+        install_saved(&dir);
+        assert_eq!(lookalike::face_for("Cambria-Bold").map(|f| (f.family, f.style)), Some(("Caladea", "Bold")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
