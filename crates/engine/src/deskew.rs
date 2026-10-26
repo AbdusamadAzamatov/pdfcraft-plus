@@ -73,7 +73,7 @@ pub fn grey_over_white(rgba: &[u8]) -> Vec<u8> {
 
 /// Otsu's threshold of a grey histogram: the level that best separates dark from light, with the
 /// two classes' mean levels. `None` for an empty histogram or one with a single tone.
-fn otsu(hist: &[u64; 256]) -> Option<(u8, f64, f64)> {
+pub(crate) fn otsu(hist: &[u64; 256]) -> Option<(u8, f64, f64)> {
     let total: u64 = hist.iter().sum();
     if total == 0 {
         return None;

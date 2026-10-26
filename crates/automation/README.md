@@ -68,6 +68,20 @@ both. The existing `query`, `count`, `matches` and rectangle semantics are uncha
 `text_extract`, comment placement and redaction keep strict all-requested-pages-must-succeed
 semantics; they never silently act on partial text.
 
+## Scanner-app tools in the personal fork
+
+- `page_enhance_camera` takes `mode` original, lighten, colour, vivid, greyscale, bw, eco or
+  invert; the schema's list is tested against the engine's looks. `remove_moire` and `flatten`
+  (booleans, default false) repair the straightened photo before its look.
+- `page_paging_seal` splits the picture at `path` (resolved under `--root`) into one strip per
+  page on the right or left edge (`{"doc": 1, "path": "seal.png", "width": 113, "position": 0.5}`).
+- `doc_collage` arranges pages on A4 or Letter sheets as a new document: a 1–6 × 1–6 grid,
+  at real size (packed into a centred block; the default 1 × 2 puts an ID card's front and back
+  together) or fitted to equal cells.
+- `page_mosaic` covers `rect` with squares of `cell` points after removing what it showed for
+  good, as Apply redactions does; it is marked destructive. `redact_apply` with `mosaic: true`
+  (and `cell`) covers every applied mark with squares instead of a box.
+
 ## Removing restrictions in the personal fork
 
 `doc_unprotect` still requires the permissions (owner) password or unrestricted permissions.

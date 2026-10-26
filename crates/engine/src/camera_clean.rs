@@ -1,6 +1,8 @@
 //! Clean up a straightened camera photo (Enhance ▸ Camera image ▸ enhancement level): even out
 //! the lighting so the paper turns white (room-light colour casts, a hand's shadow, darker
 //! edges go with it), then raise the contrast and drop isolated specks. Colour ink stays colour.
+//! Besides that clean-up the page can be lightened, made vivid, inverted (chalk on a board reads
+//! as dark ink on white) or turned into ink-saving black and white.
 //!
 //! The paper's illumination is estimated per channel on a coarse grid of blocks, from each
 //! block's bright end (the paper, not the ink), smoothed into a continuous map and divided out.
@@ -14,30 +16,48 @@ pub const MAX_LEVEL: u8 = 100;
 pub enum Look {
     /// The straightened photo as it was taken.
     Original,
+    /// Brighter, colours and lighting otherwise as photographed: the level is how much.
+    Lighten,
     /// Cleaned up, colour ink kept.
     #[default]
     Colour,
+    /// Cleaned up, with colour ink made more vivid.
+    Vivid,
     /// Cleaned up, in shades of grey.
     Greyscale,
     /// Black ink on white paper only, each pixel one or the other.
     BlackWhite,
+    /// Black and white that saves ink: large solid areas keep only their outline.
+    Eco,
+    /// The photo's colours inverted, then cleaned up: chalk on a blackboard or white ink on dark
+    /// paper becomes dark ink on white.
+    Invert,
 }
 
 impl Look {
-    pub const ALL: [Look; 4] = [Look::Original, Look::Colour, Look::Greyscale, Look::BlackWhite];
+    pub const ALL: [Look; 8] = [Look::Original, Look::Lighten, Look::Colour, Look::Vivid, Look::Greyscale, Look::BlackWhite, Look::Eco, Look::Invert];
 
     /// The name tools use.
     pub fn name(self) -> &'static str {
         match self {
             Look::Original => "original",
+            Look::Lighten => "lighten",
             Look::Colour => "colour",
+            Look::Vivid => "vivid",
             Look::Greyscale => "greyscale",
             Look::BlackWhite => "bw",
+            Look::Eco => "eco",
+            Look::Invert => "invert",
         }
     }
 
     pub fn from_name(name: &str) -> Option<Look> {
         Look::ALL.into_iter().find(|l| l.name() == name)
+    }
+
+    /// Whether every pixel of this look is black or white, so the page is stored losslessly.
+    pub fn is_bilevel(self) -> bool {
+        matches!(self, Look::BlackWhite | Look::Eco)
     }
 }
 
@@ -48,9 +68,9 @@ pub enum Pixels {
     Grey(Vec<u8>),
 }
 
-/// Give a straightened photo (`rgb`, RGB8) the `look` at `level`. For black and white the level
-/// sets the threshold: higher keeps fainter strokes black. `None` when the buffer doesn't match
-/// the size.
+/// Give a straightened photo (`rgb`, RGB8) the `look` at `level`. For black and white (and eco)
+/// the level sets the threshold: higher keeps fainter strokes black. `None` when the buffer
+/// doesn't match the size.
 pub fn apply(rgb: &[u8], width: u32, height: u32, look: Look, level: u8) -> Option<Pixels> {
     let (w, h) = (width as usize, height as usize);
     if w == 0 || h == 0 || w.checked_mul(h)?.checked_mul(3)? != rgb.len() {
@@ -59,17 +79,93 @@ pub fn apply(rgb: &[u8], width: u32, height: u32, look: Look, level: u8) -> Opti
     let lum = |p: &[u8; 3]| ((p[0] as u32 * 299 + p[1] as u32 * 587 + p[2] as u32 * 114) / 1000) as u8;
     Some(match look {
         Look::Original => Pixels::Rgb(rgb.to_vec()),
+        Look::Lighten => Pixels::Rgb(lighten(rgb, level)),
         Look::Colour => Pixels::Rgb(clean(rgb, width, height, level)?),
+        Look::Vivid => Pixels::Rgb(vivid(&clean(rgb, width, height, level)?, level)),
         Look::Greyscale => Pixels::Grey(clean(rgb, width, height, level)?.as_chunks::<3>().0.iter().map(lum).collect()),
-        Look::BlackWhite => {
+        Look::BlackWhite | Look::Eco => {
             // The lighting evened out fully, then one threshold for the whole page.
             let even = clean(rgb, width, height, 50)?;
             let t = 0.45 + 0.4 * level.min(MAX_LEVEL) as f32 / MAX_LEVEL as f32;
             let mut grey: Vec<u8> = even.as_chunks::<3>().0.iter().map(|p| if (lum(p) as f32 / 255.0) < t { 0 } else { 255 }).collect();
             despeckle_grey(&mut grey, w, h);
+            if look == Look::Eco {
+                hollow(&mut grey, w, h);
+            }
             Pixels::Grey(grey)
         }
+        Look::Invert => {
+            let negative: Vec<u8> = rgb.iter().map(|&v| 255 - v).collect();
+            Pixels::Rgb(clean(&negative, width, height, level)?)
+        }
     })
+}
+
+/// Brighten `rgb` at `level` (0 = unchanged): a curve that lifts the shadows and middle tones
+/// and leaves white white, so the ink stays readable.
+fn lighten(rgb: &[u8], level: u8) -> Vec<u8> {
+    let k = level.min(MAX_LEVEL) as f32 / MAX_LEVEL as f32;
+    // 1 - (1 - v)^p: p = 1 is unchanged, larger p is brighter.
+    let p = 1.0 + 2.0 * k;
+    let table: [u8; 256] = std::array::from_fn(|v| ((1.0 - (1.0 - v as f32 / 255.0).powf(p)) * 255.0).round().clamp(0.0, 255.0) as u8);
+    // A u8 always indexes a 256-entry table.
+    rgb.iter().map(|&v| table[v as usize]).collect()
+}
+
+/// Make the colours of a cleaned page (`rgb`) more saturated at `level` (0 = unchanged): each
+/// pixel moves away from its own grey, so white paper and black ink stay as they are.
+fn vivid(rgb: &[u8], level: u8) -> Vec<u8> {
+    let gain = 1.0 + 0.8 * level.min(MAX_LEVEL) as f32 / MAX_LEVEL as f32;
+    let mut out = Vec::with_capacity(rgb.len());
+    for p in rgb.as_chunks::<3>().0 {
+        let grey = (p[0] as f32 * 0.299 + p[1] as f32 * 0.587 + p[2] as f32 * 0.114).clamp(0.0, 255.0);
+        out.extend(p.iter().map(|&v| (grey + (v as f32 - grey) * gain).round().clamp(0.0, 255.0) as u8));
+    }
+    out
+}
+
+/// The side, in pixels, of the square a black pixel must be surrounded by to count as inside a
+/// solid area for [`hollow`]: about a hundredth of the page's shorter side, so text strokes keep
+/// their ink and headings, bars and photos lose theirs.
+fn hollow_radius(w: usize, h: usize) -> usize {
+    (w.min(h) / 200).clamp(2, 32)
+}
+
+/// Turn the inside of every solid black area of `grey` (0 or 255 per pixel) white, keeping an
+/// outline [`hollow_radius`] thick: strokes thinner than twice that stay as they were.
+fn hollow(grey: &mut [u8], w: usize, h: usize) {
+    if grey.len() != w.saturating_mul(h) {
+        return;
+    }
+    let r = hollow_radius(w, h);
+    let span = 2 * r + 1;
+    // A pixel is inside when the square of side `span` centred on it is all black: first along
+    // each row (runs of black ending at x mark the centre x - r), then down each column of those.
+    let mut across = vec![false; grey.len()];
+    for y in 0..h {
+        let mut run = 0usize;
+        for x in 0..w {
+            run = if grey.get(y * w + x) == Some(&0) { run + 1 } else { 0 };
+            // A run of `span` ending at x means x >= 2r, so x - r doesn't underflow.
+            if run >= span
+                && let Some(a) = across.get_mut(y * w + x - r)
+            {
+                *a = true;
+            }
+        }
+    }
+    let mut down = vec![0usize; w];
+    for y in 0..h {
+        for (x, run) in down.iter_mut().enumerate() {
+            *run = if across.get(y * w + x) == Some(&true) { *run + 1 } else { 0 };
+            // As above: a run of `span` ending at y means y >= 2r.
+            if *run >= span
+                && let Some(p) = grey.get_mut((y - r) * w + x)
+            {
+                *p = 255;
+            }
+        }
+    }
 }
 
 /// Clean `rgb` (RGB8, `width` × `height`) at `level` (0 = unchanged … 100 = strongest).
@@ -381,6 +477,92 @@ mod tests {
             assert_eq!(Look::from_name(look.name()), Some(look));
         }
         assert_eq!(apply(&[0; 5], 2, 1, Look::BlackWhite, 50), None);
+    }
+
+    #[test]
+    fn lighten_brightens_the_ink_and_keeps_white_white() {
+        let (w, h) = (120, 120);
+        let img = photo(w, h, |_, _| [0.8, 0.8, 0.8]);
+        let Some(Pixels::Rgb(light)) = apply(&img, w as u32, h as u32, Look::Lighten, 80) else { panic!("lighten") };
+        let text = (w / 2 + 1, 13);
+        assert!(px(&light, w, text.0, text.1)[0] > px(&img, w, text.0, text.1)[0] + 20, "ink is lighter");
+        assert!(light.iter().zip(&img).all(|(a, b)| a >= b), "nothing darker");
+        assert_eq!(lighten(&[255, 0, 128], 100)[..2], [255, 0], "white and black stay");
+        assert_eq!(apply(&img, w as u32, h as u32, Look::Lighten, 0), Some(Pixels::Rgb(img.clone())), "level 0 is unchanged");
+    }
+
+    #[test]
+    fn vivid_saturates_the_stamp_and_keeps_paper_and_ink_neutral() {
+        let (w, h) = (240, 320);
+        let img = photo(w, h, |_, _| [0.9, 0.9, 0.9]);
+        let Some(Pixels::Rgb(colour)) = apply(&img, w as u32, h as u32, Look::Colour, 60) else { panic!("colour") };
+        let Some(Pixels::Rgb(vivid)) = apply(&img, w as u32, h as u32, Look::Vivid, 60) else { panic!("vivid") };
+        let chroma = |p: [u8; 3]| p.iter().max().unwrap() - p.iter().min().unwrap();
+        let stamp = (3 * w / 4, 3 * h / 4);
+        assert!(chroma(px(&vivid, w, stamp.0, stamp.1)) > chroma(px(&colour, w, stamp.0, stamp.1)) + 10, "the stamp is bluer");
+        for (x, y) in paper_points(w, h) {
+            assert_eq!(px(&vivid, w, x, y), px(&colour, w, x, y), "grey paper at ({x}, {y}) is not tinted");
+        }
+    }
+
+    #[test]
+    fn eco_hollows_solid_areas_and_keeps_text_strokes() {
+        // A thin stroke and a large solid block on white.
+        let (w, h) = (400, 400);
+        let mut img = vec![245u8; w * h * 3];
+        let mut paint = |x0: usize, y0: usize, x1: usize, y1: usize| {
+            for y in y0..y1 {
+                for x in x0..x1 {
+                    img[(y * w + x) * 3..][..3].fill(20);
+                }
+            }
+        };
+        paint(20, 20, 380, 23); // a 3-pixel stroke
+        // An 80-pixel block: larger, and the lighting estimate would take its middle for paper.
+        paint(160, 160, 240, 240);
+        let Some(Pixels::Grey(bw)) = apply(&img, w as u32, h as u32, Look::BlackWhite, 50) else { panic!("bw") };
+        let Some(Pixels::Grey(eco)) = apply(&img, w as u32, h as u32, Look::Eco, 50) else { panic!("eco") };
+        assert!(eco.iter().all(|&v| v == 0 || v == 255), "only black and white");
+        assert!(Look::Eco.is_bilevel() && Look::BlackWhite.is_bilevel() && !Look::Greyscale.is_bilevel());
+        let at = |g: &[u8], x: usize, y: usize| g[y * w + x];
+        assert_eq!((at(&bw, 200, 21), at(&eco, 200, 21)), (0, 0), "the stroke keeps its ink");
+        assert_eq!((at(&bw, 200, 200), at(&eco, 200, 200)), (0, 255), "the block's inside is white");
+        assert_eq!(at(&eco, 161, 200), 0, "the block keeps its outline");
+        let ink = |g: &[u8]| g.iter().filter(|&&v| v == 0).count();
+        assert!(ink(&eco) * 3 < ink(&bw), "most of the ink is saved: {} of {}", ink(&eco), ink(&bw));
+    }
+
+    #[test]
+    fn invert_turns_a_blackboard_into_dark_writing_on_white() {
+        // Light chalk strokes on a dark, unevenly lit board.
+        let (w, h) = (240, 240);
+        let mut img = Vec::with_capacity(w * h * 3);
+        for y in 0..h {
+            for x in 0..w {
+                let chalk = (y / 12) % 3 == 1 && x > 20 && x < 220;
+                let board = 40.0 + 30.0 * x as f32 / w as f32;
+                let v = if chalk { 230.0 } else { board };
+                img.extend([v as u8, (v + 10.0) as u8, v as u8]);
+            }
+        }
+        let Some(Pixels::Rgb(out)) = apply(&img, w as u32, h as u32, Look::Invert, 60) else { panic!("invert") };
+        let lum = |p: [u8; 3]| p.iter().map(|&v| v as u32).sum::<u32>() / 3;
+        for x in [10, w / 2, w - 10] {
+            assert!(lum(px(&out, w, x, 4)) > 225, "the board is white at x {x}: {:?}", px(&out, w, x, 4));
+        }
+        assert!(lum(px(&out, w, w / 2, 13)) < 60, "the chalk is dark");
+        assert_eq!(apply(&[0, 255, 10], 1, 1, Look::Invert, 0), Some(Pixels::Rgb(vec![255, 0, 245])), "level 0 only inverts");
+    }
+
+    #[test]
+    fn hollow_leaves_small_and_mismatched_rasters_alone() {
+        let mut tiny = vec![0u8; 4];
+        hollow(&mut tiny, 2, 2);
+        assert_eq!(tiny, vec![0; 4], "smaller than the square");
+        let mut wrong = vec![0u8; 3];
+        hollow(&mut wrong, 2, 2);
+        assert_eq!(wrong, vec![0; 3]);
+        hollow(&mut [], 0, 0);
     }
 
     #[test]

@@ -265,3 +265,33 @@ fn removing_hidden_information_and_sanitizing() {
     let s = h.state();
     assert_eq!(s.session.get(s.views[0].id).unwrap().can_undo(), Some("Sanitize document"));
 }
+
+#[test]
+fn drawn_marks_apply_as_a_mosaic() {
+    let mut h = harness();
+    assert!(h.state_mut().execute("redact.mark"));
+    h.run_steps(2);
+    let (a, b) = (at(&h, 40.0, 280.0), at(&h, 200.0, 320.0));
+    h.hover_at(a);
+    h.run_steps(1);
+    h.drag_at(a);
+    h.run_steps(1);
+    for k in 1..=4 {
+        h.hover_at(a + (b - a) * (k as f32 / 4.0));
+        h.run_steps(1);
+    }
+    h.drop_at(b);
+    h.run_steps(4);
+    assert_eq!(marks(&h), 1);
+    h.get_by_label("Redact all").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::RedactApply));
+    assert!(!h.state().redact_mosaic, "boxes unless chosen");
+    h.get_by_label("Mosaic").click();
+    h.run_steps(2);
+    h.get_by_label("Apply").click();
+    h.run_steps(4);
+    let s = h.state();
+    let doc = s.session.get(s.views[0].id).unwrap();
+    assert_eq!((doc.redaction_marks(), doc.can_undo(), doc.added().len()), (0, Some("Mosaic"), 1), "the squares instead of a box");
+}

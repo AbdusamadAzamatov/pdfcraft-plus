@@ -136,6 +136,42 @@ impl Automation {
         Ok(out)
     }
 
+    /// `page_paging_seal`: one picture in strips across the edges of `pages` (default all).
+    pub(crate) fn page_paging_seal(&mut self, a: &Args) -> Result<Value> {
+        use pdfcraft_engine::paging_seal::{PagingSeal, SealEdge};
+        let pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => (0..self.doc(a)?.info.pages.len()).collect(),
+        };
+        let mut seal = PagingSeal::default();
+        if let Some(w) = a.opt_num("width")? {
+            seal.width = w;
+        }
+        if let Some(p) = a.opt_num("position")? {
+            seal.position = p;
+        }
+        if let Some(e) = a.opt_str("edge")? {
+            seal.edge = SealEdge::from_name(e).ok_or_else(|| ToolError::InvalidArgs(format!("unknown edge {e:?} (right, left)")))?;
+        }
+        let path = self.resolve(a.str("path")?, false)?;
+        let bytes = crate::read_input(&path)?;
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let count = pages.len();
+        let mut out = self.apply(a, Edit::AddPagingSeal { pages, name, bytes: std::sync::Arc::new(bytes), seal })?;
+        out["sealed"] = json!(count);
+        Ok(out)
+    }
+
+    /// `page_mosaic`: squares over an area, what it showed removed for good.
+    pub(crate) fn page_mosaic(&mut self, a: &Args) -> Result<Value> {
+        let page = self.page(a)?;
+        let rect = rect_arg(a, "rect")?.ok_or_else(|| bad("rect is required"))?;
+        let cell = a.opt_num("cell")?.unwrap_or(pdfcraft_engine::mosaic::DEFAULT_CELL);
+        let id = self.doc(a)?.id;
+        self.session.mosaic_area(id, page, rect, cell).map_err(failed)?;
+        Ok(crate::summary(self.doc(a)?))
+    }
+
     fn item(&self, a: &Args) -> Result<(usize, usize, AddedContent, f64)> {
         let page = self.page(a)?;
         let doc = self.doc(a)?;

@@ -581,8 +581,9 @@ pub(crate) fn props_body(ui: &mut egui::Ui, d: &mut RedactPrefs, _t: &Tokens) ->
     buttons(ui, "OK", true)
 }
 
-/// Apply redactions confirmation. Returns (apply, cancel).
-pub(crate) fn apply_body(ui: &mut egui::Ui, marks: usize, t: &Tokens) -> (bool, bool) {
+/// Apply redactions confirmation, with what covers the areas: the marks' boxes, or squares of
+/// the areas' own colours (`mosaic`). Returns (apply, cancel).
+pub(crate) fn apply_body(ui: &mut egui::Ui, marks: usize, mosaic: &mut bool, t: &Tokens) -> (bool, bool) {
     ui.set_width(420.0);
     ui.label(egui::RichText::new(tl!("Apply redactions")).font(crate::theme::semibold(18.0)));
     ui.add_space(8.0);
@@ -597,6 +598,12 @@ pub(crate) fn apply_body(ui: &mut egui::Ui, marks: usize, t: &Tokens) -> (bool, 
             .small()
             .color(t.text_muted),
     );
+    ui.add_space(8.0);
+    ui.horizontal(|ui| {
+        ui.label(tl!("Cover with:"));
+        widgets::radio_value(ui, mosaic, false, tl!("Boxes"));
+        widgets::radio_value(ui, mosaic, true, tl!("Mosaic"));
+    });
     ui.add_space(12.0);
     buttons(ui, "Apply", true)
 }

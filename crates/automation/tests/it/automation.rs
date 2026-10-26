@@ -3476,6 +3476,42 @@ fn enhance_camera_image_finds_the_edges_by_itself() {
 }
 
 #[test]
+fn every_camera_look_is_a_mode_of_the_tool() {
+    use pdfcraft_engine::camera_clean::Look;
+    // The schema lists exactly the engine's looks, in its order.
+    let def = tools().into_iter().find(|t| t.name == "page_enhance_camera").unwrap();
+    let modes: Vec<&str> = def.input_schema["properties"]["mode"]["enum"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    assert_eq!(modes, Look::ALL.map(Look::name));
+
+    let dir = workdir("enhance-camera-looks");
+    let img = image::RgbImage::from_fn(120, 160, |x, y| {
+        if (y / 10) % 3 == 1 && x > 10 && x < 110 { image::Rgb([30, 30, 30]) } else { image::Rgb([220, 215, 200]) }
+    });
+    img.save(dir.join("photo.png")).unwrap();
+    let mut a = auto(&dir);
+    let photo = ok(&mut a, "doc_create", json!({ "from": "images", "paths": ["photo.png"] }))["doc"].as_u64().unwrap();
+    let whole = [0, 0, 120, 0, 120, 160, 0, 160];
+    for mode in modes {
+        let r = ok(&mut a, "page_enhance_camera", json!({ "doc": photo, "page": 1, "corners": whole, "mode": mode, "level": 60 }));
+        assert_eq!(r["undo"], "Enhance camera image", "{mode}");
+        let images = ok(&mut a, "page_images", json!({ "doc": photo, "page": 1 }));
+        assert_eq!(images["images"][0]["pixels"], json!([120, 160]), "{mode}");
+        ok(&mut a, "edit_undo", json!({ "doc": photo }));
+    }
+    let e = a.call("page_enhance_camera", &json!({ "doc": photo, "page": 1, "corners": whole, "mode": "magic" }));
+    assert!(matches!(&e, Err(ToolError::InvalidArgs(m)) if m.contains("eco")), "{e:?}");
+    // The repairs before the look: one step with the enhancement.
+    let r = ok(&mut a, "page_enhance_camera", json!({ "doc": photo, "page": 1, "corners": whole, "remove_moire": true, "flatten": true }));
+    assert_eq!(r["undo"], "Enhance camera image");
+    ok(&mut a, "edit_undo", json!({ "doc": photo }));
+    for bad in [json!({ "remove_moire": "yes" }), json!({ "flatten": 1 })] {
+        let mut args = json!({ "doc": photo, "page": 1, "corners": whole });
+        args.as_object_mut().unwrap().extend(bad.as_object().unwrap().clone());
+        assert!(matches!(a.call("page_enhance_camera", &args), Err(ToolError::InvalidArgs(_))), "{bad}");
+    }
+}
+
+#[test]
 fn editing_form_artwork_through_tools() {
     use pdfcraft_cos::{Dict, Document, Object, SaveOptions, Stream, write_incremental};
     let dir = workdir("form-artwork");
@@ -9933,4 +9969,136 @@ fn missing_fonts_are_listed_with_their_free_look_alike_and_only_catalogue_files_
     assert!(a.call("font_lookalike_install", &json!({ "paths": [] })).is_err());
     let def = tools().into_iter().find(|t| t.name == "font_lookalikes").unwrap();
     assert!(def.read_only);
+}
+
+#[test]
+fn a_paging_seal_spans_the_pages_through_the_tool() {
+    let dir = workdir("paging-seal");
+    let mut png = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut png, 60, 60);
+        enc.set_color(png::ColorType::Rgba);
+        enc.write_header().unwrap().write_image_data(&[200u8; 60 * 60 * 4]).unwrap();
+    }
+    std::fs::write(dir.join("seal.png"), png).unwrap();
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    let r = ok(&mut a, "page_paging_seal", json!({ "doc": doc, "path": "seal.png", "width": 90, "position": 0.25 }));
+    assert_eq!((r["sealed"].as_u64(), r["undo"].as_str()), (Some(3), Some("Add paging seal")));
+    let list = ok(&mut a, "content_list", json!({ "doc": doc }));
+    assert_eq!(list["count"], 3, "one strip per page");
+    // 200 × 300 pt pages: a 90 pt seal in three 30 pt strips at the right edge, centred a
+    // quarter of the way down.
+    for item in list["items"].as_array().unwrap() {
+        assert_eq!(item["rect"], json!([170.0, 30.0, 200.0, 120.0]), "{item}");
+    }
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    ok(&mut a, "page_paging_seal", json!({ "doc": doc, "path": "seal.png", "pages": [3, 1], "edge": "left" }));
+    let list = ok(&mut a, "content_list", json!({ "doc": doc }));
+    assert_eq!(list["count"], 2);
+    assert_eq!(list["items"][0]["rect"][0], 0.0, "on the left edge");
+    for (args, why) in [
+        (json!({ "doc": doc, "path": "seal.png", "edge": "top" }), "edge"),
+        (json!({ "doc": doc, "path": "seal.png", "pages": [9] }), "out of range"),
+        (json!({ "doc": doc, "path": "seal.png", "width": 0 }), "width"),
+        (json!({ "doc": doc, "path": "seal.png", "position": 2 }), "position"),
+        (json!({ "doc": doc, "path": "missing.png" }), "no file"),
+        (json!({ "doc": doc, "path": "../outside.png" }), "outside the root"),
+    ] {
+        assert!(a.call("page_paging_seal", &args).is_err(), "{why}");
+    }
+    assert_eq!(ok(&mut a, "content_list", json!({ "doc": doc }))["count"], 2, "refused calls change nothing");
+}
+
+#[test]
+fn a_mosaic_hides_an_area_for_good_through_the_tool() {
+    let dir = workdir("mosaic");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    assert!(page_text(&mut a, doc)[0].contains("Page 1"));
+    // Around "Page 1" (points from the top-left of the 200 × 300 page).
+    let r = ok(&mut a, "page_mosaic", json!({ "doc": doc, "page": 1, "rect": [10, 120, 190, 170], "cell": 10 }));
+    assert_eq!(r["undo"], "Mosaic");
+    assert!(!page_text(&mut a, doc)[0].contains("Page 1"), "the text is gone");
+    assert_eq!(ok(&mut a, "content_list", json!({ "doc": doc }))["count"], 1, "the squares are one picture");
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    assert!(page_text(&mut a, doc)[0].contains("Page 1"));
+    for (args, why) in [
+        (json!({ "doc": doc, "page": 1 }), "no rect"),
+        (json!({ "doc": doc, "page": 1, "rect": [0, 0, 10] }), "three numbers"),
+        (json!({ "doc": doc, "page": 1, "rect": [0, 0, 50, 50], "cell": 0.5 }), "cell"),
+        (json!({ "doc": doc, "page": 9, "rect": [0, 0, 50, 50] }), "page"),
+        (json!({ "doc": doc, "page": 1, "rect": [500, 500, 600, 600] }), "off the page"),
+    ] {
+        assert!(a.call("page_mosaic", &args).is_err(), "{why}");
+    }
+    assert!(page_text(&mut a, doc)[0].contains("Page 1"), "refused calls change nothing");
+}
+
+/// Organize ▸ Layout ▸ Collage: `doc_collage` arranges the pages on sheets in a new unsaved
+/// document without touching the source, writes it inside --root with `out`, and refuses bad
+/// options and paths outside the root.
+#[test]
+fn doc_collage_arranges_pages_on_sheets_as_a_new_document() {
+    let dir = workdir("collage");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    // The default: two per A4 sheet, one above the other, at real size: three pages, two sheets.
+    let r = ok(&mut a, "doc_collage", json!({ "doc": doc }));
+    assert_eq!((r["pages"].as_u64(), r["sheets"].as_u64()), (Some(3), Some(2)), "{r}");
+    assert_eq!(r["document"]["name"], "a (collage).pdf");
+    let new = r["document"]["doc"].as_u64().unwrap();
+    let info = ok(&mut a, "doc_info", json!({ "doc": new }))["document"].clone();
+    assert_eq!(info["pages"].as_u64(), Some(2));
+    let text = page_text(&mut a, new);
+    assert!(text[0].contains("Page 1") && text[0].contains("Page 2") && text[1].contains("Page 3"), "{text:?}");
+    let source = ok(&mut a, "doc_info", json!({ "doc": doc }))["document"].clone();
+    assert_eq!((source["pages"].as_u64(), source["dirty"].as_bool()), (Some(3), Some(false)), "the source is unchanged");
+
+    // A 2 × 2 landscape Letter grid of fitted pages, written to a file and not opened.
+    let r = ok(
+        &mut a,
+        "doc_collage",
+        json!({ "doc": doc, "pages": [1, 2, 3, 1], "cols": 2, "rows": 2, "size": "fit", "paper": "letter", "landscape": true, "out": "c/grid.pdf" }),
+    );
+    assert_eq!(r["sheets"].as_u64(), Some(1));
+    assert!(r.get("document").is_none(), "out alone doesn't open it");
+    let reopened = ok(&mut a, "doc_open", json!({ "path": "c/grid.pdf" }))["doc"].as_u64().unwrap();
+    let info = ok(&mut a, "doc_info", json!({ "doc": reopened }));
+    assert_eq!(info["document"]["pages"].as_u64(), Some(1));
+    assert_eq!((info["pages"][0]["width"].as_f64(), info["pages"][0]["height"].as_f64()), (Some(792.0), Some(612.0)), "landscape Letter");
+
+    for (args, why) in [
+        (json!({ "doc": doc, "cols": 0 }), "no columns"),
+        (json!({ "doc": doc, "rows": 7 }), "too many rows"),
+        (json!({ "doc": doc, "size": "huge" }), "size"),
+        (json!({ "doc": doc, "paper": "a3" }), "paper"),
+        (json!({ "doc": doc, "margin": 200 }), "margin"),
+        (json!({ "doc": doc, "gap": -1 }), "gap"),
+        (json!({ "doc": doc, "pages": [4] }), "page"),
+        (json!({ "doc": doc, "out": "../escape.pdf" }), "outside the root"),
+    ] {
+        assert!(a.call("doc_collage", &args).is_err(), "{why}");
+    }
+    assert!(!dir.parent().unwrap().join("escape.pdf").exists(), "nothing written outside --root");
+}
+
+/// `redact_apply` with `mosaic`: the marks are applied and their areas covered with squares.
+#[test]
+fn redaction_marks_apply_as_mosaic_through_the_tool() {
+    let dir = workdir("redact-mosaic");
+    std::fs::write(dir.join("memo.txt"), "Call 555-123-4567 today\nPublic line").unwrap();
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_create", json!({ "from": "text", "path": "memo.txt" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "redact_mark", json!({ "doc": doc, "pattern": "phone" }));
+    let r = ok(&mut a, "redact_apply", json!({ "doc": doc, "mosaic": true, "cell": 6 }));
+    assert_eq!((r["applied"].as_u64(), r["marks_pending"].as_u64(), r["undo"].as_str()), (Some(1), Some(0), Some("Mosaic")));
+    let text = page_text(&mut a, doc)[0].clone();
+    assert!(!text.contains("555") && text.contains("Public line"), "{text}");
+    assert_eq!(ok(&mut a, "content_list", json!({ "doc": doc }))["count"], 1, "the squares");
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    for bad in [json!({ "doc": doc, "mosaic": true, "cell": 100 }), json!({ "doc": doc, "mosaic": "yes" })] {
+        assert!(a.call("redact_apply", &bad).is_err(), "{bad}");
+    }
+    assert_eq!(ok(&mut a, "redact_apply", json!({ "doc": doc }))["applied"], 1, "the mark is still there to apply");
 }

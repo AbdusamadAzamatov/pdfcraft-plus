@@ -368,3 +368,36 @@ fn invert_colours_dialog_applies_to_a_page_range_and_is_removable() {
     assert!(marks(&h).is_empty());
     assert_eq!(corner(&h, 1), vec![255, 255, 255, 255], "removed");
 }
+
+/// Edit a PDF ▸ Add content ▸ Paging seal: Apply waits for a picture; once one is chosen the
+/// seal goes on the edge of every page as one undo step, a strip per page.
+#[test]
+fn paging_seal_dialog_needs_a_picture_then_seals_every_page() {
+    let dir = std::env::temp_dir().join(format!("pdfcraft-seal-ui-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let seal = dir.join("seal.png");
+    image::RgbaImage::from_pixel(60, 60, image::Rgba([200, 20, 20, 200])).save(&seal).unwrap();
+    let mut h = harness();
+    assert!(h.state_mut().execute("edit.paging_seal"));
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::PagingSeal));
+    h.get_by_label("None chosen");
+    h.get_by_label("Apply").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::PagingSeal), "Apply waits for a picture");
+    h.state_mut().save_override = Some(seal.to_string_lossy().into_owned());
+    h.get_by_label("Choose picture…").click();
+    h.run_steps(3);
+    h.get_by_label("seal.png");
+    h.get_by_label("Left").click();
+    h.run_steps(2);
+    h.get_by_label("Apply").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, None);
+    let s = h.state();
+    let doc = s.session.get(s.views[0].id).unwrap();
+    assert_eq!(doc.can_undo(), Some("Add paging seal"));
+    assert_eq!(doc.added().iter().map(|a| a.page).collect::<Vec<_>>(), [0, 1, 2], "a strip on every page");
+    assert!(doc.added().iter().all(|a| a.content.rect()[0] == 0.0), "on the left edge");
+    let _ = std::fs::remove_dir_all(&dir);
+}

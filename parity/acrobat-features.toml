@@ -2580,6 +2580,18 @@ evidence = ["crates/edit/src/tests.rs::invert_colors_is_a_mark_that_adds_and_rem
 notes = "Compress ▸ Clean up ▸ Invert colours (marks dialog with a page range). Vector and reversible: a full-page white rectangle on top of the page content with an ExtGState /BM /Difference (black text turns white, red cyan, white paper black; text stays text), plus white paper drawn behind the content so the blend has an opaque backdrop in viewers that treat the page group as isolated. A page without /Group gets << /S /Transparency /CS /DeviceRGB /I false /K false >> so the blend is RGB on CMYK pages; the mark stream records /PCAddedGroup so Remove takes away only a group it added. Stored as a MarkKind::ColorFilter page mark (tagged /PCMark /ColorFilter artifact streams), so Remove inverted colours (and doc_remove_marks kind \"invert\") restores the original content; inverting again replaces the inversion instead of stacking. Not inverted: annotations (comments, form fields, links are drawn after the page content) and marks added later on top (e.g. a header added after inverting). A page that already has a /Group keeps it unchanged (never replaced), so on a page whose own group blends in CMYK the difference is computed in CMYK; that case is untested. Verified by rendering RGB and DeviceCMYK pages."
 
 [[feature]]
+id = "edit.paging-seal"
+title = "Paging seal: one stamp split across the page edges (PdfCraft Plus)"
+area = "C"
+tier = "P3"
+milestone = "M5"
+status = "shipped"
+commands = ["edit.paging_seal"]
+tools = ["page_paging_seal"]
+evidence = ["crates/engine/src/paging_seal.rs::a_square_seal_on_four_pages_is_four_quarter_strips_on_the_right_edge", "crates/engine/src/paging_seal.rs::long_runs_are_split_into_even_groups_each_with_the_whole_seal", "crates/engine/src/tests.rs::a_paging_seal_puts_one_strip_of_one_picture_on_each_page_edge", "crates/automation/tests/it/automation.rs::a_paging_seal_spans_the_pages_through_the_tool", "crates/ui-egui/tests/it/marks.rs::paging_seal_dialog_needs_a_picture_then_seals_every_page"]
+notes = "SC2, not an Acrobat feature (scanner apps and East Asian business practice: a cross-page seal shows no page was swapped). One picture is cut into as many vertical strips as there are pages; page i gets strip i on its right edge (first page leftmost strip) or left edge (first page rightmost), so the seal reads whole when the stack is fanned out. Whole seal width in points (default 113) and centre height (0-1 from the top); it keeps its shape and shrinks to fit the page. More than 20 pages are split into even groups, each with the whole seal (a strip keeps at least the 5 % of the picture a crop may keep). The strips are ordinary added images drawn from one stored picture, so they move, crop and delete like any added image; one undo step. Edit a PDF ▸ Add content ▸ Paging seal opens a dialog (picture, width, position from top to bottom, right or left edge, all/selected/range of pages; Apply waits for a picture); page_paging_seal does the same headlessly. Missing: a seal on the top or bottom edge, a live preview, separate seals per group chosen by hand."
+
+[[feature]]
 id = "edit.decoration-profiles"
 title = "Saved header/footer and watermark settings"
 area = "C"
@@ -2954,6 +2966,18 @@ commands = ["page.nup"]
 tools = ["doc_impose"]
 evidence = ["crates/engine/src/tests.rs::impose_new_lays_five_pages_two_up_on_three_sheets_and_leaves_the_source_alone", "crates/engine/src/tests.rs::impose_new_refuses_a_document_without_the_assembly_permission", "crates/automation/tests/it/automation.rs::doc_impose_makes_a_booklet_as_a_new_document_and_writes_inside_the_root", "crates/ui-egui/tests/it/print.rs::n_up_dialog_opens_from_the_layout_tools_and_creates_a_second_tab"]
 notes = "Organize ▸ Layout ▸ Pages per sheet (N-up)…: the print.n-up layout (2/4/6/9/16, order, borders, auto-rotate; same engine, pdfcraft_print::impose) opened as a new unsaved tab named '<name> (N-up).pdf'; the source is unchanged. The dialog reuses the Print dialog's page and layout controls; paper defaults to the first page's size, upright (doc_impose paper \"first-page\"). The new file is unencrypted, so it needs the Assembly permission or the owner password (refusal tested). Not here: print as image, no live sheet preview in the dialog (Print has one)."
+
+[[feature]]
+id = "organize.collage"
+title = "Collage: pages arranged on sheets at real size or fitted, e.g. ID card front and back (PdfCraft Plus)"
+area = "D"
+tier = "P3"
+milestone = "M4"
+status = "shipped"
+commands = ["page.collage"]
+tools = ["doc_collage"]
+evidence = ["crates/organize/src/collage.rs::an_id_card_front_and_back_sit_together_in_the_middle_of_a4_at_real_size", "crates/organize/src/collage.rs::fitted_pages_fill_equal_cells_in_reading_order", "crates/organize/src/collage.rs::five_pages_two_by_two_make_two_sheets_drawing_each_page_once", "crates/engine/src/tests.rs::collage_new_puts_pages_side_by_side_at_real_size_on_a_sheet", "crates/automation/tests/it/automation.rs::doc_collage_arranges_pages_on_sheets_as_a_new_document", "crates/ui-egui/tests/it/print.rs::collage_dialog_opens_from_the_layout_tools_and_creates_sheets_in_a_second_tab"]
+notes = "SC6, not an Acrobat feature (scanner apps' collage / ID card copy). Organize ▸ Layout ▸ Collage…: a grid of 1–6 columns and rows per A4 or Letter sheet (portrait or landscape), filled left to right then top to bottom on as many sheets as needed, as a new unsaved tab '<name> (collage).pdf'; the source is unchanged. Actual size keeps each page's size in points (shrunk only if it doesn't fit its share) and packs them into a block centred on the sheet, so an identity card's front and back (the default, 1 × 2) sit together in the middle of A4; Fit scales each page to fill an equal cell inside the margins. Vector and lossless (each page a Form XObject, one per source page); links, comments and form fields are not carried over. The new file is unencrypted, so it needs the Assembly permission or the owner password (refusal tested). Missing: a live sheet preview, other paper sizes, a page per cell in column order."
 
 [[feature]]
 id = "organize.booklet-to-pdf"
@@ -5792,6 +5816,18 @@ evidence = ["crates/ui-egui/tests/it/redact.rs::marking_applying_and_clearing", 
 notes = "drag a box anywhere else"
 
 [[feature]]
+id = "protect.mosaic-area"
+title = "Mosaic (pixelate) an area, removing what it showed (PdfCraft Plus)"
+area = "G"
+tier = "P3"
+milestone = "M8"
+status = "shipped"
+commands = ["redact.apply"]
+tools = ["page_mosaic", "redact_apply"]
+evidence = ["crates/engine/src/mosaic.rs::each_square_is_the_average_of_its_part_of_the_area", "crates/engine/src/mosaic.rs::bad_rasters_and_areas_are_errors_not_panics", "crates/engine/src/tests.rs::a_mosaic_removes_the_text_under_it_and_shows_squares", "crates/automation/tests/it/automation.rs::a_mosaic_hides_an_area_for_good_through_the_tool", "crates/engine/src/tests.rs::redaction_marks_apply_as_mosaic", "crates/automation/tests/it/automation.rs::redaction_marks_apply_as_mosaic_through_the_tool", "crates/ui-egui/tests/it/redact.rs::drawn_marks_apply_as_a_mosaic"]
+notes = "SC3, not an Acrobat feature (scanner and photo apps' mosaic). The area is rendered, averaged into squares of about the chosen side (2-72 pt, default 8), then removed for good as Apply redactions does (text, image pixels, vectors; the renderer check that no text is still shown under it runs too; full rewrite on save), and the squares are placed over it as an added picture. One undo step. Refused on a page with redaction marks waiting to be applied, which applying would take too. In the app the areas are drawn (or text marked) with the Redact tool, and Apply redactions ▸ Cover with: Mosaic covers every mark with squares instead of its box (redact_apply mosaic/cell headlessly); page_mosaic takes one area directly. Missing: choosing the square size in the app (8 pt there), a blur style, a mosaic tool of its own outside Redact."
+
+[[feature]]
 id = "protect.redact-pages"
 title = "Mark whole pages for redaction"
 area = "G"
@@ -6849,11 +6885,23 @@ title = "Descreen"
 area = "I"
 tier = "P2"
 milestone = "M10"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "partial"
+commands = ["ocr.enhance_camera"]
+tools = ["page_enhance_camera"]
+evidence = ["crates/engine/src/descreen.rs::the_pattern_goes_and_the_text_stays", "crates/engine/src/tests.rs::camera_repairs_remove_moire_and_flatten_bent_lines", "crates/ui-egui/tests/it/camera.rs::the_repairs_enhance_again_with_the_look_kept"]
+notes = "SC4 (PdfCraft Plus): Enhance camera image ▸ Remove moiré (page_enhance_camera remove_moire). In YCbCr the brightness is low-pass filtered (three box blurs of radius 2–6 by photo size, about a Gaussian) and re-sharpened with an unsharp mask taken from the filtered image, and the colour is filtered at twice the radius; a 5-pixel coloured pattern drops to under a quarter of its spread while text keeps its edges. Runs before the look, in the same undo step. Missing: descreening scanned pages outside the camera tool (Acrobat's Enhance scans option), choosing the strength, and coarse patterns (the blur is sized from the photo, not measured from the pattern)."
+
+[[feature]]
+id = "ocr.camera-flatten"
+title = "Flatten curved pages (book pages) in camera images (PdfCraft Plus)"
+area = "I"
+tier = "P3"
+milestone = "M10"
+status = "partial"
+commands = ["ocr.enhance_camera"]
+tools = ["page_enhance_camera"]
+evidence = ["crates/engine/src/dewarp.rs::a_bent_page_comes_out_with_straight_lines", "crates/engine/src/dewarp.rs::straight_blank_and_photo_like_pictures_are_left_alone", "crates/engine/src/tests.rs::camera_repairs_remove_moire_and_flatten_bent_lines", "crates/ui-egui/tests/it/camera.rs::the_repairs_enhance_again_with_the_look_kept"]
+notes = "SC5, not an Acrobat feature (scanner apps' curved-page flattening). Enhance camera image ▸ Flatten curved page (page_enhance_camera flatten). Follows the text: 20 vertical strips, each strip's row-ink profile matched against its neighbour's (within 2/5 of the line pitch found by autocorrelation) in 4 overlapping horizontal bands, a cubic least-squares curve per band, then each column moved up or down by its displacement interpolated between the bands. A synthetic page bent by up to 25 px comes out with lines straight to within 3 px. Pages without clear lines of text (blank, photos, noise) are left as they are, silently. Missing: undoing the squeeze of the text towards a book's spine, pages with columns or little text, telling the user when nothing was found, curved page edges as corner handles."
 
 [[feature]]
 id = "ocr.remove-halo"
@@ -6888,8 +6936,8 @@ milestone = "M10"
 status = "partial"
 commands = ["ocr.enhance_camera"]
 tools = ["page_enhance_camera"]
-evidence = ["crates/engine/src/tests.rs::enhance_camera_page_straightens_the_sheet", "crates/automation/tests/it/automation.rs::enhance_camera_image_through_tools", "crates/ui-egui/tests/it/camera.rs::dragging_a_corner_then_enhance_page_straightens_the_page", "crates/ui-egui/tests/it/camera.rs::after_enhance_page_crop_and_organize_take_over", "crates/engine/src/tests.rs::detect_camera_corners_finds_the_sheet_in_user_space", "crates/automation/tests/it/automation.rs::enhance_camera_image_finds_the_edges_by_itself"]
-notes = "Four corners (any order, a convex quadrilateral) are warped to an upright page at the picture's own resolution, in one undoable step; comments, links and bookmarks stay. Scan & OCR ▸ Enhance camera image shows four corner handles on the current page (Enhance page / Cancel / Esc), then offers rotate either way, Crop pages and Organize pages for the enhanced page; page_enhance_camera does the same headlessly. The corners start on the document's edges when they are found (straight lines with an edge along most of each side, refined by a line fit; tested on synthetic photos with text, wood grain, shadows, strong perspective and a 30° turn), else inset 5%. After Enhance page a clean-up slider (0–100, default 50) re-enhances from the straightened photo: even lighting, white paper, contrast, despeckle from 60 (camera_clean). Missing: turning the result upright (text orientation), rounded-corner cards keep their background in the corners, document types."
+evidence = ["crates/engine/src/tests.rs::enhance_camera_page_straightens_the_sheet", "crates/automation/tests/it/automation.rs::enhance_camera_image_through_tools", "crates/ui-egui/tests/it/camera.rs::dragging_a_corner_then_enhance_page_straightens_the_page", "crates/ui-egui/tests/it/camera.rs::after_enhance_page_crop_and_organize_take_over", "crates/engine/src/tests.rs::detect_camera_corners_finds_the_sheet_in_user_space", "crates/automation/tests/it/automation.rs::enhance_camera_image_finds_the_edges_by_itself", "crates/engine/src/camera_clean.rs::eco_hollows_solid_areas_and_keeps_text_strokes", "crates/engine/src/camera_clean.rs::invert_turns_a_blackboard_into_dark_writing_on_white", "crates/automation/tests/it/automation.rs::every_camera_look_is_a_mode_of_the_tool"]
+notes = "Four corners (any order, a convex quadrilateral) are warped to an upright page at the picture's own resolution, in one undoable step; comments, links and bookmarks stay. Scan & OCR ▸ Enhance camera image shows four corner handles on the current page (Enhance page / Cancel / Esc), then offers rotate either way, Crop pages and Organize pages for the enhanced page; page_enhance_camera does the same headlessly. The corners start on the document's edges when they are found (straight lines with an edge along most of each side, refined by a line fit; tested on synthetic photos with text, wood grain, shadows, strong perspective and a 30° turn), else inset 5%. After Enhance page a clean-up slider (0–100, default 50) re-enhances from the straightened photo: even lighting, white paper, contrast, despeckle from 60 (camera_clean). Looks (SC1, PdfCraft Plus adds lighten, vivid colour, eco and invert): original, lighten (the slider is how much brighter), colour, vivid colour (cleaned up, ink more saturated), greyscale, black and white, eco (black and white whose solid areas keep only an outline, to save ink) and invert (inverted then cleaned up: chalk on a blackboard becomes dark writing on white); black and white and eco are stored losslessly. Missing: turning the result upright (text orientation), rounded-corner cards keep their background in the corners, document types."
 
 [[feature]]
 id = "ocr.camera-document-type"
@@ -6901,7 +6949,7 @@ status = "planned"
 commands = []
 tools = []
 evidence = []
-notes = ""
+notes ="No document-type detection or tuning yet. The invert look of Enhance camera image (ocr.camera-perspective) turns a photographed blackboard into dark writing on white."
 
 [[feature]]
 id = "ocr.correct-recognized-text"

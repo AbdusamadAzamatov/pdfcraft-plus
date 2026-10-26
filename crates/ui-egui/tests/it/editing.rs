@@ -6323,6 +6323,9 @@ fn remove_blank_pages_lists_candidates_and_keeps_an_unchecked_one() {
     assert_eq!(page_texts(h.state()), ["Page 1", "", "Page 2", "", "Page 3"]);
     h.state_mut().set_option("tool", "organize").unwrap();
     h.run_steps(4);
+    // The Layout list is longer than the test window: scroll the row into view.
+    h.get_by_label("Remove blank pages…").scroll_to_me();
+    h.run_steps(20);
     h.get_by_label("Remove blank pages…").click();
     h.run_steps(4);
     assert_eq!(h.state().dialog, Some(Dialog::RemoveBlank));

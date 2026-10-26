@@ -44,6 +44,7 @@ pub use combine_grid::ThumbState as CombineThumb;
 mod combine_ui;
 pub use combine_ui::{Columns as CombineColumns, CombineView, Lock as CombineLock, SortKey};
 mod camera_ui;
+mod collage_ui;
 mod commands;
 mod comment_props;
 pub mod comments;
@@ -63,6 +64,7 @@ mod marks_ui;
 mod measure_ui;
 mod ocr_ui;
 mod optimize_ui;
+mod seal_ui;
 mod search_ui;
 pub mod side_panels;
 mod sign_ui;
@@ -320,6 +322,10 @@ pub enum Dialog {
     Impose(print_ui::Handling),
     /// Organize ▸ Layout ▸ Stitch pages: the pages on one long page, as a new document.
     Stitch,
+    /// Organize ▸ Layout ▸ Collage: the pages arranged on sheets, as a new document.
+    Collage,
+    /// Edit a PDF ▸ Add content ▸ Paging seal: one seal in strips across the page edges.
+    PagingSeal,
     /// Organize pages ▸ Divide pages.
     DividePages,
     /// Organize ▸ Layout ▸ Remove blank pages: the pages that look blank, checked for removal.
@@ -1001,6 +1007,10 @@ pub struct PdfCraftApp {
     pub impose_draft: impose_ui::ImposeDraft,
     /// Organize ▸ Layout ▸ Stitch pages dialog state.
     pub stitch_draft: stitch_ui::StitchDraft,
+    /// Organize ▸ Layout ▸ Collage dialog state.
+    pub collage_draft: collage_ui::CollageDraft,
+    /// Edit a PDF ▸ Paging seal dialog state.
+    pub seal_draft: seal_ui::SealDraft,
     /// Divide Pages dialog state.
     pub divide_draft: divide_ui::DivideDraft,
     /// Organize ▸ Layout ▸ Remove blank pages dialog state (options, search, results).
@@ -1038,6 +1048,8 @@ pub struct PdfCraftApp {
     pub field_props: Option<prepare::FieldDraft>,
     pub bulk_field_props: Option<bulk_fields::Draft>,
     pub redact_prefs: RedactPrefs,
+    /// Apply redactions ▸ Cover with: squares of the area's own colours instead of boxes.
+    pub redact_mosaic: bool,
     /// The Redaction Tool Properties kept for the next run (what the last OK with "Make
     /// properties default" ticked left), and the values before the dialog opened, for Cancel.
     pub redact_defaults: RedactPrefs,
@@ -1345,6 +1357,8 @@ impl PdfCraftApp {
             boxes_draft: Default::default(),
             impose_draft: Default::default(),
             stitch_draft: Default::default(),
+            collage_draft: Default::default(),
+            seal_draft: Default::default(),
             divide_draft: Default::default(),
             blank_draft: Default::default(),
             deskew_draft: Default::default(),
@@ -1368,6 +1382,7 @@ impl PdfCraftApp {
             field_props: None,
             bulk_field_props: None,
             redact_prefs: RedactPrefs::default(),
+            redact_mosaic: false,
             redact_defaults: RedactPrefs::default(),
             redact_before: None,
             redact_pages_draft: RedactPagesDraft::default(),
@@ -3046,6 +3061,8 @@ impl PdfCraftApp {
                     "page-boxes" => Some(Dialog::PageBoxes),
                     "divide-pages" => Some(Dialog::DividePages),
                     "stitch-pages" => Some(Dialog::Stitch),
+                    "collage" => Some(Dialog::Collage),
+                    "paging-seal" => Some(Dialog::PagingSeal),
                     "rotate-angle" => Some(Dialog::RotateAngle),
                     "resize-pages" => Some(Dialog::ResizePages),
                     "header-footer" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter)),

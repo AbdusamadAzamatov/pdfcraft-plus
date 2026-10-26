@@ -706,7 +706,7 @@ impl crate::PdfCraftApp {
     /// bytes: now when `save_override` answers (tests and automation never see a native dialog),
     /// otherwise on a later frame, and only if that document is still the active one.
     #[cfg(not(target_arch = "wasm32"))]
-    fn pick_image(&mut self, title: &str, then: impl FnOnce(&mut Self, String, Vec<u8>) + Send + 'static) {
+    pub(crate) fn pick_image(&mut self, title: &str, then: impl FnOnce(&mut Self, String, Vec<u8>) + Send + 'static) {
         let read = |app: &mut Self, path: std::path::PathBuf| match std::fs::read(&path) {
             Ok(bytes) => {
                 let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();

@@ -122,6 +122,21 @@ pub fn stitch_layout(sizes: &[(f64, f64)], opts: &StitchOptions) -> Result<Stitc
     Ok(StitchLayout { size, user_unit, origins })
 }
 
+/// A page of a source document as a form in a new one: the form, its size as shown in points
+/// (its own `/UserUnit` included), and that unit.
+pub(crate) type ShownForm = (ObjRef, (f64, f64), f64);
+
+/// Page `p` of `src` (whose pages `all` came from [`walk`]) as a [`ShownForm`] in `out`.
+pub(crate) fn shown_form(out: &mut Document, src: &Document, all: &[(ObjRef, Dict)], p: usize) -> Result<ShownForm, OrganizeError> {
+    let (r, (w, h)) = page_as_form(out, src, p)?;
+    let unit = all
+        .get(p)
+        .and_then(|(obj, _)| src.get(*obj).as_dict().and_then(|d| d.get(b"UserUnit").and_then(|u| src.resolve(u).as_f64())))
+        .filter(|u| *u >= 1.0)
+        .map_or(1.0, |u| u.min(MAX_UNIT));
+    Ok((r, (w * unit, h * unit), unit))
+}
+
 /// A new document whose single page shows `pages` (0-based, in this order; a page may repeat) of
 /// `src`, as they are displayed, one after another. The pages' content is copied; their
 /// annotations (links, comments, form fields) are not. A page's own `/UserUnit` is honoured, so it
@@ -134,19 +149,13 @@ pub fn stitch_pages(src: &Document, pages: &[usize], opts: &StitchOptions) -> Re
     check(pages, all.len())?;
     let mut out = Document::new_empty();
     // One form per distinct page, with its size as shown in points.
-    let mut forms: HashMap<usize, (ObjRef, (f64, f64), f64)> = HashMap::new();
+    let mut forms: HashMap<usize, ShownForm> = HashMap::new();
     let mut placed = Vec::with_capacity(pages.len());
     for &p in pages {
         let form = match forms.get(&p) {
             Some(f) => *f,
             None => {
-                let (r, (w, h)) = page_as_form(&mut out, src, p)?;
-                let unit = all
-                    .get(p)
-                    .and_then(|(obj, _)| src.get(*obj).as_dict().and_then(|d| d.get(b"UserUnit").and_then(|u| src.resolve(u).as_f64())))
-                    .filter(|u| *u >= 1.0)
-                    .map_or(1.0, |u| u.min(MAX_UNIT));
-                let f = (r, (w * unit, h * unit), unit);
+                let f = shown_form(&mut out, src, &all, p)?;
                 forms.insert(p, f);
                 f
             }

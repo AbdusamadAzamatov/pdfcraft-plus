@@ -47,13 +47,18 @@
 ## About this fork
 
 PdfCraft Plus is a personal fork of [PdfCraft](https://github.com/storytold/pdfcraft) by the
-ArtCraft team and the PdfCraft contributors. It keeps everything PdfCraft does and adds two groups
+ArtCraft team and the PdfCraft contributors. It keeps everything PdfCraft does and adds three groups
 of tools:
 
-- **Page Layout:** N-up, booklet, poster, interleave, divide, remove blank pages, stitch, change
-  page size, trim white margins, straighten scans and rotate by any angle.
+- **Page Layout:** N-up, booklet, poster, interleave, divide, remove blank pages, stitch,
+  collage (e.g. an ID card's front and back on one sheet), change page size, trim white margins,
+  straighten scans and rotate by any angle.
 - **Clean-up:** Fast Web View, rasterize, grayscale, invert colours and remove restrictions (after
   you confirm you have the right to).
+- **Scanner tools:** more looks for camera photos (lighten, vivid colour, ink-saving eco and
+  invert for blackboards), moiré removal and flattening of curved book pages, a paging seal
+  stamped across the page edges (Edit a PDF ▸ Paging seal), and mosaic, which hides an area
+  behind squares and removes what it showed for good (Redact ▸ Apply ▸ Cover with: Mosaic).
 
 It is not made, sponsored or endorsed by the ArtCraft team. Bugs in this fork belong in
 [this repository's issues](https://github.com/AbdusamadAzamatov/pdfcraft-plus/issues), not

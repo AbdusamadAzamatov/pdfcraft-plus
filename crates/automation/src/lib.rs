@@ -313,10 +313,15 @@ impl Automation {
                 };
                 let look = match a.opt_str("mode")? {
                     None => pdfcraft_engine::camera_clean::Look::Colour,
-                    Some(m) => pdfcraft_engine::camera_clean::Look::from_name(m)
-                        .ok_or_else(|| ToolError::InvalidArgs(format!("unknown mode {m:?} (original, colour, greyscale, bw)")))?,
+                    Some(m) => pdfcraft_engine::camera_clean::Look::from_name(m).ok_or_else(|| {
+                        ToolError::InvalidArgs(format!("unknown mode {m:?} (original, lighten, colour, vivid, greyscale, bw, eco, invert)"))
+                    })?,
                 };
-                self.session.enhance_camera_page_at(id, page, corners, look, level).map_err(failed)?;
+                let repairs = pdfcraft_engine::camera::Repairs {
+                    moire: a.opt_bool("remove_moire")?.unwrap_or(false),
+                    flatten: a.opt_bool("flatten")?.unwrap_or(false),
+                };
+                self.session.enhance_camera_page_with(id, page, corners, look, level, repairs).map_err(failed)?;
                 let r = |v: f32| (v * 100.0).round() / 100.0;
                 let used: Vec<f32> = corners.iter().flat_map(|&[x, y]| info.user_to_view(x as f32, y as f32)).map(r).collect();
                 let mut out = summary(self.doc(&a)?);
@@ -966,12 +971,15 @@ impl Automation {
             "content_list" => self.content_list(&a)?,
             "page_add_text" => self.page_add_text(&a)?,
             "page_add_image" => self.page_add_image(&a)?,
+            "page_paging_seal" => self.page_paging_seal(&a)?,
+            "page_mosaic" => self.page_mosaic(&a)?,
             "content_update" => self.content_update(&a)?,
             "content_delete" => self.content_delete(&a)?,
             "content_copy" => self.content_copy(&a)?,
             "doc_print" => self.doc_print(&a)?,
             "doc_impose" => self.doc_impose(&a)?,
             "doc_stitch" => self.doc_stitch(&a)?,
+            "doc_collage" => self.doc_collage(&a)?,
             "attachment_add" => {
                 let path = self.resolve(a.str("path")?, false)?;
                 let bytes = read_input(&path)?;
@@ -1660,6 +1668,51 @@ impl Automation {
         out["width"] = json!(layout.size.0);
         out["height"] = json!(layout.size.1);
         out["user_unit"] = json!(layout.user_unit);
+        Ok(out)
+    }
+
+    /// Organize ▸ Layout ▸ Collage: the pages arranged on sheets, as a new document (opened,
+    /// written to `out`, or both). The document itself is not changed.
+    fn doc_collage(&mut self, a: &Args) -> Result<Value> {
+        use pdfcraft_engine::{COLLAGE_A4, COLLAGE_LETTER, CollageOptions, MAX_COLLAGE_GRID};
+        let (id, name, n) = {
+            let d = self.doc(a)?;
+            (d.id, d.name.clone(), d.info.pages.len())
+        };
+        let pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => (0..n).collect(),
+        };
+        let mut opts = CollageOptions::id_card();
+        let grid = |key: &str, default: usize| -> Result<usize> {
+            match a.opt_int(key)? {
+                None => Ok(default),
+                Some(v) if (1..=MAX_COLLAGE_GRID as i64).contains(&v) => Ok(v as usize),
+                Some(v) => Err(ToolError::InvalidArgs(format!("{key} must be from 1 to {MAX_COLLAGE_GRID} (got {v})"))),
+            }
+        };
+        (opts.cols, opts.rows) = (grid("cols", opts.cols)?, grid("rows", opts.rows)?);
+        opts.actual_size = match a.opt_str("size")?.unwrap_or("actual") {
+            "actual" => true,
+            "fit" => false,
+            s => return Err(ToolError::InvalidArgs(format!("unknown size {s:?} (actual, fit)"))),
+        };
+        let paper = match a.opt_str("paper")?.unwrap_or("a4") {
+            "a4" => COLLAGE_A4,
+            "letter" => COLLAGE_LETTER,
+            p => return Err(ToolError::InvalidArgs(format!("unknown paper {p:?} (a4, letter)"))),
+        };
+        opts.sheet = if a.opt_bool("landscape")?.unwrap_or(false) { (paper.1, paper.0) } else { paper };
+        opts.margin = a.opt_num("margin")?.unwrap_or(opts.margin);
+        opts.gap = a.opt_num("gap")?.unwrap_or(opts.gap);
+        // Checked before any copying, so a bad choice says what to change.
+        let sizes: Vec<(f64, f64)> =
+            pages.iter().filter_map(|p| self.doc(a).ok()?.info.pages.get(*p).map(|i| (f64::from(i.width), f64::from(i.height)))).collect();
+        pdfcraft_engine::collage_layout(&sizes, &opts).map_err(|e| ToolError::InvalidArgs(e.to_string()))?;
+        let (bytes, sheets) = self.session.collage_new(id, &pages, &opts).map_err(failed)?;
+        let mut out = self.deliver(a, &pdfcraft_engine::collage_name(&name), bytes)?;
+        out["pages"] = json!(pages.len());
+        out["sheets"] = json!(sheets.len());
         Ok(out)
     }
 

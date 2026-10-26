@@ -24,13 +24,17 @@ pub mod commands;
 pub mod compare;
 mod copy_image;
 pub mod dates;
+pub mod descreen;
 pub mod deskew;
+pub mod dewarp;
 pub mod export;
 pub mod field_table;
 pub mod js;
 pub mod links;
+pub mod mosaic;
 pub mod ocr;
 pub mod optimizer;
+pub mod paging_seal;
 pub mod print_raster;
 pub mod printcheck;
 pub mod rasterize;
@@ -69,6 +73,10 @@ pub use pdfcraft_organize::Standard;
 pub use pdfcraft_organize::check_custom_key;
 pub use pdfcraft_organize::view::{InitialView, Layout as InitialLayout, Magnification, Navigation};
 /// Stitch pages (PL6): its options, layout and limits.
+pub use pdfcraft_organize::{
+    A4 as COLLAGE_A4, CollageOptions, CollagePlaced, CollageSheets, LETTER as COLLAGE_LETTER, MAX_COLLAGE_GAP, MAX_COLLAGE_GRID, MAX_COLLAGE_MARGIN,
+    MAX_COLLAGE_PAGES, collage_layout,
+};
 pub use pdfcraft_organize::{MAX_STITCH_GAP, MAX_STITCH_PAGES, StitchAlign, StitchDirection, StitchLayout, StitchOptions, stitch_layout};
 
 pub use pdfcraft_cos::Algorithm;
@@ -329,6 +337,7 @@ fn scope_of(edit: &Edit) -> Scope {
         | Edit::EditPageImage { .. }
         | Edit::AddText { .. }
         | Edit::AddImage { .. }
+        | Edit::AddPagingSeal { .. }
         | Edit::UpdateContent { .. }
         | Edit::DeleteContent { .. }
         | Edit::ReplaceImage { .. }
@@ -1065,14 +1074,14 @@ fn recovered_render_password(cos: &pdfcraft_cos::Document) -> Option<String> {
 /// the document as it was.
 fn shown_under_redactions(
     after: &pdfcraft_cos::Document,
-    marks: &[pdfcraft_redact::Mark],
+    areas: &[(usize, [f64; 4])],
     overlays: &[pdfcraft_cos::ObjRef],
     pages: &[pdfcraft_render::PageInfo],
     password: Option<&str>,
 ) -> Result<(), EditError> {
     use pdfcraft_cos::Object;
     use pdfcraft_redact::RedactError;
-    let mut marked: Vec<usize> = marks.iter().map(|m| m.page).collect();
+    let mut marked: Vec<usize> = areas.iter().map(|(page, _)| *page).collect();
     marked.sort_unstable();
     marked.dedup();
     if marked.is_empty() {
@@ -1094,12 +1103,8 @@ fn shown_under_redactions(
         let request = pdfcraft_render::RenderRequest { page: pi, kind: pdfcraft_render::RequestKind::Text, scale: 1.0, ..Default::default() };
         // A page that cannot be read back cannot be confirmed clean.
         let (Some(info), Some(text)) = (pages.get(pi), renderer.render(request).text) else { return Err(RedactError::Unreadable(pi + 1).into()) };
-        let rects: Vec<[f64; 4]> = marks
-            .iter()
-            .filter(|m| m.page == pi)
-            .flat_map(|m| m.rects.iter())
-            .map(|r| [r[0].min(r[2]), r[1].min(r[3]), r[0].max(r[2]), r[1].max(r[3])])
-            .collect();
+        let rects: Vec<[f64; 4]> =
+            areas.iter().filter(|(page, _)| *page == pi).map(|(_, r)| [r[0].min(r[2]), r[1].min(r[3]), r[0].max(r[2]), r[1].max(r[3])]).collect();
         for glyph in text.glyphs.iter().filter(|g| !g.text.trim().is_empty()) {
             let [x0, y0, x1, y1] = info.view_rect_to_user(glyph.rect).map(f64::from);
             let area = (x1 - x0) * (y1 - y0);
@@ -1877,6 +1882,15 @@ pub enum Edit {
     RemoveMarks {
         kind: MarkKind,
     },
+    /// Edit a PDF ▸ Paging seal: the picture `bytes` (a file named `name`) cut into strips, one
+    /// on the edge of each of `pages` (0-based, in that order), as added images (see
+    /// [`paging_seal`]).
+    AddPagingSeal {
+        pages: Vec<usize>,
+        name: String,
+        bytes: Arc<Vec<u8>>,
+        seal: paging_seal::PagingSeal,
+    },
     /// Edit a PDF ▸ Add content ▸ Text (`text.rect` in display space).
     AddText {
         page: usize,
@@ -1923,6 +1937,15 @@ pub enum Edit {
     },
     /// Remove redaction marks without applying them.
     ClearRedactions,
+    /// Edit a PDF ▸ Mosaic (from [`Session::mosaic_area_edit`] or
+    /// [`Session::mosaic_marks_edit`]): with `area` (a page and a user-space box), first mark it
+    /// for redaction, without a box (refused when that page already has marks); then apply every
+    /// redaction mark on `pages`, removing what they cover for good, and place each of `squares`.
+    Mosaic {
+        area: Option<(usize, [f64; 4])>,
+        pages: Vec<usize>,
+        squares: Vec<mosaic::Squares>,
+    },
     /// Edit a PDF ▸ Link: a new link over `rect` (user space).
     AddLink {
         page: usize,
@@ -2342,11 +2365,13 @@ impl Edit {
             Edit::RemoveMarks { kind: MarkKind::ColorFilter } => Label::of("Remove inverted colours"),
             Edit::AddText { .. } => Label::of("Add text"),
             Edit::AddImage { .. } => Label::of("Add image"),
+            Edit::AddPagingSeal { .. } => Label::of("Add paging seal"),
             Edit::UpdateContent { .. } => Label::of("Edit content"),
             Edit::DeleteContent { .. } => Label::of("Delete content"),
             Edit::ReplaceImage { .. } => Label::of("Replace image"),
             Edit::PasteContent { .. } => Label::of("Paste"),
             Edit::ApplyRedactions { .. } => Label::of("Apply redactions"),
+            Edit::Mosaic { .. } => Label::of("Mosaic"),
             Edit::ClearRedactions => Label::of("Remove redaction marks"),
             Edit::RemoveHidden { .. } => Label::of("Remove hidden information"),
             Edit::ImportData { name, .. } => Label::with("Import {name}", name.as_str()),
@@ -2512,8 +2537,10 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::RemoveMarks { .. }
         | Edit::AddField { .. }
         | Edit::ApplyRedactions { .. }
+        | Edit::Mosaic { .. }
         | Edit::AddText { .. }
         | Edit::AddImage { .. }
+        | Edit::AddPagingSeal { .. }
         | Edit::UpdateContent { .. }
         | Edit::MoveObjects { .. }
         | Edit::DeleteContent { .. }
@@ -3004,6 +3031,24 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
             };
             pdfcraft_edit::add_content(doc, *page, &AddedContent::Image(pdfcraft_edit::AddedImage::new(rect, image)))?;
         }
+        Edit::AddPagingSeal { pages, name, bytes, seal } => {
+            let all = pdfcraft_model::pages(doc);
+            let sizes = pages
+                .iter()
+                .map(|&p| all.get(p).map(|page| page.display_size(doc)))
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| EditError::Invalid("there is no such page".into()))?;
+            let mut seen = std::collections::HashSet::new();
+            if !pages.iter().all(|p| seen.insert(*p)) {
+                return Err(EditError::Invalid("a page can't take two strips of one seal".into()));
+            }
+            let (image, natural) = embed_image(doc, name, bytes)?;
+            let strips = paging_seal::strips(&sizes, natural, seal).map_err(EditError::Invalid)?;
+            for (&page, paging_seal::Strip { rect, crop }) in pages.iter().zip(strips) {
+                let strip = pdfcraft_edit::AddedImage { crop, ..pdfcraft_edit::AddedImage::new(rect, image) };
+                pdfcraft_edit::add_content(doc, page, &AddedContent::Image(strip))?;
+            }
+        }
         Edit::UpdateContent { page, index, content } => pdfcraft_edit::update_content(doc, *page, *index, content)?,
         Edit::DeleteContent { page, index } => pdfcraft_edit::delete_content(doc, *page, *index)?,
         Edit::ReplaceImage { page, index, name, bytes } => {
@@ -3041,6 +3086,27 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         }
         Edit::ClearRedactions => {
             pdfcraft_redact::clear_marks(doc, None)?;
+        }
+        Edit::Mosaic { area, pages, squares } => {
+            if let Some((page, user)) = area {
+                // Applying redactions applies every mark on the page: one the user placed would go too.
+                if pdfcraft_redact::marks(doc).iter().any(|m| m.page == *page) {
+                    return Err(EditError::Invalid(format!(
+                        "page {} has redaction marks waiting to be applied: apply or remove them first",
+                        page.saturating_add(1)
+                    )));
+                }
+                // No box and no overlay text: the squares cover the area.
+                let shape = Shape::Redact { quads: vec![pdfcraft_annot::rect_quad(*user)], overlay: String::new(), look: Default::default() };
+                let style = Style { fill: None, ..Style::default_for(&shape) };
+                let mark = NewAnnotation { page: *page, shape, style, contents: String::new(), author: String::new() };
+                pdfcraft_annot::add_annotation(doc, &mark, &cx.meta())?;
+            }
+            cx.redaction_overlays = pdfcraft_redact::apply(doc, Some(pages))?.overlays;
+            for s in squares {
+                let (image, _) = embed_image(doc, "mosaic.png", &s.picture)?;
+                pdfcraft_edit::add_content(doc, s.page, &AddedContent::Image(pdfcraft_edit::AddedImage::new(s.display, image)))?;
+            }
         }
         Edit::AddLink { page, rect, action, style } => {
             pdfcraft_annot::links::add(doc, *page, *rect, action, style)?;
@@ -3278,6 +3344,12 @@ pub fn impose_name(name: &str, layout: &print::Layout) -> String {
         print::Layout::Size(_) | print::Layout::Label { .. } => "print".into(),
     };
     format!("{stem} ({what}).pdf")
+}
+
+/// The name [`Session::collage_new`]'s result opens under: `<name> (collage).pdf`.
+pub fn collage_name(name: &str) -> String {
+    let stem = name.strip_suffix(".pdf").or_else(|| name.strip_suffix(".PDF")).unwrap_or(name);
+    format!("{stem} (collage).pdf")
 }
 
 /// The name [`Session::stitch_new`]'s result opens under: `<name> (stitched).pdf`.
@@ -4260,10 +4332,26 @@ impl Session {
             .unwrap_or_else(|m| Err(EditError::Invalid(format!("{} failed unexpectedly ({m}); the document was not changed", edit.label()))))?;
         // Redaction removed what its own interpreter places under the marks. The marks were drawn
         // over the page as the renderer shows it, so the renderer has the last word.
-        if let Edit::ApplyRedactions { pages } = &edit {
-            let marks: Vec<pdfcraft_redact::Mark> =
-                pdfcraft_redact::marks(&editor.cos).into_iter().filter(|m| pages.as_ref().is_none_or(|p| p.contains(&m.page))).collect();
-            guard(|| shown_under_redactions(&next, &marks, &cx.redaction_overlays, &doc.info.pages, doc.password.as_deref()))
+        let redacted: Option<Vec<(usize, [f64; 4])>> = match &edit {
+            Edit::ApplyRedactions { pages } => Some(
+                pdfcraft_redact::marks(&editor.cos)
+                    .into_iter()
+                    .filter(|m| pages.as_ref().is_none_or(|p| p.contains(&m.page)))
+                    .flat_map(|m| m.rects.into_iter().map(move |r| (m.page, r)))
+                    .collect(),
+            ),
+            Edit::Mosaic { area, pages, .. } => Some(
+                pdfcraft_redact::marks(&editor.cos)
+                    .into_iter()
+                    .filter(|m| pages.contains(&m.page))
+                    .flat_map(|m| m.rects.into_iter().map(move |r| (m.page, r)))
+                    .chain(*area)
+                    .collect(),
+            ),
+            _ => None,
+        };
+        if let Some(areas) = redacted {
+            guard(|| shown_under_redactions(&next, &areas, &cx.redaction_overlays, &doc.info.pages, doc.password.as_deref()))
                 .unwrap_or_else(|m| Err(EditError::Invalid(format!("{} failed unexpectedly ({m}); the document was not changed", edit.label()))))?;
         }
         // Renamed fields are said, not slipped in: a repair-log note (with the caveat that
@@ -4597,6 +4685,7 @@ impl Session {
                 e,
                 Edit::AddText { .. }
                     | Edit::AddImage { .. }
+                    | Edit::AddPagingSeal { .. }
                     | Edit::UpdateContent { .. }
                     | Edit::DeleteContent { .. }
                     | Edit::ReplaceImage { .. }
@@ -5154,6 +5243,28 @@ impl Session {
         }
         let (out, layout) = guard(|| pdfcraft_organize::stitch_pages(&cos, pages, opts)).map_err(EditError::Write)??;
         Ok((self.write_new(&out)?, layout))
+    }
+
+    /// Organize ▸ Layout ▸ Collage: `pages` (0-based, in this order) arranged on sheets of paper,
+    /// a grid of them per sheet, at their real size or fitted to the cells, as a **new** PDF (to
+    /// open with [`Self::open_new`], named with [`collage_name`]), with what went on each sheet.
+    /// The pages come as they are now, unsaved changes included, and their layers as shown;
+    /// links, comments and form fields are not carried over. The document itself is not changed.
+    ///
+    /// The result is not encrypted, so a restricted document needs the Assembly permission (or
+    /// the owner password), as [`Self::stitch_new`] does.
+    pub fn collage_new(&self, id: DocId, pages: &[usize], opts: &CollageOptions) -> Result<(Arc<Vec<u8>>, CollageSheets), EditError> {
+        let src = self.cos(id)?;
+        if src.permissions().is_some_and(|p| !p.assemble()) {
+            return Err(EditError::NotPermitted("making a new document from its pages"));
+        }
+        let doc = self.get(id).ok_or(EditError::NoDocument)?;
+        let mut cos = src.clone();
+        if !doc.config.layers.is_empty() {
+            set_default_layer_state(&mut cos, &doc.info.layers);
+        }
+        let (out, sheets) = guard(|| pdfcraft_organize::collage_pages(&cos, pages, opts)).map_err(EditError::Write)??;
+        Ok((self.write_new(&out)?, sheets))
     }
 
     /// Combine whole files, in order, into new PDF bytes (one bookmark per file).

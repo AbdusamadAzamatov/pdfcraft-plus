@@ -15,6 +15,7 @@ use pdfcraft_cos::{Dict, Document, ObjRef, Object, PdfString, XrefEntry};
 
 mod attachments;
 mod boxes;
+mod collage;
 mod dedupe;
 mod divide;
 mod import;
@@ -32,6 +33,10 @@ mod xmp;
 
 pub use attachments::{add_attachment, attachment_keys, delete_attachment, mime_for_name};
 pub use boxes::{BoxSpec, PageBox, page_boxes, set_page_box};
+pub use collage::{
+    A4, CollageOptions, LETTER, MAX_COLLAGE_GAP, MAX_COLLAGE_GRID, MAX_COLLAGE_MARGIN, MAX_COLLAGE_PAGES, Placed as CollagePlaced,
+    Sheets as CollageSheets, collage_layout, collage_pages,
+};
 pub use dedupe::dedupe_resources;
 pub use divide::{MAX_DIVIDE, divide_pages};
 pub use import::{

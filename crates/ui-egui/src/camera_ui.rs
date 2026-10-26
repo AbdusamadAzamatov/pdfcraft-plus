@@ -7,6 +7,7 @@ use egui::{Align2, Color32, CornerRadius, Pos2, Rect, Shape, Stroke, vec2};
 use crate::canvas::{DocView, PageXform, ViewAction};
 use crate::page_pointer::PagePointer;
 use crate::theme::Tokens;
+pub use pdfcraft_engine::camera::Repairs;
 pub use pdfcraft_engine::camera_clean::Look;
 
 /// How far in from the page's edges the corners start, as a share of its size.
@@ -44,10 +45,11 @@ pub struct CameraDone {
     pub page: usize,
     /// The corners it was straightened from, in PDF user space.
     pub corners: [[f64; 2]; 4],
-    /// The look and slider level chosen, and the ones the page shows.
+    /// The look, slider level and repairs chosen, and the ones the page shows.
     pub look: Look,
     pub level: u8,
-    pub applied: (Look, u8),
+    pub repairs: Repairs,
+    pub applied: (Look, u8, Repairs),
     /// Quarter turns made since, in degrees (clockwise positive).
     pub turns: i64,
     /// The undo steps the enhancement and the turns took.
@@ -138,8 +140,9 @@ pub(crate) fn paint(painter: &egui::Painter, xf: &PageXform, page: usize, view: 
 
 /// The floating bar at the top right of the document area (where the find bar goes, clear of a
 /// centred page's corners): Enhance page and Cancel; once the page is enhanced, rotate it either
-/// way, choose its look (original, colour, greyscale, black and white) and clean-up level,
-/// Crop pages, Organize pages, or Done. The instructions are a notice (`ocr.enhance_camera`).
+/// way, choose its look (original, lighten, colour, vivid colour, greyscale, black and white, eco,
+/// invert) and clean-up level (how much brighter, for lighten), remove moiré and flatten a
+/// curved page, Crop pages, Organize pages, or Done. The instructions are a notice (`ocr.enhance_camera`).
 pub(crate) fn bar(ctx: &egui::Context, view: &mut DocView, area: Rect, t: &Tokens, allowed: bool) {
     egui::Area::new(egui::Id::new("camera-bar"))
         .order(egui::Order::Middle)
@@ -157,50 +160,67 @@ pub(crate) fn bar(ctx: &egui::Context, view: &mut DocView, area: Rect, t: &Token
                         // After Enhance page: put the page the right way up, trim it, or move on.
                         if let Some(done) = view.camera_done.as_mut() {
                             let mut again = false;
-                            for (look, label) in [
-                                (Look::Original, tl!("Original")),
-                                (Look::Colour, tl!("Colour")),
-                                (Look::Greyscale, tl!("Greyscale")),
-                                (Look::BlackWhite, tl!("Black and white")),
-                            ] {
-                                if ui.add_enabled(allowed, egui::Button::selectable(done.look == look, label)).clicked() && done.look != look {
-                                    done.look = look;
-                                    again = true;
-                                }
-                            }
-                            ui.separator();
-                            ui.label(tl!("Clean-up"));
-                            let slider = ui.add_enabled(
-                                allowed && done.look != Look::Original,
-                                egui::Slider::new(&mut done.level, 0..=crate::camera_ui::MAX_LEVEL).show_value(false),
-                            );
-                            // Enhance again once the slider is let go (or moved with the keys).
-                            again |= slider.drag_stopped() || (slider.changed() && !slider.dragged());
-                            if again && (done.look, done.level) != done.applied {
-                                view.pending_action = Some(ViewAction::CameraLevel);
-                            }
-                            ui.separator();
-                            let icon = |ui: &mut egui::Ui, name: &str, tip: &str| {
-                                let r = ui.add_enabled(allowed, egui::Button::image(crate::icons::image(name, 18.0, t.text)).frame(false));
-                                // Named for screen readers (and tests), not only on hover.
-                                r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, allowed, tip));
-                                r.on_hover_text(tip).clicked()
-                            };
-                            if icon(ui, "rotate-ccw", tl!("Rotate counterclockwise")) {
-                                view.pending_action = Some(ViewAction::CameraRotate { clockwise: false });
-                            }
-                            if icon(ui, "rotate-cw", tl!("Rotate clockwise")) {
-                                view.pending_action = Some(ViewAction::CameraRotate { clockwise: true });
-                            }
-                            if crate::widgets::pill_button(ui, tl!("Crop pages"), false).clicked() {
-                                view.pending_action = Some(ViewAction::CameraNext("page.crop"));
-                            }
-                            if crate::widgets::pill_button(ui, tl!("Organize pages"), false).clicked() {
-                                view.pending_action = Some(ViewAction::CameraNext("page.organize"));
-                            }
-                            if crate::widgets::pill_button(ui, tl!("Done"), true).clicked() {
-                                view.pending_action = Some(ViewAction::CancelCamera);
-                            }
+                            // The looks on a row of their own, above the level and the next steps.
+                            ui.vertical(|ui| {
+                                ui.horizontal(|ui| {
+                                    for (look, label) in [
+                                        (Look::Original, tl!("Original")),
+                                        (Look::Lighten, tl!("Lighten")),
+                                        (Look::Colour, tl!("Colour")),
+                                        (Look::Vivid, tl!("Vivid colour")),
+                                        (Look::Greyscale, tl!("Greyscale")),
+                                        (Look::BlackWhite, tl!("Black and white")),
+                                        (Look::Eco, tl!("Eco (saves ink)")),
+                                        (Look::Invert, tl!("Invert")),
+                                    ] {
+                                        if ui.add_enabled(allowed, egui::Button::selectable(done.look == look, label)).clicked() && done.look != look
+                                        {
+                                            done.look = look;
+                                            again = true;
+                                        }
+                                    }
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label(if done.look == Look::Lighten { tl!("Brightness") } else { tl!("Clean-up") });
+                                    let slider = ui.add_enabled(
+                                        allowed && done.look != Look::Original,
+                                        egui::Slider::new(&mut done.level, 0..=crate::camera_ui::MAX_LEVEL).show_value(false),
+                                    );
+                                    // Enhance again once the slider is let go (or moved with the keys).
+                                    again |= slider.drag_stopped() || (slider.changed() && !slider.dragged());
+                                    ui.separator();
+                                    again |=
+                                        ui.add_enabled(allowed, crate::widgets::checkbox(&mut done.repairs.moire, tl!("Remove moiré"))).changed();
+                                    again |= ui
+                                        .add_enabled(allowed, crate::widgets::checkbox(&mut done.repairs.flatten, tl!("Flatten curved page")))
+                                        .changed();
+                                    if again && (done.look, done.level, done.repairs) != done.applied {
+                                        view.pending_action = Some(ViewAction::CameraLevel);
+                                    }
+                                    ui.separator();
+                                    let icon = |ui: &mut egui::Ui, name: &str, tip: &str| {
+                                        let r = ui.add_enabled(allowed, egui::Button::image(crate::icons::image(name, 18.0, t.text)).frame(false));
+                                        // Named for screen readers (and tests), not only on hover.
+                                        r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, allowed, tip));
+                                        r.on_hover_text(tip).clicked()
+                                    };
+                                    if icon(ui, "rotate-ccw", tl!("Rotate counterclockwise")) {
+                                        view.pending_action = Some(ViewAction::CameraRotate { clockwise: false });
+                                    }
+                                    if icon(ui, "rotate-cw", tl!("Rotate clockwise")) {
+                                        view.pending_action = Some(ViewAction::CameraRotate { clockwise: true });
+                                    }
+                                    if crate::widgets::pill_button(ui, tl!("Crop pages"), false).clicked() {
+                                        view.pending_action = Some(ViewAction::CameraNext("page.crop"));
+                                    }
+                                    if crate::widgets::pill_button(ui, tl!("Organize pages"), false).clicked() {
+                                        view.pending_action = Some(ViewAction::CameraNext("page.organize"));
+                                    }
+                                    if crate::widgets::pill_button(ui, tl!("Done"), true).clicked() {
+                                        view.pending_action = Some(ViewAction::CancelCamera);
+                                    }
+                                });
+                            });
                             return;
                         }
                         let ready = allowed && view.camera.is_some();

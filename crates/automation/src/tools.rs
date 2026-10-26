@@ -270,7 +270,7 @@ pub fn tools() -> Vec<ToolDef> {
                 }),
                 &["doc"],
             )),
-        t("page_enhance_camera", "Enhance camera image", "Straighten a photographed document (Scan & OCR ▸ Enhance ▸ Camera image): the part of the page inside the four corners (x1, y1, … x4, y4 in top-left-origin points, any order, a convex quadrilateral; when omitted, the document's edges are found automatically, or an error says they could not be) is warped to an upright rectangle that replaces what the page shows, at the page picture's own resolution (at most 600 dpi). mode is how it looks: original, colour (default), greyscale or bw (black and white, stored losslessly). level (0–100, default 0) then cleans the photo up: even lighting so the paper turns white (casts, shadows, dark edges), more contrast, and from 60 no isolated specks; colour ink stays colour. For bw the level is the threshold (higher keeps fainter strokes black). The page's comments, links and bookmarks stay. Undoable.")
+        t("page_enhance_camera", "Enhance camera image", "Straighten a photographed document (Scan & OCR ▸ Enhance ▸ Camera image): the part of the page inside the four corners (x1, y1, … x4, y4 in top-left-origin points, any order, a convex quadrilateral; when omitted, the document's edges are found automatically, or an error says they could not be) is warped to an upright rectangle that replaces what the page shows, at the page picture's own resolution (at most 600 dpi). mode is how it looks: original, lighten (brighter, as photographed otherwise), colour (default), vivid (colour with more saturated ink), greyscale, bw (black and white, stored losslessly), eco (black and white that saves ink: solid areas keep only their outline, stored losslessly) or invert (colours inverted first, so chalk on a blackboard becomes dark writing on white). level (0–100, default 0) then cleans the photo up: even lighting so the paper turns white (casts, shadows, dark edges), more contrast, and from 60 no isolated specks; colour ink stays colour. For lighten the level is how much brighter; for bw and eco it is the threshold (higher keeps fainter strokes black). Before the look, remove_moire (default false) smooths away the pattern in photos of screens and printed pictures and sharpens text again, and flatten (default false) straightens lines of text that bend, as on a book page (only the bending, not the squeeze towards the spine; a page without clear lines of text is left as it is). The page's comments, links and bookmarks stay. Undoable.")
             .cmd("ocr.enhance_camera")
             .with(schema(
                 json!({
@@ -278,7 +278,9 @@ pub fn tools() -> Vec<ToolDef> {
                     "page": { "type": "integer", "minimum": 1 },
                     "corners": { "type": "array", "items": { "type": "number" }, "minItems": 8, "maxItems": 8 },
                     "level": { "type": "integer", "minimum": 0, "maximum": 100 },
-                    "mode": { "type": "string", "enum": ["original", "colour", "greyscale", "bw"] },
+                    "mode": { "type": "string", "enum": ["original", "lighten", "colour", "vivid", "greyscale", "bw", "eco", "invert"] },
+                    "remove_moire": { "type": "boolean" },
+                    "flatten": { "type": "boolean" },
                 }),
                 &["doc", "page"],
             )),
@@ -598,10 +600,18 @@ pub fn tools() -> Vec<ToolDef> {
         t(
             "redact_apply",
             "Apply redactions",
-            "Apply the redaction marks (all, or those on pages): text, images, vectors, comments and form fields under them are removed for good and boxes are drawn in their place. A verification pass fails the operation if anything readable remains. Undoable until saved; the saved file no longer contains the content.",
+            "Apply the redaction marks (all, or those on pages): text, images, vectors, comments and form fields under them are removed for good and boxes are drawn in their place. A verification pass fails the operation if anything readable remains. With mosaic true, each marked area is covered with squares of its own colours (about cell points across, 2–72, default 8) instead of a box, so the page still looks whole. Undoable until saved; the saved file no longer contains the content.",
         )
         .destructive()
-        .with(schema(json!({ "doc": doc(), "pages": pages("whose marks to apply (default: all)") }), &["doc"])),
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("whose marks to apply (default: all)"),
+                "mosaic": { "type": "boolean", "description": "Cover the areas with squares instead of boxes (default false)." },
+                "cell": { "type": "number", "minimum": 2, "maximum": 72, "description": "The squares' side in points, with mosaic (default 8)." },
+            }),
+            &["doc"],
+        )),
         t("redact_clear", "Remove redaction marks", "Remove every redaction mark without applying it. Undoable.")
             .destructive()
             .with(schema(json!({ "doc": doc() }), &["doc"])),
@@ -692,6 +702,28 @@ pub fn tools() -> Vec<ToolDef> {
             }),
             &["doc"],
         )),
+        t(
+            "doc_collage",
+            "Arrange pages on sheets (collage)",
+            "Arrange pages on sheets of paper, a grid of them per sheet, as a new PDF (Organize ▸ Layout ▸ Collage), e.g. an identity card's front and back on one A4 sheet. pages (1-based, in the order given, a page may repeat; default all, at most 1000) fill each sheet's grid left to right, then top to bottom, on as many sheets as needed. cols and rows (1–6, default 1 and 2). size actual (default: each page at its real size, shrunk only if it doesn't fit its share; the pages are packed into a block centred on the sheet) or fit (the sheet inside its margins is cut into equal cells and each page scaled, up or down, to fill its cell). paper a4 (default) or letter, landscape (default false), margin (0–144 pt, default 36) and gap between pages (0–72 pt, default 24). Only page content is copied: links, comments and form fields are not carried over. The result opens as a new unsaved document named \"<name> (collage).pdf\", and/or is written to out; it reports sheets. The document itself is not changed (nothing to undo). The new file is not encrypted, so a restricted document needs the page-assembly permission or the owner password.",
+        )
+        .cmd("page.collage")
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("to arrange, in order (default: all)"),
+                "cols": { "type": "integer", "minimum": 1, "maximum": 6 },
+                "rows": { "type": "integer", "minimum": 1, "maximum": 6 },
+                "size": { "type": "string", "enum": ["actual", "fit"] },
+                "paper": { "type": "string", "enum": ["a4", "letter"] },
+                "landscape": { "type": "boolean" },
+                "margin": { "type": "number", "minimum": 0, "maximum": 144, "description": "Space kept clear at the sheet's edges, in points (default 36)." },
+                "gap": { "type": "number", "minimum": 0, "maximum": 72, "description": "Space between pages in points (default 24)." },
+                "out": { "type": "string", "description": "File to write. Omit to open the result as a new unsaved document instead." },
+                "open": { "type": "boolean", "description": "Also open the result as a new document (default: only when out is omitted)." },
+            }),
+            &["doc"],
+        )),
         t("content_list", "List added content", "Text and images added with page_add_text/page_add_image (or Edit a PDF ▸ Add content), per page with a 1-based index, rect (points from the top-left of the page), and text style.")
             .ro()
             .with(schema(json!({ "doc": doc() }), &["doc"])),
@@ -723,6 +755,38 @@ pub fn tools() -> Vec<ToolDef> {
         .with(schema(
             json!({ "doc": doc(), "page": { "type": "integer", "minimum": 1 }, "path": { "type": "string" }, "rect": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 } }),
             &["doc", "page", "path"],
+        )),
+        t(
+            "page_paging_seal",
+            "Add a paging seal",
+            "Stamp a seal across the edges of several pages (a cross-page or riding seal, which shows no page was swapped): the picture at path (PNG with transparency is best; JPEG, TIFF, GIF, BMP) is cut into as many vertical strips as there are pages, and each page gets its strip on its right (edge, default) or left edge, so the seal reads whole when the pages are fanned out. pages (default all) in the order they are stacked. width is the whole seal's width in points (default 113, about 4 cm); it keeps its shape and is shrunk to fit a page. position is the height of its centre from the top, 0–1 (default 0.5). More than 20 pages are split into even groups, each with the whole seal. The strips are added images (content_list, content_update, content_delete) drawn from one stored picture. Undoable.",
+        )
+        .cmd("edit.paging_seal")
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("to seal, in stacking order (default: all)"),
+                "path": path_arg(),
+                "width": { "type": "number", "exclusiveMinimum": 0, "description": "The whole seal's width in points (default 113)." },
+                "position": { "type": "number", "minimum": 0, "maximum": 1, "description": "The seal's centre, as a share of the page height from the top (default 0.5)." },
+                "edge": { "type": "string", "enum": ["right", "left"] },
+            }),
+            &["doc", "path"],
+        )),
+        t(
+            "page_mosaic",
+            "Mosaic an area",
+            "Hide an area of a page behind coarse squares of its own colours (pixelate a face, a signature or a number, so the page still looks whole). rect is the area in points from the top-left of the page; cell is the squares' side in points (2–72, default 8). What the area showed is removed for good first, as Apply redactions does (text, image pixels and drawings under it), then a picture of the squares is placed over it, so nothing under it can be recovered from the saved file (saved as a full rewrite). Refused on a page with redaction marks waiting to be applied. Undoable until saved.",
+        )
+        .destructive()
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "page": { "type": "integer", "minimum": 1 },
+                "rect": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4, "description": "[x0, y0, x1, y1] in points from the top-left of the page." },
+                "cell": { "type": "number", "minimum": 2, "maximum": 72, "description": "The squares' side in points (default 8)." },
+            }),
+            &["doc", "page", "rect"],
         )),
         t("content_update", "Edit added content", "Move/resize (rect), retype (text) or restyle (font, size, bold, italic, color, align, char_spacing in points) an added item (page, index from content_list). Images: rotate (degrees, multiple of 90, counter-clockwise), flip_h / flip_v (toggle), crop [left, bottom, right, top] as fractions trimmed, image (a file that replaces the picture). Undoable.")
             .with(schema(
