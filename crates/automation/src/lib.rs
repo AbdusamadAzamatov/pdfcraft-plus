@@ -1697,10 +1697,11 @@ impl Automation {
             "fit" => false,
             s => return Err(ToolError::InvalidArgs(format!("unknown size {s:?} (actual, fit)"))),
         };
-        let paper = match a.opt_str("paper")?.unwrap_or("a4") {
+        // Any case, as the other tools take paper names ("A4", "Letter").
+        let paper = match a.opt_str("paper")?.unwrap_or("a4").to_ascii_lowercase().as_str() {
             "a4" => COLLAGE_A4,
             "letter" => COLLAGE_LETTER,
-            p => return Err(ToolError::InvalidArgs(format!("unknown paper {p:?} (a4, letter)"))),
+            p => return Err(ToolError::InvalidArgs(format!("unknown paper {p:?} (A4, Letter)"))),
         };
         opts.sheet = if a.opt_bool("landscape")?.unwrap_or(false) { (paper.1, paper.0) } else { paper };
         opts.margin = a.opt_num("margin")?.unwrap_or(opts.margin);

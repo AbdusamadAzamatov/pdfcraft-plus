@@ -10067,6 +10067,11 @@ fn doc_collage_arranges_pages_on_sheets_as_a_new_document() {
     let info = ok(&mut a, "doc_info", json!({ "doc": reopened }));
     assert_eq!(info["document"]["pages"].as_u64(), Some(1));
     assert_eq!((info["pages"][0]["width"].as_f64(), info["pages"][0]["height"].as_f64()), (Some(792.0), Some(612.0)), "landscape Letter");
+    // Paper names in any case, as the other tools take them.
+    for paper in ["A4", "Letter", "LETTER"] {
+        let r = ok(&mut a, "doc_collage", json!({ "doc": doc, "paper": paper, "out": format!("c/{paper}.pdf") }));
+        assert!(r["sheets"].as_u64().is_some(), "{paper}: {r}");
+    }
 
     for (args, why) in [
         (json!({ "doc": doc, "cols": 0 }), "no columns"),

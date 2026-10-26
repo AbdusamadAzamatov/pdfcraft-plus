@@ -715,7 +715,7 @@ pub fn tools() -> Vec<ToolDef> {
                 "cols": { "type": "integer", "minimum": 1, "maximum": 6 },
                 "rows": { "type": "integer", "minimum": 1, "maximum": 6 },
                 "size": { "type": "string", "enum": ["actual", "fit"] },
-                "paper": { "type": "string", "enum": ["a4", "letter"] },
+                "paper": { "type": "string", "description": "A4 (default) or Letter, in any case." },
                 "landscape": { "type": "boolean" },
                 "margin": { "type": "number", "minimum": 0, "maximum": 144, "description": "Space kept clear at the sheet's edges, in points (default 36)." },
                 "gap": { "type": "number", "minimum": 0, "maximum": 72, "description": "Space between pages in points (default 24)." },
