@@ -227,7 +227,8 @@ fn poly(c: &[f64; 4], u: f64) -> f64 {
 }
 
 /// Move each column's pixels up by its displacement (interpolated between the bands' centres),
-/// reading between rows; what comes from beyond the picture is white.
+/// reading between rows. What would come from beyond the picture's top or bottom repeats its edge
+/// row, so the paper keeps its colour there instead of turning into white crescents.
 fn remap(rgb: &[u8], w: usize, h: usize, field: &[Vec<f64>]) -> Vec<u8> {
     let bands = field.len().max(1);
     let mut out = vec![255u8; rgb.len()];
@@ -240,9 +241,10 @@ fn remap(rgb: &[u8], w: usize, h: usize, field: &[Vec<f64>]) -> Vec<u8> {
             let d0 = field.get(b0).and_then(|f| f.get(x)).copied().unwrap_or(0.0);
             let d1 = field.get(b1).and_then(|f| f.get(x)).copied().unwrap_or(0.0);
             let sy = y as f64 + d0 * (1.0 - a) + d1 * a;
-            if !(sy >= 0.0 && sy <= (h - 1) as f64) {
+            if !sy.is_finite() {
                 continue;
             }
+            let sy = sy.clamp(0.0, (h - 1) as f64);
             let (r0, k) = (sy.floor() as usize, sy - sy.floor());
             let r1 = (r0 + 1).min(h - 1);
             let (p, q) = ((r0 * w + x) * 3, (r1 * w + x) * 3);
@@ -319,6 +321,24 @@ mod tests {
         // Lower on the page, too.
         let low = |img: &[u8]| (line_at(img, w, 60, 807) - line_at(img, w, 700, 807)).abs();
         assert!(low(&flat) < 3.0, "{} → {}", low(&bent), low(&flat));
+    }
+
+    /// Bent edges pull rows from beyond the picture: they repeat the edge row (the paper's colour),
+    /// so no white crescents appear at the top and bottom corners of a grey or cream page.
+    #[test]
+    fn the_corners_keep_the_paper_colour() {
+        let (w, h) = (800, 1000);
+        let bend = |x: f64, _: f64| {
+            let u = x / w as f64 * 2.0 - 1.0;
+            30.0 * u * u
+        };
+        let flat = flatten(&page(w, h, bend), w as u32, h as u32).expect("lines were found");
+        for y in [0, 1, 2, h - 3, h - 2, h - 1] {
+            for x in (0..w).step_by(7) {
+                let v = flat[(y * w + x) * 3];
+                assert!(v < 250, "row {y}, column {x} turned white ({v}); the paper is 235");
+            }
+        }
     }
 
     #[test]
