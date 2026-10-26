@@ -1987,6 +1987,8 @@
 	Add background	Добавить фон
 	Update background	Обновить фон
 	Add image	Добавить изображение
+	Add paging seal	Добавить печать на стык страниц
+	Mosaic	Мозаика
 	Edit content	Редактировать содержимое
 	Delete content	Удалить содержимое
 	Remove redaction marks	Удалить метки сокрытия
@@ -2265,6 +2267,10 @@ animation effects	Off	Выкл
 	Original	Оригинал
 	Greyscale	Оттенки серого
 	Black and white	Чёрно-белый
+	Lighten	Осветлить
+	Vivid colour	Яркие цвета
+	Eco (saves ink)	Эко (экономия краски)
+	Brightness	Яркость
 	Reading colours	Цвета для чтения
 	Replace document colours	Заменить цвета документа
 	Black on white	Чёрный на белом

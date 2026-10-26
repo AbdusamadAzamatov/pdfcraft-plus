@@ -270,7 +270,7 @@ pub fn tools() -> Vec<ToolDef> {
                 }),
                 &["doc"],
             )),
-        t("page_enhance_camera", "Enhance camera image", "Straighten a photographed document (Scan & OCR ▸ Enhance ▸ Camera image): the part of the page inside the four corners (x1, y1, … x4, y4 in top-left-origin points, any order, a convex quadrilateral; when omitted, the document's edges are found automatically, or an error says they could not be) is warped to an upright rectangle that replaces what the page shows, at the page picture's own resolution (at most 600 dpi). mode is how it looks: original, colour (default), greyscale or bw (black and white, stored losslessly). level (0–100, default 0) then cleans the photo up: even lighting so the paper turns white (casts, shadows, dark edges), more contrast, and from 60 no isolated specks; colour ink stays colour. For bw the level is the threshold (higher keeps fainter strokes black). The page's comments, links and bookmarks stay. Undoable.")
+        t("page_enhance_camera", "Enhance camera image", "Straighten a photographed document (Scan & OCR ▸ Enhance ▸ Camera image): the part of the page inside the four corners (x1, y1, … x4, y4 in top-left-origin points, any order, a convex quadrilateral; when omitted, the document's edges are found automatically, or an error says they could not be) is warped to an upright rectangle that replaces what the page shows, at the page picture's own resolution (at most 600 dpi). mode is how it looks: original, lighten (brighter, as photographed otherwise), colour (default), vivid (colour with more saturated ink), greyscale, bw (black and white, stored losslessly), eco (black and white that saves ink: solid areas keep only their outline, stored losslessly) or invert (colours inverted first, so chalk on a blackboard becomes dark writing on white). level (0–100, default 0) then cleans the photo up: even lighting so the paper turns white (casts, shadows, dark edges), more contrast, and from 60 no isolated specks; colour ink stays colour. For lighten the level is how much brighter; for bw and eco it is the threshold (higher keeps fainter strokes black). The page's comments, links and bookmarks stay. Undoable.")
             .cmd("ocr.enhance_camera")
             .with(schema(
                 json!({
@@ -278,7 +278,7 @@ pub fn tools() -> Vec<ToolDef> {
                     "page": { "type": "integer", "minimum": 1 },
                     "corners": { "type": "array", "items": { "type": "number" }, "minItems": 8, "maxItems": 8 },
                     "level": { "type": "integer", "minimum": 0, "maximum": 100 },
-                    "mode": { "type": "string", "enum": ["original", "colour", "greyscale", "bw"] },
+                    "mode": { "type": "string", "enum": ["original", "lighten", "colour", "vivid", "greyscale", "bw", "eco", "invert"] },
                 }),
                 &["doc", "page"],
             )),
@@ -723,6 +723,37 @@ pub fn tools() -> Vec<ToolDef> {
         .with(schema(
             json!({ "doc": doc(), "page": { "type": "integer", "minimum": 1 }, "path": { "type": "string" }, "rect": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 } }),
             &["doc", "page", "path"],
+        )),
+        t(
+            "page_paging_seal",
+            "Add a paging seal",
+            "Stamp a seal across the edges of several pages (a cross-page or riding seal, which shows no page was swapped): the picture at path (PNG with transparency is best; JPEG, TIFF, GIF, BMP) is cut into as many vertical strips as there are pages, and each page gets its strip on its right (edge, default) or left edge, so the seal reads whole when the pages are fanned out. pages (default all) in the order they are stacked. width is the whole seal's width in points (default 113, about 4 cm); it keeps its shape and is shrunk to fit a page. position is the height of its centre from the top, 0–1 (default 0.5). More than 20 pages are split into even groups, each with the whole seal. The strips are added images (content_list, content_update, content_delete) drawn from one stored picture. Undoable.",
+        )
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("to seal, in stacking order (default: all)"),
+                "path": path_arg(),
+                "width": { "type": "number", "exclusiveMinimum": 0, "description": "The whole seal's width in points (default 113)." },
+                "position": { "type": "number", "minimum": 0, "maximum": 1, "description": "The seal's centre, as a share of the page height from the top (default 0.5)." },
+                "edge": { "type": "string", "enum": ["right", "left"] },
+            }),
+            &["doc", "path"],
+        )),
+        t(
+            "page_mosaic",
+            "Mosaic an area",
+            "Hide an area of a page behind coarse squares of its own colours (pixelate a face, a signature or a number, so the page still looks whole). rect is the area in points from the top-left of the page; cell is the squares' side in points (2–72, default 8). What the area showed is removed for good first, as Apply redactions does (text, image pixels and drawings under it), then a picture of the squares is placed over it, so nothing under it can be recovered from the saved file (saved as a full rewrite). Refused on a page with redaction marks waiting to be applied. Undoable until saved.",
+        )
+        .destructive()
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "page": { "type": "integer", "minimum": 1 },
+                "rect": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4, "description": "[x0, y0, x1, y1] in points from the top-left of the page." },
+                "cell": { "type": "number", "minimum": 2, "maximum": 72, "description": "The squares' side in points (default 8)." },
+            }),
+            &["doc", "page", "rect"],
         )),
         t("content_update", "Edit added content", "Move/resize (rect), retype (text) or restyle (font, size, bold, italic, color, align, char_spacing in points) an added item (page, index from content_list). Images: rotate (degrees, multiple of 90, counter-clockwise), flip_h / flip_v (toggle), crop [left, bottom, right, top] as fractions trimmed, image (a file that replaces the picture). Undoable.")
             .with(schema(

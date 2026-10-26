@@ -75,6 +75,13 @@ for already-open PDFs. It removes output security without authenticating the sou
 as owner, reuses the security full-rewrite and undo paths, and refuses signed documents.
 `Edit::RemoveProtection`, owner-password unlocking, and normal permission checks are unchanged.
 
+The fork's scanner-app tools: `camera_clean::Look` adds lighten, vivid colour, eco (ink-saving
+black and white) and invert (a photographed blackboard reads as dark writing on white) to Enhance
+camera image. `Edit::AddPagingSeal` (`paging_seal`) cuts one picture into strips across the edges
+of several pages as ordinary added images. `Session::mosaic_area` (`mosaic`, `Edit::Mosaic`)
+averages an area into squares, removes what it showed through the redaction path (including the
+renderer check and the full rewrite on save), then places the squares over it.
+
 ## Modules
 
 | Module | What it holds |

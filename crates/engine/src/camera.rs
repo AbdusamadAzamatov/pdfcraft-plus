@@ -120,7 +120,7 @@ impl Session {
 
     /// [`Session::enhance_camera_page`], then give the straightened photo a `look` at `level`
     /// (0 = as photographed … 100 = white paper, strong contrast, no specks; for black and white
-    /// the threshold; see [`crate::camera_clean`]). Still one undoable step.
+    /// and eco the threshold; see [`crate::camera_clean`]). Still one undoable step.
     pub fn enhance_camera_page_at(
         &mut self,
         id: DocId,
@@ -163,7 +163,7 @@ impl Session {
         let out = warp(&shot.rgba, shot.width, shot.height, quad).map_err(EditError::Invalid)?;
         let pixels = crate::camera_clean::apply(&out.rgb, out.width, out.height, look, level)
             .ok_or_else(|| EditError::Invalid("the straightened page could not be cleaned up".into()))?;
-        // Black and white is lossless (PNG): JPEG would smear grey around every letter.
+        // Black and white (and eco) is lossless (PNG): JPEG would smear grey around every letter.
         let mut encoded = Vec::new();
         let (name, written) = match &pixels {
             crate::camera_clean::Pixels::Rgb(rgb) => (
@@ -176,7 +176,7 @@ impl Session {
                     image::ExtendedColorType::Rgb8,
                 ),
             ),
-            crate::camera_clean::Pixels::Grey(grey) if look == crate::camera_clean::Look::BlackWhite => (
+            crate::camera_clean::Pixels::Grey(grey) if look.is_bilevel() => (
                 "camera.png",
                 image::ImageEncoder::write_image(
                     image::codecs::png::PngEncoder::new(&mut encoded),

@@ -2642,7 +2642,8 @@ fn the_renderer_check_refuses_text_still_shown_under_a_mark() {
     mark_shown_text(&mut s, id, "SECRET42");
     let doc = s.get(id).unwrap();
     let mut cos = doc.editor.as_ref().unwrap().cos.clone();
-    let marks = pdfcraft_redact::marks(&cos);
+    let marks: Vec<(usize, [f64; 4])> =
+        pdfcraft_redact::marks(&cos).into_iter().flat_map(|m| m.rects.into_iter().map(move |r| (m.page, r))).collect();
     let refused = |cos: &pdfcraft_cos::Document| {
         let shown = shown_under_redactions(cos, &marks, &[], &doc.info.pages, None);
         matches!(shown, Err(EditError::Redact(pdfcraft_redact::RedactError::Residue(n))) if n > 0)
@@ -9492,4 +9493,95 @@ fn need_appearances_buttons_are_displayed_from_their_captions() {
     for x in [20, 100, 180] {
         assert!(ink(&shown, inside(x, 100)) > 700, "the file's square at {x}");
     }
+}
+
+#[test]
+fn a_paging_seal_puts_one_strip_of_one_picture_on_each_page_edge() {
+    let (mut s, id) = session_with(3);
+    // A 40 × 20 seal: red on the left half, blue on the right.
+    let mut png = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut png, 40, 20);
+        enc.set_color(png::ColorType::Rgb);
+        let px: Vec<u8> = (0..40 * 20).flat_map(|i| if i % 40 < 20 { [220, 20, 20] } else { [20, 20, 220] }).collect();
+        enc.write_header().unwrap().write_image_data(&px).unwrap();
+    }
+    let seal = paging_seal::PagingSeal { width: 40.0, position: 0.5, edge: paging_seal::SealEdge::Right };
+    let edit = |pages: Vec<usize>| Edit::AddPagingSeal { pages, name: "seal.png".into(), bytes: Arc::new(png.clone()), seal };
+    s.apply(id, edit(vec![0, 2])).unwrap();
+    assert_eq!(s.get(id).unwrap().can_undo(), Some("Add paging seal"));
+    let added = s.get(id).unwrap().added().to_vec();
+    assert_eq!(added.iter().map(|a| a.page).collect::<Vec<_>>(), [0, 2], "page 2 was not chosen");
+    let strips: Vec<AddedImage> =
+        added.iter().map(|a| if let AddedContent::Image(i) = &a.content { i.clone() } else { panic!("an image") }).collect();
+    assert_eq!(strips[0].image, strips[1].image, "one stored picture");
+    assert_eq!((strips[0].rect, strips[0].crop), ([180.0, 140.0, 200.0, 160.0], [0.0, 0.0, 0.5, 0.0]));
+    assert_eq!((strips[1].rect, strips[1].crop), ([180.0, 140.0, 200.0, 160.0], [0.5, 0.0, 0.0, 0.0]));
+
+    // Drawn: the first page shows the red half at its right edge, the last the blue half.
+    let doc = s.get(id).unwrap();
+    let mut r = pdfcraft_render::PageRenderer::new(doc.bytes.clone(), doc.config.clone());
+    for (page, want) in [(0, [220, 20, 20]), (2, [20, 20, 220])] {
+        let shot = r.render(pdfcraft_render::RenderRequest { page, scale: 2.0, ..Default::default() });
+        assert!(shot.error.is_none(), "{:?}", shot.error);
+        let px = stamp_pixel(&shot, 380, 300);
+        assert!(px[..3].iter().zip(want).all(|(a, b)| a.abs_diff(b) < 40), "page {page}: {px:?}");
+        assert_eq!(stamp_pixel(&shot, 340, 300)[..3], [255, 255, 255], "page {page}: nothing left of the strip");
+    }
+
+    s.undo(id).unwrap();
+    assert!(s.get(id).unwrap().added().is_empty());
+    for (pages, why) in [(vec![], "no pages"), (vec![0, 0], "a page twice"), (vec![7], "no such page")] {
+        assert!(matches!(s.apply(id, edit(pages)), Err(EditError::Invalid(_))), "{why}");
+    }
+    let bad = Edit::AddPagingSeal { pages: vec![0], name: "seal.png".into(), bytes: Arc::new(b"not a picture".to_vec()), seal };
+    assert!(s.apply(id, bad).is_err());
+    assert!(s.get(id).unwrap().added().is_empty(), "a refused seal changes nothing");
+}
+
+#[test]
+fn a_mosaic_removes_the_text_under_it_and_shows_squares() {
+    let (mut s, id) = session_with(2);
+    // "Page 1" at 24 pt from (20, 150) in user space: from about 133 to 156 points down.
+    let area = [10.0, 120.0, 190.0, 170.0];
+    s.mosaic_area(id, 0, area, 8.0).unwrap();
+    let d = s.get(id).unwrap();
+    assert_eq!((d.can_undo(), d.redaction_marks()), (Some("Mosaic"), 0), "one step, no mark left behind");
+    assert_eq!(page_texts(&s, id), ["", "Page 2"], "the text under the squares is gone");
+    assert_eq!(d.added().len(), 1, "the squares are an added picture");
+    let saved = s.save_bytes(id).unwrap();
+    assert!(!saved.windows(8).any(|w| w == b"(Page 1)"), "a full rewrite: the old revision is gone");
+    // Drawn: grey squares (the average of the black text and white paper), white outside.
+    let shot = render_page(&s, id);
+    let row: Vec<[u8; 4]> = (20..380).map(|x| stamp_pixel(&shot, x, 290)).collect();
+    assert!(row.iter().any(|p| p[0] < 250), "some squares are darker than the paper");
+    assert!(row.iter().all(|p| p[0] > 40), "no square is as dark as the text");
+    assert_eq!(stamp_pixel(&shot, 200, 400)[..3], [255, 255, 255], "outside the area");
+
+    s.undo(id).unwrap();
+    assert_eq!(page_texts(&s, id), ["Page 1", "Page 2"]);
+    for (cell, area, why) in [(1.0, area, "squares too small"), (100.0, area, "squares too large"), (f64::NAN, area, "no size")] {
+        assert!(matches!(s.mosaic_area(id, 0, area, cell), Err(EditError::Invalid(_))), "{why}");
+    }
+    for (area, why) in
+        [([300.0, 300.0, 400.0, 400.0], "off the page"), ([10.0, 10.0, 10.5, 50.0], "too thin"), ([f64::INFINITY, 0.0, 1.0, 1.0], "not finite")]
+    {
+        assert!(matches!(s.mosaic_area(id, 0, area, 8.0), Err(EditError::Invalid(_))), "{why}");
+    }
+    assert!(s.mosaic_area(id, 5, area, 8.0).is_err(), "no such page");
+
+    // A redaction mark the user placed on the page would be applied too: refused, nothing changes.
+    let shape =
+        Shape::Redact { quads: vec![pdfcraft_annot::rect_quad([150.0, 10.0, 190.0, 40.0])], overlay: String::new(), look: Default::default() };
+    s.apply(
+        id,
+        Edit::AddAnnotation(NewAnnotation { page: 0, style: Style::default_for(&shape), shape, contents: String::new(), author: "Ada".into() }),
+    )
+    .unwrap();
+    let e = s.mosaic_area(id, 0, area, 8.0);
+    assert!(matches!(&e, Err(EditError::Invalid(m)) if m.contains("redaction marks")), "{e:?}");
+    assert_eq!((s.get(id).unwrap().redaction_marks(), page_texts(&s, id)[0].as_str()), (1, "Page 1"));
+    // On another page it goes ahead and leaves that mark alone.
+    s.mosaic_area(id, 1, area, 8.0).unwrap();
+    assert_eq!(s.get(id).unwrap().redaction_marks(), 1);
 }

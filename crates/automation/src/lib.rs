@@ -313,8 +313,9 @@ impl Automation {
                 };
                 let look = match a.opt_str("mode")? {
                     None => pdfcraft_engine::camera_clean::Look::Colour,
-                    Some(m) => pdfcraft_engine::camera_clean::Look::from_name(m)
-                        .ok_or_else(|| ToolError::InvalidArgs(format!("unknown mode {m:?} (original, colour, greyscale, bw)")))?,
+                    Some(m) => pdfcraft_engine::camera_clean::Look::from_name(m).ok_or_else(|| {
+                        ToolError::InvalidArgs(format!("unknown mode {m:?} (original, lighten, colour, vivid, greyscale, bw, eco, invert)"))
+                    })?,
                 };
                 self.session.enhance_camera_page_at(id, page, corners, look, level).map_err(failed)?;
                 let r = |v: f32| (v * 100.0).round() / 100.0;
@@ -966,6 +967,8 @@ impl Automation {
             "content_list" => self.content_list(&a)?,
             "page_add_text" => self.page_add_text(&a)?,
             "page_add_image" => self.page_add_image(&a)?,
+            "page_paging_seal" => self.page_paging_seal(&a)?,
+            "page_mosaic" => self.page_mosaic(&a)?,
             "content_update" => self.content_update(&a)?,
             "content_delete" => self.content_delete(&a)?,
             "content_copy" => self.content_copy(&a)?,

@@ -128,7 +128,15 @@ fn choosing_a_look_enhances_again() {
     h.run_steps(3);
     h.get_by_label("Enhance page").click();
     h.run_steps(4);
-    for (label, look) in [("Black and white", Look::BlackWhite), ("Greyscale", Look::Greyscale), ("Original", Look::Original)] {
+    for (label, look) in [
+        ("Black and white", Look::BlackWhite),
+        ("Eco (saves ink)", Look::Eco),
+        ("Vivid colour", Look::Vivid),
+        ("Invert", Look::Invert),
+        ("Lighten", Look::Lighten),
+        ("Greyscale", Look::Greyscale),
+        ("Original", Look::Original),
+    ] {
         h.get_by_label(label).click();
         h.run_steps(4);
         let done = h.state().views[0].camera_done.unwrap();
