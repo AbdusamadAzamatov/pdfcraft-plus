@@ -161,7 +161,14 @@ impl Automation {
         if before == 0 {
             return Err(failed("there are no redaction marks to apply (see redact_mark)"));
         }
-        let mut out = self.apply(a, Edit::ApplyRedactions { pages })?;
+        let edit = if a.opt_bool("mosaic")?.unwrap_or(false) {
+            let cell = a.opt_num("cell")?.unwrap_or(pdfcraft_engine::mosaic::DEFAULT_CELL);
+            let id = self.doc(a)?.id;
+            self.session.mosaic_marks_edit(id, pages.as_deref(), cell).map_err(failed)?
+        } else {
+            Edit::ApplyRedactions { pages }
+        };
+        let mut out = self.apply(a, edit)?;
         let after = self.doc(a)?.redaction_marks();
         out["applied"] = json!(before - after);
         out["marks_pending"] = json!(after);

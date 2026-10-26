@@ -1937,14 +1937,14 @@ pub enum Edit {
     },
     /// Remove redaction marks without applying them.
     ClearRedactions,
-    /// Edit a PDF ▸ Mosaic (from [`Session::mosaic_area`]): remove what `area` (user space) of
-    /// `page` shows for good, as a redaction would, then place `picture` (a PNG of squares)
-    /// over `display` (the same area in display space).
+    /// Edit a PDF ▸ Mosaic (from [`Session::mosaic_area_edit`] or
+    /// [`Session::mosaic_marks_edit`]): with `area` (a page and a user-space box), first mark it
+    /// for redaction, without a box (refused when that page already has marks); then apply every
+    /// redaction mark on `pages`, removing what they cover for good, and place each of `squares`.
     Mosaic {
-        page: usize,
-        area: [f64; 4],
-        display: [f64; 4],
-        picture: Arc<Vec<u8>>,
+        area: Option<(usize, [f64; 4])>,
+        pages: Vec<usize>,
+        squares: Vec<mosaic::Squares>,
     },
     /// Edit a PDF ▸ Link: a new link over `rect` (user space).
     AddLink {
@@ -3087,22 +3087,26 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         Edit::ClearRedactions => {
             pdfcraft_redact::clear_marks(doc, None)?;
         }
-        Edit::Mosaic { page, area, display, picture } => {
-            // Applying redactions applies every mark on the page: one the user placed would go too.
-            if pdfcraft_redact::marks(doc).iter().any(|m| m.page == *page) {
-                return Err(EditError::Invalid(format!(
-                    "page {} has redaction marks waiting to be applied: apply or remove them first",
-                    page.saturating_add(1)
-                )));
+        Edit::Mosaic { area, pages, squares } => {
+            if let Some((page, user)) = area {
+                // Applying redactions applies every mark on the page: one the user placed would go too.
+                if pdfcraft_redact::marks(doc).iter().any(|m| m.page == *page) {
+                    return Err(EditError::Invalid(format!(
+                        "page {} has redaction marks waiting to be applied: apply or remove them first",
+                        page.saturating_add(1)
+                    )));
+                }
+                // No box and no overlay text: the squares cover the area.
+                let shape = Shape::Redact { quads: vec![pdfcraft_annot::rect_quad(*user)], overlay: String::new(), look: Default::default() };
+                let style = Style { fill: None, ..Style::default_for(&shape) };
+                let mark = NewAnnotation { page: *page, shape, style, contents: String::new(), author: String::new() };
+                pdfcraft_annot::add_annotation(doc, &mark, &cx.meta())?;
             }
-            // No box and no overlay text: the squares cover the area.
-            let shape = Shape::Redact { quads: vec![pdfcraft_annot::rect_quad(*area)], overlay: String::new(), look: Default::default() };
-            let style = Style { fill: None, ..Style::default_for(&shape) };
-            let mark = NewAnnotation { page: *page, shape, style, contents: String::new(), author: String::new() };
-            pdfcraft_annot::add_annotation(doc, &mark, &cx.meta())?;
-            cx.redaction_overlays = pdfcraft_redact::apply(doc, Some(&[*page]))?.overlays;
-            let (image, _) = embed_image(doc, "mosaic.png", picture)?;
-            pdfcraft_edit::add_content(doc, *page, &AddedContent::Image(pdfcraft_edit::AddedImage::new(*display, image)))?;
+            cx.redaction_overlays = pdfcraft_redact::apply(doc, Some(pages))?.overlays;
+            for s in squares {
+                let (image, _) = embed_image(doc, "mosaic.png", &s.picture)?;
+                pdfcraft_edit::add_content(doc, s.page, &AddedContent::Image(pdfcraft_edit::AddedImage::new(s.display, image)))?;
+            }
         }
         Edit::AddLink { page, rect, action, style } => {
             pdfcraft_annot::links::add(doc, *page, *rect, action, style)?;
@@ -4336,7 +4340,14 @@ impl Session {
                     .flat_map(|m| m.rects.into_iter().map(move |r| (m.page, r)))
                     .collect(),
             ),
-            Edit::Mosaic { page, area, .. } => Some(vec![(*page, *area)]),
+            Edit::Mosaic { area, pages, .. } => Some(
+                pdfcraft_redact::marks(&editor.cos)
+                    .into_iter()
+                    .filter(|m| pages.contains(&m.page))
+                    .flat_map(|m| m.rects.into_iter().map(move |r| (m.page, r)))
+                    .chain(*area)
+                    .collect(),
+            ),
             _ => None,
         };
         if let Some(areas) = redacted {

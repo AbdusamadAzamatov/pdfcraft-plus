@@ -9701,3 +9701,33 @@ fn collage_new_puts_pages_side_by_side_at_real_size_on_a_sheet() {
     assert_eq!(s.collage_new(r, &[0], &opts).map(|_| ()), Err(EditError::NotPermitted("making a new document from its pages")));
     assert!(matches!(s.collage_new(id, &[], &opts), Err(EditError::Organize(_))));
 }
+
+/// Redact ▸ Apply as mosaic: every pending mark is applied as Apply redactions would, and its
+/// area covered with squares instead of a box, in one undo step.
+#[test]
+fn redaction_marks_apply_as_mosaic() {
+    let (mut s, id) = session_with(2);
+    assert!(matches!(s.mosaic_marks_edit(id, None, 8.0), Err(EditError::Invalid(m)) if m.contains("no redaction marks")));
+    for page in [0, 1] {
+        // Over "Page n" (user space).
+        let shape =
+            Shape::Redact { quads: vec![pdfcraft_annot::rect_quad([10.0, 130.0, 190.0, 180.0])], overlay: String::new(), look: Default::default() };
+        let mark = NewAnnotation { page, style: Style::default_for(&shape), shape, contents: String::new(), author: "Ada".into() };
+        s.apply(id, Edit::AddAnnotation(mark)).unwrap();
+    }
+    assert!(matches!(s.mosaic_marks_edit(id, Some(&[1]), 8.0), Ok(Edit::Mosaic { pages, .. }) if pages == [1]), "only page 2's marks");
+    let edit = s.mosaic_marks_edit(id, None, 8.0).unwrap();
+    let Edit::Mosaic { area: None, pages, squares } = &edit else { panic!("{edit:?}") };
+    assert_eq!((pages.as_slice(), squares.len()), (&[0, 1][..], 2));
+    s.apply(id, edit).unwrap();
+    let d = s.get(id).unwrap();
+    assert_eq!((d.can_undo(), d.redaction_marks(), d.added().len()), (Some("Mosaic"), 0, 2));
+    assert_eq!(page_texts(&s, id), ["", ""], "both texts are gone");
+    // The squares are grey (text averaged with paper), not the marks' black boxes.
+    let shot = render_page(&s, id);
+    let px = (40..360).map(|x| stamp_pixel(&shot, x, 290)).collect::<Vec<_>>();
+    assert!(px.iter().any(|p| p[0] < 250) && px.iter().all(|p| p[0] > 40), "grey squares: {:?}", &px[..4]);
+    s.undo(id).unwrap();
+    assert_eq!((s.get(id).unwrap().redaction_marks(), page_texts(&s, id)), (2, vec!["Page 1".to_string(), "Page 2".to_string()]));
+    assert!(matches!(s.mosaic_marks_edit(id, None, 0.5), Err(EditError::Invalid(_))), "squares too small");
+}

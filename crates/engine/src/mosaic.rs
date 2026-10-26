@@ -1,5 +1,6 @@
 //! Edit a PDF ▸ Mosaic: hide an area of a page behind coarse squares of its own colours, the
-//! way a face or a number is pixelated in a photo, so the page still looks whole.
+//! way a face or a number is pixelated in a photo, so the page still looks whole. The areas are
+//! one given area, or the redaction marks (Redact ▸ Apply as mosaic).
 //!
 //! What the area showed is removed for good first, as a redaction does (its text, the image
 //! pixels and the drawings under it), and a picture of the squares is placed over it. Unlike a
@@ -85,39 +86,43 @@ fn squares(rgba: &[u8], width: u32, height: u32, region: [f64; 4], cell: f64, px
     Ok((ow as u32, oh as u32, out))
 }
 
+/// A squares picture placed by [`Edit::Mosaic`]: a PNG over `display` (display space: points,
+/// y up) on page `page` (0-based).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Squares {
+    pub page: usize,
+    pub display: [f64; 4],
+    pub picture: Arc<Vec<u8>>,
+}
+
+fn check_cell(cell: f64) -> Result<(), EditError> {
+    if cell.is_finite() && (MIN_CELL..=MAX_CELL).contains(&cell) {
+        Ok(())
+    } else {
+        Err(EditError::Invalid(format!("the squares must be {MIN_CELL} to {MAX_CELL} points")))
+    }
+}
+
+/// An area in view space (points from the top-left, any corner order) brought onto a page of
+/// `pw` × `ph` points, or `None` when less than [`MIN_SIDE`] of it is on the page.
+fn on_page(area: [f64; 4], pw: f64, ph: f64) -> Option<[f64; 4]> {
+    if !area.iter().all(|v| v.is_finite()) {
+        return None;
+    }
+    let x0 = area[0].min(area[2]).clamp(0.0, pw);
+    let x1 = area[0].max(area[2]).clamp(0.0, pw);
+    let y0 = area[1].min(area[3]).clamp(0.0, ph);
+    let y1 = area[1].max(area[3]).clamp(0.0, ph);
+    (x1 - x0 >= MIN_SIDE && y1 - y0 >= MIN_SIDE).then_some([x0, y0, x1, y1])
+}
+
 impl Session {
-    /// Edit a PDF ▸ Mosaic: cover `area` (view space: points from the top-left of the displayed
-    /// page, any corner order) of page `page` (0-based) with squares of about `cell` points
-    /// ([`MIN_CELL`]–[`MAX_CELL`]) in its own colours, after removing what it showed for good
-    /// (see the module). One undoable step. Refused on a page with redaction marks waiting to be
-    /// applied, which this would apply too.
-    pub fn mosaic_area(&mut self, id: DocId, page: usize, area: [f64; 4], cell: f64) -> Result<(), EditError> {
+    /// The squares pictures of `areas` (view space, already on the page) of page `page`,
+    /// rendering the page once.
+    fn page_squares(&self, id: DocId, page: usize, areas: &[[f64; 4]], cell: f64) -> Result<Vec<Squares>, EditError> {
         let doc = self.get(id).ok_or(EditError::NoDocument)?;
-        if let Some(why) = &doc.read_only_reason {
-            return Err(EditError::ReadOnly(why.clone()));
-        }
         let info = doc.info.pages.get(page).ok_or_else(|| EditError::Invalid(format!("there is no page {}", page.saturating_add(1))))?;
-        if !(cell.is_finite() && (MIN_CELL..=MAX_CELL).contains(&cell)) {
-            return Err(EditError::Invalid(format!("the squares must be {MIN_CELL} to {MAX_CELL} points")));
-        }
-        if !area.iter().all(|v| v.is_finite()) {
-            return Err(EditError::Invalid("the area is out of range".into()));
-        }
-        // On the page only.
         let (pw, ph) = (f64::from(info.width), f64::from(info.height));
-        let x0 = area[0].min(area[2]).clamp(0.0, pw);
-        let x1 = area[0].max(area[2]).clamp(0.0, pw);
-        let y0 = area[1].min(area[3]).clamp(0.0, ph);
-        let y1 = area[1].max(area[3]).clamp(0.0, ph);
-        if x1 - x0 < MIN_SIDE || y1 - y0 < MIN_SIDE {
-            return Err(EditError::Invalid("the area must be on the page and at least 1 point wide and tall".into()));
-        }
-        if doc.info.annotations.iter().any(|a| a.page == page && a.subtype == "Redact") {
-            return Err(EditError::Invalid(format!(
-                "page {} has redaction marks waiting to be applied: apply or remove them first",
-                page.saturating_add(1)
-            )));
-        }
         // At least four raster pixels per square, at most 4× (288 dpi).
         let page_area = pw.max(1.0) * ph.max(1.0);
         let scale = (4.0 / cell).clamp(1.0, 4.0).min((MAX_PIXELS / page_area).sqrt()).max(0.01) as f32;
@@ -127,11 +132,41 @@ impl Session {
             return Err(EditError::Invalid(format!("page {} could not be rendered: {e}", page + 1)));
         }
         let k = f64::from(shot.width) / pw.max(1e-3);
-        let (w, h, rgb) =
-            squares(&shot.rgba, shot.width, shot.height, [x0 * k, y0 * k, x1 * k, y1 * k], cell * k, PX_PER_CELL).map_err(EditError::Invalid)?;
-        let mut picture = Vec::new();
-        image::ImageEncoder::write_image(image::codecs::png::PngEncoder::new(&mut picture), &rgb, w, h, image::ExtendedColorType::Rgb8)
-            .map_err(|e| EditError::Invalid(format!("the squares could not be encoded: {e}")))?;
+        areas
+            .iter()
+            .map(|&[x0, y0, x1, y1]| {
+                let (w, h, rgb) = squares(&shot.rgba, shot.width, shot.height, [x0 * k, y0 * k, x1 * k, y1 * k], cell * k, PX_PER_CELL)
+                    .map_err(EditError::Invalid)?;
+                let mut picture = Vec::new();
+                image::ImageEncoder::write_image(image::codecs::png::PngEncoder::new(&mut picture), &rgb, w, h, image::ExtendedColorType::Rgb8)
+                    .map_err(|e| EditError::Invalid(format!("the squares could not be encoded: {e}")))?;
+                // Display space is view space with y up.
+                Ok(Squares { page, display: [x0, ph - y1, x1, ph - y0], picture: Arc::new(picture) })
+            })
+            .collect()
+    }
+
+    /// Edit a PDF ▸ Mosaic: the edit that covers `area` (view space: points from the top-left
+    /// of the displayed page, any corner order) of page `page` (0-based) with squares of about
+    /// `cell` points ([`MIN_CELL`]–[`MAX_CELL`]) in its own colours, after removing what it showed
+    /// for good (see the module). Refused on a page with redaction marks waiting to be applied,
+    /// which this would apply too.
+    pub fn mosaic_area_edit(&self, id: DocId, page: usize, area: [f64; 4], cell: f64) -> Result<Edit, EditError> {
+        let doc = self.get(id).ok_or(EditError::NoDocument)?;
+        if let Some(why) = &doc.read_only_reason {
+            return Err(EditError::ReadOnly(why.clone()));
+        }
+        let info = doc.info.pages.get(page).ok_or_else(|| EditError::Invalid(format!("there is no page {}", page.saturating_add(1))))?;
+        check_cell(cell)?;
+        let (pw, ph) = (f64::from(info.width), f64::from(info.height));
+        let [x0, y0, x1, y1] =
+            on_page(area, pw, ph).ok_or_else(|| EditError::Invalid("the area must be on the page and at least 1 point wide and tall".into()))?;
+        if doc.info.annotations.iter().any(|a| a.page == page && a.subtype == "Redact") {
+            return Err(EditError::Invalid(format!(
+                "page {} has redaction marks waiting to be applied: apply or remove them first",
+                page.saturating_add(1)
+            )));
+        }
         // The area's corners in user space (axis-aligned: pages turn by quarter turns).
         let corners = [info.view_to_user(x0 as f32, y0 as f32), info.view_to_user(x1 as f32, y1 as f32)];
         let user = [
@@ -140,9 +175,49 @@ impl Session {
             f64::from(corners[0][0].max(corners[1][0])),
             f64::from(corners[0][1].max(corners[1][1])),
         ];
-        // Display space is view space with y up.
-        let display = [x0, ph - y1, x1, ph - y0];
-        self.apply(id, Edit::Mosaic { page, area: user, display, picture: Arc::new(picture) })
+        let squares = self.page_squares(id, page, &[[x0, y0, x1, y1]], cell)?;
+        Ok(Edit::Mosaic { area: Some((page, user)), pages: vec![page], squares })
+    }
+
+    /// [`Session::mosaic_area_edit`], applied: one undoable step.
+    pub fn mosaic_area(&mut self, id: DocId, page: usize, area: [f64; 4], cell: f64) -> Result<(), EditError> {
+        let edit = self.mosaic_area_edit(id, page, area, cell)?;
+        self.apply(id, edit)
+    }
+
+    /// Redact ▸ Apply as mosaic: the edit that applies the redaction marks (all, or those on
+    /// `only` pages, 0-based), as Apply redactions does, and covers each marked area with squares
+    /// of about `cell` points in its own colours instead of leaving the marks' boxes showing.
+    pub fn mosaic_marks_edit(&self, id: DocId, only: Option<&[usize]>, cell: f64) -> Result<Edit, EditError> {
+        let doc = self.get(id).ok_or(EditError::NoDocument)?;
+        if let Some(why) = &doc.read_only_reason {
+            return Err(EditError::ReadOnly(why.clone()));
+        }
+        check_cell(cell)?;
+        let marks = pdfcraft_redact::marks(self.cos(id)?);
+        let mut pages: Vec<usize> = marks.iter().map(|m| m.page).filter(|p| only.is_none_or(|o| o.contains(p))).collect();
+        pages.sort_unstable();
+        pages.dedup();
+        if pages.is_empty() {
+            return Err(EditError::Invalid("there are no redaction marks to apply".into()));
+        }
+        let mut squares = Vec::new();
+        for &page in &pages {
+            let Some(info) = doc.info.pages.get(page) else { continue };
+            let (pw, ph) = (f64::from(info.width), f64::from(info.height));
+            let areas: Vec<[f64; 4]> = marks
+                .iter()
+                .filter(|m| m.page == page)
+                .flat_map(|m| m.rects.iter())
+                .filter_map(|r| {
+                    let [ax, ay] = info.user_to_view(r[0] as f32, r[1] as f32);
+                    let [bx, by] = info.user_to_view(r[2] as f32, r[3] as f32);
+                    on_page([f64::from(ax), f64::from(ay), f64::from(bx), f64::from(by)], pw, ph)
+                })
+                .collect();
+            squares.extend(self.page_squares(id, page, &areas, cell)?);
+        }
+        Ok(Edit::Mosaic { area: None, pages, squares })
     }
 }
 

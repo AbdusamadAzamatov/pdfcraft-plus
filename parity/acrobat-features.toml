@@ -2583,11 +2583,11 @@ title = "Paging seal: one stamp split across the page edges (PdfCraft Plus)"
 area = "C"
 tier = "P3"
 milestone = "M5"
-status = "partial"
-commands = []
+status = "shipped"
+commands = ["edit.paging_seal"]
 tools = ["page_paging_seal"]
-evidence = ["crates/engine/src/paging_seal.rs::a_square_seal_on_four_pages_is_four_quarter_strips_on_the_right_edge", "crates/engine/src/paging_seal.rs::long_runs_are_split_into_even_groups_each_with_the_whole_seal", "crates/engine/src/tests.rs::a_paging_seal_puts_one_strip_of_one_picture_on_each_page_edge", "crates/automation/tests/it/automation.rs::a_paging_seal_spans_the_pages_through_the_tool"]
-notes = "SC2, not an Acrobat feature (scanner apps and East Asian business practice: a cross-page seal shows no page was swapped). One picture is cut into as many vertical strips as there are pages; page i gets strip i on its right edge (first page leftmost strip) or left edge (first page rightmost), so the seal reads whole when the stack is fanned out. Whole seal width in points (default 113) and centre height (0-1 from the top); it keeps its shape and shrinks to fit the page. More than 20 pages are split into even groups, each with the whole seal (a strip keeps at least the 5 % of the picture a crop may keep). The strips are ordinary added images drawn from one stored picture, so they move, crop and delete like any added image; one undo step. Missing: a menu and dialog (headless page_paging_seal only), a seal on the top or bottom edge."
+evidence = ["crates/engine/src/paging_seal.rs::a_square_seal_on_four_pages_is_four_quarter_strips_on_the_right_edge", "crates/engine/src/paging_seal.rs::long_runs_are_split_into_even_groups_each_with_the_whole_seal", "crates/engine/src/tests.rs::a_paging_seal_puts_one_strip_of_one_picture_on_each_page_edge", "crates/automation/tests/it/automation.rs::a_paging_seal_spans_the_pages_through_the_tool", "crates/ui-egui/tests/it/marks.rs::paging_seal_dialog_needs_a_picture_then_seals_every_page"]
+notes = "SC2, not an Acrobat feature (scanner apps and East Asian business practice: a cross-page seal shows no page was swapped). One picture is cut into as many vertical strips as there are pages; page i gets strip i on its right edge (first page leftmost strip) or left edge (first page rightmost), so the seal reads whole when the stack is fanned out. Whole seal width in points (default 113) and centre height (0-1 from the top); it keeps its shape and shrinks to fit the page. More than 20 pages are split into even groups, each with the whole seal (a strip keeps at least the 5 % of the picture a crop may keep). The strips are ordinary added images drawn from one stored picture, so they move, crop and delete like any added image; one undo step. Edit a PDF ▸ Add content ▸ Paging seal opens a dialog (picture, width, position from top to bottom, right or left edge, all/selected/range of pages; Apply waits for a picture); page_paging_seal does the same headlessly. Missing: a seal on the top or bottom edge, a live preview, separate seals per group chosen by hand."
 
 [[feature]]
 id = "edit.decoration-profiles"
@@ -5819,11 +5819,11 @@ title = "Mosaic (pixelate) an area, removing what it showed (PdfCraft Plus)"
 area = "G"
 tier = "P3"
 milestone = "M8"
-status = "partial"
-commands = []
-tools = ["page_mosaic"]
-evidence = ["crates/engine/src/mosaic.rs::each_square_is_the_average_of_its_part_of_the_area", "crates/engine/src/mosaic.rs::bad_rasters_and_areas_are_errors_not_panics", "crates/engine/src/tests.rs::a_mosaic_removes_the_text_under_it_and_shows_squares", "crates/automation/tests/it/automation.rs::a_mosaic_hides_an_area_for_good_through_the_tool"]
-notes = "SC3, not an Acrobat feature (scanner and photo apps' mosaic). The area is rendered, averaged into squares of about the chosen side (2-72 pt, default 8), then removed for good as Apply redactions does (text, image pixels, vectors; the renderer check that no text is still shown under it runs too; full rewrite on save), and the squares are placed over it as an added picture. One undo step. Refused on a page with redaction marks waiting to be applied, which applying would take too. Missing: drawing the area on the page in the app (headless page_mosaic only), a blur style."
+status = "shipped"
+commands = ["redact.apply"]
+tools = ["page_mosaic", "redact_apply"]
+evidence = ["crates/engine/src/mosaic.rs::each_square_is_the_average_of_its_part_of_the_area", "crates/engine/src/mosaic.rs::bad_rasters_and_areas_are_errors_not_panics", "crates/engine/src/tests.rs::a_mosaic_removes_the_text_under_it_and_shows_squares", "crates/automation/tests/it/automation.rs::a_mosaic_hides_an_area_for_good_through_the_tool", "crates/engine/src/tests.rs::redaction_marks_apply_as_mosaic", "crates/automation/tests/it/automation.rs::redaction_marks_apply_as_mosaic_through_the_tool", "crates/ui-egui/tests/it/redact.rs::drawn_marks_apply_as_a_mosaic"]
+notes = "SC3, not an Acrobat feature (scanner and photo apps' mosaic). The area is rendered, averaged into squares of about the chosen side (2-72 pt, default 8), then removed for good as Apply redactions does (text, image pixels, vectors; the renderer check that no text is still shown under it runs too; full rewrite on save), and the squares are placed over it as an added picture. One undo step. Refused on a page with redaction marks waiting to be applied, which applying would take too. In the app the areas are drawn (or text marked) with the Redact tool, and Apply redactions ▸ Cover with: Mosaic covers every mark with squares instead of its box (redact_apply mosaic/cell headlessly); page_mosaic takes one area directly. Missing: choosing the square size in the app (8 pt there), a blur style, a mosaic tool of its own outside Redact."
 
 [[feature]]
 id = "protect.redact-pages"

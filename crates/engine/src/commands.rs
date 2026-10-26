@@ -369,6 +369,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("edit.header_footer.update", "Update header & footer…", None, None, Marks(crate::MarkKind::HeaderFooter), "heading"),
     c("edit.header_footer.remove", "Remove header & footer", None, None, Marks(crate::MarkKind::HeaderFooter), "heading"),
     c("edit.watermark", "Add watermark…", None, None, Modification, "stamp"),
+    c("edit.paging_seal", "Paging seal…", None, None, Modification, "stamp"),
     c("edit.watermark.update", "Update watermark…", None, None, Marks(crate::MarkKind::Watermark), "stamp"),
     c("edit.watermark.remove", "Remove watermark", None, None, Marks(crate::MarkKind::Watermark), "stamp"),
     c("edit.background", "Add background…", None, None, Modification, "palette"),

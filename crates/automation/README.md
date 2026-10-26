@@ -79,7 +79,8 @@ semantics; they never silently act on partial text.
   at real size (packed into a centred block; the default 1 × 2 puts an ID card's front and back
   together) or fitted to equal cells.
 - `page_mosaic` covers `rect` with squares of `cell` points after removing what it showed for
-  good, as Apply redactions does; it is marked destructive.
+  good, as Apply redactions does; it is marked destructive. `redact_apply` with `mosaic: true`
+  (and `cell`) covers every applied mark with squares instead of a box.
 
 ## Removing restrictions in the personal fork
 

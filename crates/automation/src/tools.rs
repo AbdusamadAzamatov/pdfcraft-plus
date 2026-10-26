@@ -600,10 +600,18 @@ pub fn tools() -> Vec<ToolDef> {
         t(
             "redact_apply",
             "Apply redactions",
-            "Apply the redaction marks (all, or those on pages): text, images, vectors, comments and form fields under them are removed for good and boxes are drawn in their place. A verification pass fails the operation if anything readable remains. Undoable until saved; the saved file no longer contains the content.",
+            "Apply the redaction marks (all, or those on pages): text, images, vectors, comments and form fields under them are removed for good and boxes are drawn in their place. A verification pass fails the operation if anything readable remains. With mosaic true, each marked area is covered with squares of its own colours (about cell points across, 2–72, default 8) instead of a box, so the page still looks whole. Undoable until saved; the saved file no longer contains the content.",
         )
         .destructive()
-        .with(schema(json!({ "doc": doc(), "pages": pages("whose marks to apply (default: all)") }), &["doc"])),
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("whose marks to apply (default: all)"),
+                "mosaic": { "type": "boolean", "description": "Cover the areas with squares instead of boxes (default false)." },
+                "cell": { "type": "number", "minimum": 2, "maximum": 72, "description": "The squares' side in points, with mosaic (default 8)." },
+            }),
+            &["doc"],
+        )),
         t("redact_clear", "Remove redaction marks", "Remove every redaction mark without applying it. Undoable.")
             .destructive()
             .with(schema(json!({ "doc": doc() }), &["doc"])),
@@ -753,6 +761,7 @@ pub fn tools() -> Vec<ToolDef> {
             "Add a paging seal",
             "Stamp a seal across the edges of several pages (a cross-page or riding seal, which shows no page was swapped): the picture at path (PNG with transparency is best; JPEG, TIFF, GIF, BMP) is cut into as many vertical strips as there are pages, and each page gets its strip on its right (edge, default) or left edge, so the seal reads whole when the pages are fanned out. pages (default all) in the order they are stacked. width is the whole seal's width in points (default 113, about 4 cm); it keeps its shape and is shrunk to fit a page. position is the height of its centre from the top, 0–1 (default 0.5). More than 20 pages are split into even groups, each with the whole seal. The strips are added images (content_list, content_update, content_delete) drawn from one stored picture. Undoable.",
         )
+        .cmd("edit.paging_seal")
         .with(schema(
             json!({
                 "doc": doc(),

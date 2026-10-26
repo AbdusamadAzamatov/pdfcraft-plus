@@ -80,6 +80,8 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut impose_now = false;
     let mut stitch_now = false;
     let mut collage_now = false;
+    let mut seal_now = false;
+    let mut seal_picture = false;
     let mut divide_now = false;
     let mut blank_now = false;
     let mut deskew_now = false;
@@ -696,7 +698,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
             }
             Dialog::RedactApply => {
                 let marks = app.active_ids().and_then(|(_, id)| app.session.get(id)).map_or(0, |d| d.redaction_marks());
-                let (ok, cancel) = crate::redact_ui::apply_body(ui, marks, &t);
+                let (ok, cancel) = crate::redact_ui::apply_body(ui, marks, &mut app.redact_mosaic, &t);
                 if ok {
                     redact_now = Some(dialog);
                 }
@@ -1200,6 +1202,13 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = create || cancel;
                 return;
             }
+            Dialog::PagingSeal => {
+                let clicked = crate::seal_ui::body(ui, app, &t);
+                seal_now = clicked.apply;
+                seal_picture = clicked.choose;
+                close = clicked.apply || clicked.cancel;
+                return;
+            }
             Dialog::DividePages => {
                 let (apply, cancel) = crate::divide_ui::body(ui, app, &t);
                 divide_now = apply;
@@ -1572,7 +1581,23 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
         }
         Some(Dialog::RedactApply) => {
             let marks = app.active_ids().and_then(|(_, id)| app.session.get(id)).map_or(0, |d| d.redaction_marks());
-            if app.apply_edit(Edit::ApplyRedactions { pages: None }) {
+            // As a mosaic, the squares are made from the page as it is drawn now, before applying.
+            let edit = if app.redact_mosaic {
+                let id = app.active_ids().map(|(_, id)| id);
+                match id.map(|id| app.session.mosaic_marks_edit(id, None, pdfcraft_engine::mosaic::DEFAULT_CELL)) {
+                    Some(Ok(edit)) => Some(edit),
+                    Some(Err(e)) => {
+                        app.notify_fmt("Couldn't apply the redactions: {e}", &[("e", &e.to_string())]);
+                        None
+                    }
+                    None => None,
+                }
+            } else {
+                Some(Edit::ApplyRedactions { pages: None })
+            };
+            if let Some(edit) = edit
+                && app.apply_edit(edit)
+            {
                 if marks == 1 {
                     app.notify_tr("Applied 1 redaction mark. Save to remove the content from the file.");
                 } else {
@@ -1652,6 +1677,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     }
     if collage_now {
         app.collage_with_draft();
+    }
+    if seal_picture {
+        app.choose_seal_picture();
+    }
+    if seal_now {
+        app.seal_with_draft();
     }
     if divide_now && let Some((_, id)) = app.active_ids() {
         let count = app.session.get(id).map(|d| d.info.pages.len()).unwrap_or(0);

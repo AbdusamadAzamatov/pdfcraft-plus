@@ -10082,3 +10082,23 @@ fn doc_collage_arranges_pages_on_sheets_as_a_new_document() {
     }
     assert!(!dir.parent().unwrap().join("escape.pdf").exists(), "nothing written outside --root");
 }
+
+/// `redact_apply` with `mosaic`: the marks are applied and their areas covered with squares.
+#[test]
+fn redaction_marks_apply_as_mosaic_through_the_tool() {
+    let dir = workdir("redact-mosaic");
+    std::fs::write(dir.join("memo.txt"), "Call 555-123-4567 today\nPublic line").unwrap();
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_create", json!({ "from": "text", "path": "memo.txt" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "redact_mark", json!({ "doc": doc, "pattern": "phone" }));
+    let r = ok(&mut a, "redact_apply", json!({ "doc": doc, "mosaic": true, "cell": 6 }));
+    assert_eq!((r["applied"].as_u64(), r["marks_pending"].as_u64(), r["undo"].as_str()), (Some(1), Some(0), Some("Mosaic")));
+    let text = page_text(&mut a, doc)[0].clone();
+    assert!(!text.contains("555") && text.contains("Public line"), "{text}");
+    assert_eq!(ok(&mut a, "content_list", json!({ "doc": doc }))["count"], 1, "the squares");
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    for bad in [json!({ "doc": doc, "mosaic": true, "cell": 100 }), json!({ "doc": doc, "mosaic": "yes" })] {
+        assert!(a.call("redact_apply", &bad).is_err(), "{bad}");
+    }
+    assert_eq!(ok(&mut a, "redact_apply", json!({ "doc": doc }))["applied"], 1, "the mark is still there to apply");
+}

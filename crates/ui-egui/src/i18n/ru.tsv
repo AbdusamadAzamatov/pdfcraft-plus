@@ -1200,6 +1200,9 @@
 	Text alignment:	Выравнивание текста:
 	Center	По центру
 	Apply redactions	Применить сокрытия
+	Cover with:	Закрыть:
+	Boxes	Прямоугольниками
+	Couldn't apply the redactions: {e}	Не удалось применить сокрытия: {e}
 	You are about to apply 1 redaction mark. Text, images and drawings under the marks, and comments and form fields that overlap them, are removed permanently.	Вы собираетесь применить 1 метку сокрытия. Текст, изображения и рисунки под метками, а также комментарии и поля формы, которые с ними пересекаются, удаляются безвозвратно.
 	You are about to apply {n} redaction marks. Text, images and drawings under the marks, and comments and form fields that overlap them, are removed permanently.	Вы собираетесь применить {n} меток сокрытия. Текст, изображения и рисунки под метками, а также комментарии и поля формы, которые с ними пересекаются, удаляются безвозвратно.
 	Save the document afterwards: saving rewrites the whole file so no trace of the removed content stays in it.	Сохраните документ после этого: сохранение перезаписывает весь файл, чтобы не осталось следов удалённого содержимого.
@@ -1988,6 +1991,16 @@
 	Update background	Обновить фон
 	Add image	Добавить изображение
 	Add paging seal	Добавить печать на стык страниц
+	Paging seal…	Печать на стык страниц…
+	Paging seal	Печать на стык страниц
+	One seal is cut into strips, one on the edge of each page, so it reads whole when the pages are fanned out.	Печать разрезается на полосы, по одной на краю каждой страницы, и читается целиком, когда страницы разложены веером.
+	Picture:	Изображение:
+	None chosen	Не выбрано
+	Choose picture…	Выбрать изображение…
+	Choose the seal picture	Выберите изображение печати
+	Position:	Положение:
+	Edge:	Край:
+	More than {n} pages are split into groups, each with the whole seal.	Больше {n} страниц делятся на группы, каждая со своей целой печатью.
 	Mosaic	Мозаика
 	Edit content	Редактировать содержимое
 	Delete content	Удалить содержимое
