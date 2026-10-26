@@ -784,7 +784,7 @@ impl Automation {
             }
             "text_fonts" => {
                 let page = self.page(&a)?;
-                json!({"fonts": self.doc(&a)?.text_editor_fonts(page).into_iter().map(|f| json!({"resource":f.resource,"font":f.face,"full_face":f.resource.starts_with("PCFull"),"preview_only":f.resource.starts_with("PCApproved")})).collect::<Vec<_>>()})
+                json!({"fonts": self.doc(&a)?.text_editor_fonts(page).into_iter().map(|f| json!({"resource":f.resource,"font":f.face,"full_face":f.resource.starts_with("PCFull"),"preview_only":f.resource.starts_with("PCApproved"),"stand_in":f.stand_in})).collect::<Vec<_>>()})
             }
             "text_edit_layout" => {
                 let page = self.page(&a)?;

@@ -531,17 +531,21 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
     {
         use crate::format_text_ui::{FontChoice, Fonts};
         let mut ed = ed;
-        let sources: Vec<(String, String)> = app
-            .session
-            .get(app.views[i].id)
-            .map(|d| d.text_editor_fonts(ed.page))
-            .unwrap_or_default()
+        let programs = app.session.get(app.views[i].id).map(|d| d.text_editor_fonts(ed.page)).unwrap_or_default();
+        // Whether each run's font has its own program in the editor (not a stand-in), and whether
+        // the paragraph as typed has a letter none of its own programs can show.
+        let source_fonts = ed.source_fonts();
+        let owned: Vec<_> = programs.iter().filter(|p| !p.stand_in && source_fonts.iter().any(|(resource, _)| *resource == p.resource)).collect();
+        let lacks_typed = ed.has_unsaved_text()
+            && ed.text.chars().any(|c| !c.is_whitespace() && !owned.iter().any(|p| pdfcraft_fonts::embedding::covers(&p.bytes, &c.to_string())));
+        let fonts: Vec<crate::font_suggest::FontUse> = source_fonts
             .into_iter()
-            .map(|f| (f.resource, f.face))
+            .map(|(resource, base_font)| crate::font_suggest::FontUse { own: owned.iter().any(|p| p.resource == resource), base_font, lacks_typed })
             .collect();
+        let sources: Vec<(String, String)> = programs.into_iter().map(|f| (f.resource, f.face)).collect();
         let shown = ed.font_shown(&sources);
         let out = crate::format_text_ui::panel(ui, t, &mut ed.look, Some(&mut ed.extras), Fonts { sources: Some(&sources), shown });
-        crate::font_suggest::section(app, ui, t, &ed.source_base_fonts());
+        crate::font_suggest::section(app, ui, t, &fonts);
         let mut changed = out.changed;
         match out.font {
             Some(FontChoice::KeepSource) => {

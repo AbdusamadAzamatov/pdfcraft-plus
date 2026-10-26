@@ -110,6 +110,9 @@ pub struct TextEditorFont {
     pub resource: String,
     pub face: String,
     pub bytes: Vec<u8>,
+    /// Not the resource's own program: a full face or look-alike of its family, shown because
+    /// the editor can't read the program (see [`text_editor_fonts`]).
+    pub stand_in: bool,
 }
 
 pub fn text_editor_fonts(doc: &Document, page: usize) -> Result<Vec<TextEditorFont>, EditError> {
@@ -122,27 +125,40 @@ pub fn text_editor_fonts(doc: &Document, page: usize) -> Result<Vec<TextEditorFo
     let mut result = Vec::new();
     for (name, font) in fonts.iter().take(128) {
         let Some(font) = doc.dict(font) else { continue };
-        let Some(bytes) = pdfcraft_fonts::pdf::embedded_sfnt_within(doc, &font, &mut decode) else { continue };
+        let base_font = Metrics::from_dict(doc, &font).base_font;
+        let face = base_font.rsplit('+').next().unwrap_or_default().to_owned();
+        // A program the editor can't read (Type 1, Type 3, not embedded, or damaged) is shown
+        // with its family's full face or installed look-alike, which has its widths, rather than
+        // the interface font.
+        let (bytes, stand_in) = match pdfcraft_fonts::pdf::embedded_sfnt_within(doc, &font, &mut decode) {
+            Some(bytes) => (bytes, false),
+            None => match pdfcraft_fonts::embedding::editing_faces(&base_font).first() {
+                Some(full) => (full.bytes.to_vec(), true),
+                None => continue,
+            },
+        };
         if bytes.len() > budget {
             continue;
         }
         budget -= bytes.len();
-        result.push(TextEditorFont {
-            resource: String::from_utf8_lossy(name).into_owned(),
-            face: Metrics::from_dict(doc, &font).base_font.rsplit('+').next().unwrap_or_default().to_owned(),
-            bytes,
-        });
+        result.push(TextEditorFont { resource: String::from_utf8_lossy(name).into_owned(), face, bytes, stand_in });
     }
     // The approved full face follows all source subsets in the editor's font stack. It can
     // display newly inserted glyphs before Apply without changing the source text's face.
-    let source_faces: Vec<_> = result.iter().map(|p| p.face.clone()).collect();
+    // A stand-in already is that face.
+    let source_faces: Vec<_> = result.iter().filter(|p| !p.stand_in).map(|p| p.face.clone()).collect();
     for face in source_faces {
         for full in pdfcraft_fonts::embedding::editing_faces(&face) {
             if full.bytes.len() > budget || result.iter().any(|p| p.resource == format!("PCApproved{}", full.name())) {
                 continue;
             }
             budget -= full.bytes.len();
-            result.push(TextEditorFont { resource: format!("PCApproved{}", full.name()), face: face.clone(), bytes: full.bytes.to_vec() });
+            result.push(TextEditorFont {
+                resource: format!("PCApproved{}", full.name()),
+                face: face.clone(),
+                bytes: full.bytes.to_vec(),
+                stand_in: true,
+            });
         }
     }
     Ok(result)

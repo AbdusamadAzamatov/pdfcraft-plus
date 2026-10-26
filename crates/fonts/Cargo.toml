@@ -17,3 +17,7 @@ harfrust = "0.12"
 unicode-bidi = "0.3"
 # Checksums of the look-alike fonts the app downloads (PdfCraft Plus); already in the tree.
 sha2 = "0.11"
+
+[features]
+# `lookalike::install_for_tests`: other crates' tests stand a bundled face in for a look-alike.
+test-support = []

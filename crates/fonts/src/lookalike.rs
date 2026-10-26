@@ -313,6 +313,22 @@ pub fn install(bytes: Vec<u8>) -> Result<&'static LookalikeFile, String> {
     Ok(file)
 }
 
+/// Tests only: install `bytes` as the catalogue file named `file` without the checksum check, so
+/// a bundled face can stand in for a look-alike that isn't in the repository.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn install_for_tests(file: &str, bytes: Vec<u8>) -> Result<(), String> {
+    let (lookalike, entry) =
+        CATALOGUE.iter().find_map(|l| l.files.iter().find(|f| f.file == file).map(|f| (l, f))).ok_or("no such catalogue file")?;
+    let mut faces = installed_faces().lock().unwrap_or_else(PoisonError::into_inner);
+    if !faces.iter().any(|(name, _)| *name == entry.file) {
+        let bytes: &'static [u8] = Box::leak(bytes.into_boxed_slice());
+        let face: &'static CraftFont = Box::leak(Box::new(CraftFont { family: lookalike.family, style: entry.style, scripts: &["Latn"], bytes }));
+        faces.push((entry.file, face));
+    }
+    Ok(())
+}
+
 /// Whether a catalogue file has been installed in this session.
 pub fn is_installed(file: &LookalikeFile) -> bool {
     installed_faces().lock().unwrap_or_else(PoisonError::into_inner).iter().any(|(name, _)| *name == file.file)

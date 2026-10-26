@@ -380,13 +380,14 @@ impl LineEditor {
     }
 
     /// Adopt the rewritten paragraph's current geometry before the next overlay frame.
-    /// The `/BaseFont` of every run in the paragraph, in order, each once.
-    pub(crate) fn source_base_fonts(&self) -> Vec<String> {
-        let mut fonts: Vec<String> = Vec::new();
+    /// The font resource and `/BaseFont` of every run in the paragraph, in order, each once.
+    pub(crate) fn source_fonts(&self) -> Vec<(String, String)> {
+        let mut fonts: Vec<(String, String)> = Vec::new();
         if let Some((block, lines)) = &self.source {
             for line in block.lines.iter().filter_map(|i| lines.get(*i)) {
-                if !fonts.contains(&line.base_font) {
-                    fonts.push(line.base_font.clone());
+                let font = (line.font.clone(), line.base_font.clone());
+                if !fonts.contains(&font) {
+                    fonts.push(font);
                 }
             }
         }

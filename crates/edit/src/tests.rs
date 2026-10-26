@@ -7526,3 +7526,38 @@ fn a_run_of_spaces_in_a_subset_without_a_space_glyph_keeps_its_width() {
     let content = String::from_utf8_lossy(&page_content_bytes(&reopen(&doc), 0)).into_owned();
     assert_eq!(content.matches("[-330] TJ").count(), 5, "{content}");
 }
+
+/// A font the editor can't read (here not embedded at all) is shown with its installed free
+/// look-alike rather than the interface font, marked as a stand-in; without one it isn't listed.
+#[test]
+fn an_unreadable_font_is_shown_with_its_installed_look_alike() {
+    let objs: Vec<String> = vec![
+        "<< /Type /Catalog /Pages 2 0 R >>".into(),
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 600 800] >>".into(),
+        "<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>".into(),
+        "<< /Length 44 >>\nstream\nBT /F1 9 Tf (Hi) Tj ET BT /F2 9 Tf (Yo) Tj ET\nendstream".into(),
+        "<< /Type /Font /Subtype /TrueType /BaseFont /Cambria /Encoding /WinAnsiEncoding >>".into(),
+        "<< /Type /Font /Subtype /TrueType /BaseFont /Georgia /Encoding /WinAnsiEncoding >>".into(),
+    ];
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offs = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offs.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{o}\nendobj\n", i + 1).as_bytes());
+    }
+    let x = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offs {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{x}\n%%EOF\n", objs.len() + 1).as_bytes());
+    let doc = Document::open(Arc::new(out)).unwrap();
+    let listed = |doc: &Document| text::text_editor_fonts(doc, 0).unwrap().into_iter().map(|f| (f.resource, f.stand_in)).collect::<Vec<_>>();
+    assert!(listed(&doc).is_empty(), "nothing to show either font with yet");
+    let stand_in = include_bytes!("../../../assets/fonts/Inter-Regular.ttf").to_vec();
+    pdfcraft_fonts::lookalike::install_for_tests("Caladea-Regular.ttf", stand_in.clone()).unwrap();
+    let fonts = text::text_editor_fonts(&doc, 0).unwrap();
+    assert_eq!(listed(&doc), [("F1".to_string(), true)], "Cambria gets its look-alike; Georgia has none");
+    assert_eq!(fonts[0].bytes, stand_in);
+    assert_eq!(fonts[0].face, "Cambria");
+}

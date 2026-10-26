@@ -1940,13 +1940,15 @@ commands = ["edit.edit_text"]
 tools = ["font_lookalikes", "font_lookalike_install"]
 evidence = [
     "crates/fonts/src/pdf.rs::a_composite_subset_without_a_cmap_gets_one_for_the_editor",
+    "crates/fonts/src/pdf.rs::a_bare_cff_program_is_wrapped_for_the_editor",
+    "crates/edit/src/tests.rs::an_unreadable_font_is_shown_with_its_installed_look_alike",
     "crates/fonts/src/lookalike.rs::names_find_their_look_alike_weight_and_slant",
     "crates/fonts/src/lookalike.rs::only_catalogue_files_install",
     "crates/automation/tests/it/automation.rs::missing_fonts_are_listed_with_their_free_look_alike_and_only_catalogue_files_install",
     "crates/ui-egui/tests/it/missing_fonts.rs::a_partly_embedded_font_offers_its_free_look_alike_and_reports_a_failed_download",
     "crates/ui-egui/tests/it/missing_fonts.rs::without_a_download_the_panel_points_to_load_font",
 ]
-notes = "Fork-only. Editing a paragraph in a font the PDF holds only partly, the Edit panel's Fonts section names it; for Times New Roman, Arial/Helvetica, Courier New, Calibri and Cambria it offers a free look-alike with the same widths (Tinos, Arimo, Cousine, Carlito, Caladea; OFL-1.1 or Apache-2.0) as a one-click download from google/fonts pinned by commit and SHA-256, kept in the settings folder's fonts folder. Letters the subset lacks are then written in the look-alike instead of a fallback of another design; display never uses it. The live editor also reads composite (CID) subsets without a cmap, so the paragraph keeps its own face while typing. Not yet: other families, a document-wide report, or automatic download in the CLI (font_lookalikes lists the URLs; font_lookalike_install takes the files)."
+notes = "Fork-only. Editing a paragraph in a font the PDF holds only partly, the Edit panel's Fonts section names it; for Times New Roman, Arial/Helvetica, Courier New, Calibri and Cambria it offers a free look-alike with the same widths (Tinos, Arimo, Cousine, Carlito, Caladea; OFL-1.1 or Apache-2.0) as a one-click download from google/fonts pinned by commit and SHA-256, kept in the settings folder's fonts folder. Letters the subset lacks are then written in the look-alike instead of a fallback of another design; display never uses it. The live editor also reads composite (CID) TrueType subsets without a cmap and bare CFF programs (CIDFontType0C, wrapped in an in-memory OpenType font), so the paragraph keeps its own face while typing; a font it still can't read (Type 1, Type 3, not embedded) is shown with its installed look-alike. New letters use the document's own complete program first, then the look-alike. The Fonts section also lists fonts the PDF doesn't include and, while typing, a letter the paragraph's own font can't show. A single-run paragraph with a letter its font lacks and no look-alike installed is still rewritten in one stand-in face (upstream's single-style path). Not yet: other families, a document-wide report, or automatic download in the CLI (font_lookalikes lists the URLs; font_lookalike_install takes the files)."
 
 [[feature]]
 id = "edit.text-format-font"

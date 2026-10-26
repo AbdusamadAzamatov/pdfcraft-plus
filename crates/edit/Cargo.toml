@@ -22,3 +22,4 @@ unicode-bidi = "0.3"
 
 [dev-dependencies]
 hayro-syntax = { workspace = true }
+pdfcraft-fonts = { workspace = true, features = ["test-support"] }

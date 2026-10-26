@@ -507,9 +507,10 @@ impl PdfCraftApp {
                 let Some(mut ed) = self.views[index].line_editor.clone().filter(|ed| ed.page == page) else { return };
                 // The font just loaded is the one the user wants: apply it to the paragraph, as
                 // choosing it from the document-font menu does, instead of only registering it (#2591).
-                let resource = self.session.get(id).and_then(|doc| {
-                    doc.text_editor_fonts(page).into_iter().find(|f| f.bytes == *bytes && !f.resource.starts_with("PCApproved")).map(|f| f.resource)
-                });
+                let resource = self
+                    .session
+                    .get(id)
+                    .and_then(|doc| doc.text_editor_fonts(page).into_iter().find(|f| f.bytes == *bytes && !f.stand_in).map(|f| f.resource));
                 let ctx = self.ctx.clone();
                 if resource.is_some() {
                     ed.font_resource = resource;

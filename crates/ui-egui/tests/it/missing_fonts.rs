@@ -5,7 +5,8 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use pdfcraft_ui_egui::PdfCraftApp;
 
-/// One page with a line in a Times New Roman subset (`ABCDEF+TimesNewRoman`) at (72, 700).
+/// One page with a line in a Times New Roman subset (`ABCDEF+TimesNewRoman`) at (72, 700); the
+/// font isn't embedded, so the PDF doesn't include it at all.
 fn subset_times_pdf() -> Vec<u8> {
     let body = "BT /F1 24 Tf 72 700 Td (Hello) Tj ET";
     let objs = [
@@ -69,7 +70,7 @@ fn a_partly_embedded_font_offers_its_free_look_alike_and_reports_a_failed_downlo
     });
     open_the_line(&mut h);
     h.get_by_label("Times New Roman");
-    h.get_by_label_contains("new letters would use another font");
+    h.get_by_label_contains("doesn't include this font, so edited text would show in another font");
     h.get_by_label_contains("Download Tinos").click();
     // The download runs on its own thread; give it a moment.
     for _ in 0..50 {
