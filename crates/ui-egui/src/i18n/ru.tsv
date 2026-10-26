@@ -2491,6 +2491,16 @@ animation effects	Off	Выкл
 	Pages trimmed: {n}. Left alone: {pages}	Обрезано страниц: {n}. Без изменений: {pages}
 	No white margins to remove	Нет белых полей для удаления
 	Stitch pages…	Склеить страницы…
+	Collage…	Коллаж…
+	Layout:	Макет:
+	ID card (front and back)	Удостоверение (лицевая и обратная стороны)
+	Grid	Сетка
+	Columns:	Столбцы:
+	Rows:	Строки:
+	Size:	Размер:
+	Fit to cells	Вписать в ячейки
+	Margin:	Поля:
+	Sheets: {n}	Листов: {n}
 	Gap:	Промежуток:
 	Background:	Фон:
 	White	Белый

@@ -50,8 +50,9 @@ PdfCraft Plus is a personal fork of [PdfCraft](https://github.com/storytold/pdfc
 ArtCraft team and the PdfCraft contributors. It keeps everything PdfCraft does and adds three groups
 of tools:
 
-- **Page Layout:** N-up, booklet, poster, interleave, divide, remove blank pages, stitch, change
-  page size, trim white margins, straighten scans and rotate by any angle.
+- **Page Layout:** N-up, booklet, poster, interleave, divide, remove blank pages, stitch,
+  collage (e.g. an ID card's front and back on one sheet), change page size, trim white margins,
+  straighten scans and rotate by any angle.
 - **Clean-up:** Fast Web View, rasterize, grayscale, invert colours and remove restrictions (after
   you confirm you have the right to).
 - **Scanner tools:** more looks for camera photos (lighten, vivid colour, ink-saving eco and

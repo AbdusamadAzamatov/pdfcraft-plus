@@ -83,7 +83,8 @@ averages an area into squares, removes what it showed through the redaction path
 renderer check and the full rewrite on save), then places the squares over it.
 `camera::Repairs` adds two steps before the look: `descreen` (moiré removal: YCbCr low-pass plus an
 unsharp mask from the filtered brightness) and `dewarp` (flattening a bent page by following its
-lines of text across strips and bands).
+lines of text across strips and bands). `Session::collage_new` arranges pages on sheets as a new
+document (`pdfcraft_organize::collage_pages`, sharing Stitch's page-as-form helper).
 
 ## Modules
 

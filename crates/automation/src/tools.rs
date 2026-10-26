@@ -694,6 +694,28 @@ pub fn tools() -> Vec<ToolDef> {
             }),
             &["doc"],
         )),
+        t(
+            "doc_collage",
+            "Arrange pages on sheets (collage)",
+            "Arrange pages on sheets of paper, a grid of them per sheet, as a new PDF (Organize ▸ Layout ▸ Collage), e.g. an identity card's front and back on one A4 sheet. pages (1-based, in the order given, a page may repeat; default all, at most 1000) fill each sheet's grid left to right, then top to bottom, on as many sheets as needed. cols and rows (1–6, default 1 and 2). size actual (default: each page at its real size, shrunk only if it doesn't fit its share; the pages are packed into a block centred on the sheet) or fit (the sheet inside its margins is cut into equal cells and each page scaled, up or down, to fill its cell). paper a4 (default) or letter, landscape (default false), margin (0–144 pt, default 36) and gap between pages (0–72 pt, default 24). Only page content is copied: links, comments and form fields are not carried over. The result opens as a new unsaved document named \"<name> (collage).pdf\", and/or is written to out; it reports sheets. The document itself is not changed (nothing to undo). The new file is not encrypted, so a restricted document needs the page-assembly permission or the owner password.",
+        )
+        .cmd("page.collage")
+        .with(schema(
+            json!({
+                "doc": doc(),
+                "pages": pages("to arrange, in order (default: all)"),
+                "cols": { "type": "integer", "minimum": 1, "maximum": 6 },
+                "rows": { "type": "integer", "minimum": 1, "maximum": 6 },
+                "size": { "type": "string", "enum": ["actual", "fit"] },
+                "paper": { "type": "string", "enum": ["a4", "letter"] },
+                "landscape": { "type": "boolean" },
+                "margin": { "type": "number", "minimum": 0, "maximum": 144, "description": "Space kept clear at the sheet's edges, in points (default 36)." },
+                "gap": { "type": "number", "minimum": 0, "maximum": 72, "description": "Space between pages in points (default 24)." },
+                "out": { "type": "string", "description": "File to write. Omit to open the result as a new unsaved document instead." },
+                "open": { "type": "boolean", "description": "Also open the result as a new document (default: only when out is omitted)." },
+            }),
+            &["doc"],
+        )),
         t("content_list", "List added content", "Text and images added with page_add_text/page_add_image (or Edit a PDF ▸ Add content), per page with a 1-based index, rect (points from the top-left of the page), and text style.")
             .ro()
             .with(schema(json!({ "doc": doc() }), &["doc"])),

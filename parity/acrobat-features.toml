@@ -2966,6 +2966,18 @@ evidence = ["crates/engine/src/tests.rs::impose_new_lays_five_pages_two_up_on_th
 notes = "Organize ▸ Layout ▸ Pages per sheet (N-up)…: the print.n-up layout (2/4/6/9/16, order, borders, auto-rotate; same engine, pdfcraft_print::impose) opened as a new unsaved tab named '<name> (N-up).pdf'; the source is unchanged. The dialog reuses the Print dialog's page and layout controls; paper defaults to the first page's size, upright (doc_impose paper \"first-page\"). The new file is unencrypted, so it needs the Assembly permission or the owner password (refusal tested). Not here: print as image, no live sheet preview in the dialog (Print has one)."
 
 [[feature]]
+id = "organize.collage"
+title = "Collage: pages arranged on sheets at real size or fitted, e.g. ID card front and back (PdfCraft Plus)"
+area = "D"
+tier = "P3"
+milestone = "M4"
+status = "shipped"
+commands = ["page.collage"]
+tools = ["doc_collage"]
+evidence = ["crates/organize/src/collage.rs::an_id_card_front_and_back_sit_together_in_the_middle_of_a4_at_real_size", "crates/organize/src/collage.rs::fitted_pages_fill_equal_cells_in_reading_order", "crates/organize/src/collage.rs::five_pages_two_by_two_make_two_sheets_drawing_each_page_once", "crates/engine/src/tests.rs::collage_new_puts_pages_side_by_side_at_real_size_on_a_sheet", "crates/automation/tests/it/automation.rs::doc_collage_arranges_pages_on_sheets_as_a_new_document", "crates/ui-egui/tests/it/print.rs::collage_dialog_opens_from_the_layout_tools_and_creates_sheets_in_a_second_tab"]
+notes = "SC6, not an Acrobat feature (scanner apps' collage / ID card copy). Organize ▸ Layout ▸ Collage…: a grid of 1–6 columns and rows per A4 or Letter sheet (portrait or landscape), filled left to right then top to bottom on as many sheets as needed, as a new unsaved tab '<name> (collage).pdf'; the source is unchanged. Actual size keeps each page's size in points (shrunk only if it doesn't fit its share) and packs them into a block centred on the sheet, so an identity card's front and back (the default, 1 × 2) sit together in the middle of A4; Fit scales each page to fill an equal cell inside the margins. Vector and lossless (each page a Form XObject, one per source page); links, comments and form fields are not carried over. The new file is unencrypted, so it needs the Assembly permission or the owner password (refusal tested). Missing: a live sheet preview, other paper sizes, a page per cell in column order."
+
+[[feature]]
 id = "organize.booklet-to-pdf"
 title = "Booklet as a new document"
 area = "D"

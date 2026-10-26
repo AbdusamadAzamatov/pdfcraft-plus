@@ -73,6 +73,10 @@ pub use pdfcraft_organize::Standard;
 pub use pdfcraft_organize::check_custom_key;
 pub use pdfcraft_organize::view::{InitialView, Layout as InitialLayout, Magnification, Navigation};
 /// Stitch pages (PL6): its options, layout and limits.
+pub use pdfcraft_organize::{
+    A4 as COLLAGE_A4, CollageOptions, CollagePlaced, CollageSheets, LETTER as COLLAGE_LETTER, MAX_COLLAGE_GAP, MAX_COLLAGE_GRID, MAX_COLLAGE_MARGIN,
+    MAX_COLLAGE_PAGES, collage_layout,
+};
 pub use pdfcraft_organize::{MAX_STITCH_GAP, MAX_STITCH_PAGES, StitchAlign, StitchDirection, StitchLayout, StitchOptions, stitch_layout};
 
 pub use pdfcraft_cos::Algorithm;
@@ -3338,6 +3342,12 @@ pub fn impose_name(name: &str, layout: &print::Layout) -> String {
     format!("{stem} ({what}).pdf")
 }
 
+/// The name [`Session::collage_new`]'s result opens under: `<name> (collage).pdf`.
+pub fn collage_name(name: &str) -> String {
+    let stem = name.strip_suffix(".pdf").or_else(|| name.strip_suffix(".PDF")).unwrap_or(name);
+    format!("{stem} (collage).pdf")
+}
+
 /// The name [`Session::stitch_new`]'s result opens under: `<name> (stitched).pdf`.
 pub fn stitch_name(name: &str) -> String {
     let stem = name.strip_suffix(".pdf").or_else(|| name.strip_suffix(".PDF")).unwrap_or(name);
@@ -5222,6 +5232,28 @@ impl Session {
         }
         let (out, layout) = guard(|| pdfcraft_organize::stitch_pages(&cos, pages, opts)).map_err(EditError::Write)??;
         Ok((self.write_new(&out)?, layout))
+    }
+
+    /// Organize ▸ Layout ▸ Collage: `pages` (0-based, in this order) arranged on sheets of paper,
+    /// a grid of them per sheet, at their real size or fitted to the cells, as a **new** PDF (to
+    /// open with [`Self::open_new`], named with [`collage_name`]), with what went on each sheet.
+    /// The pages come as they are now, unsaved changes included, and their layers as shown;
+    /// links, comments and form fields are not carried over. The document itself is not changed.
+    ///
+    /// The result is not encrypted, so a restricted document needs the Assembly permission (or
+    /// the owner password), as [`Self::stitch_new`] does.
+    pub fn collage_new(&self, id: DocId, pages: &[usize], opts: &CollageOptions) -> Result<(Arc<Vec<u8>>, CollageSheets), EditError> {
+        let src = self.cos(id)?;
+        if src.permissions().is_some_and(|p| !p.assemble()) {
+            return Err(EditError::NotPermitted("making a new document from its pages"));
+        }
+        let doc = self.get(id).ok_or(EditError::NoDocument)?;
+        let mut cos = src.clone();
+        if !doc.config.layers.is_empty() {
+            set_default_layer_state(&mut cos, &doc.info.layers);
+        }
+        let (out, sheets) = guard(|| pdfcraft_organize::collage_pages(&cos, pages, opts)).map_err(EditError::Write)??;
+        Ok((self.write_new(&out)?, sheets))
     }
 
     /// Combine whole files, in order, into new PDF bytes (one bookmark per file).

@@ -75,6 +75,9 @@ semantics; they never silently act on partial text.
   (booleans, default false) repair the straightened photo before its look.
 - `page_paging_seal` splits the picture at `path` (resolved under `--root`) into one strip per
   page on the right or left edge (`{"doc": 1, "path": "seal.png", "width": 113, "position": 0.5}`).
+- `doc_collage` arranges pages on A4 or Letter sheets as a new document: a 1–6 × 1–6 grid,
+  at real size (packed into a centred block; the default 1 × 2 puts an ID card's front and back
+  together) or fitted to equal cells.
 - `page_mosaic` covers `rect` with squares of `cell` points after removing what it showed for
   good, as Apply redactions does; it is marked destructive.
 

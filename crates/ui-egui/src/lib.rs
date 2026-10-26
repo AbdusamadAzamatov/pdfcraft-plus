@@ -44,6 +44,7 @@ pub use combine_grid::ThumbState as CombineThumb;
 mod combine_ui;
 pub use combine_ui::{Columns as CombineColumns, CombineView, Lock as CombineLock, SortKey};
 mod camera_ui;
+mod collage_ui;
 mod commands;
 mod comment_props;
 pub mod comments;
@@ -320,6 +321,8 @@ pub enum Dialog {
     Impose(print_ui::Handling),
     /// Organize ▸ Layout ▸ Stitch pages: the pages on one long page, as a new document.
     Stitch,
+    /// Organize ▸ Layout ▸ Collage: the pages arranged on sheets, as a new document.
+    Collage,
     /// Organize pages ▸ Divide pages.
     DividePages,
     /// Organize ▸ Layout ▸ Remove blank pages: the pages that look blank, checked for removal.
@@ -1001,6 +1004,8 @@ pub struct PdfCraftApp {
     pub impose_draft: impose_ui::ImposeDraft,
     /// Organize ▸ Layout ▸ Stitch pages dialog state.
     pub stitch_draft: stitch_ui::StitchDraft,
+    /// Organize ▸ Layout ▸ Collage dialog state.
+    pub collage_draft: collage_ui::CollageDraft,
     /// Divide Pages dialog state.
     pub divide_draft: divide_ui::DivideDraft,
     /// Organize ▸ Layout ▸ Remove blank pages dialog state (options, search, results).
@@ -1345,6 +1350,7 @@ impl PdfCraftApp {
             boxes_draft: Default::default(),
             impose_draft: Default::default(),
             stitch_draft: Default::default(),
+            collage_draft: Default::default(),
             divide_draft: Default::default(),
             blank_draft: Default::default(),
             deskew_draft: Default::default(),
@@ -3046,6 +3052,7 @@ impl PdfCraftApp {
                     "page-boxes" => Some(Dialog::PageBoxes),
                     "divide-pages" => Some(Dialog::DividePages),
                     "stitch-pages" => Some(Dialog::Stitch),
+                    "collage" => Some(Dialog::Collage),
                     "rotate-angle" => Some(Dialog::RotateAngle),
                     "resize-pages" => Some(Dialog::ResizePages),
                     "header-footer" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter)),

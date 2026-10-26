@@ -716,6 +716,7 @@ impl PdfCraftApp {
             "page.booklet" => self.open_impose(crate::print_ui::Handling::Booklet),
             "page.poster" => self.open_impose(crate::print_ui::Handling::Poster),
             "page.stitch" => self.open_stitch(),
+            "page.collage" => self.open_collage(),
             "page.remove_blank" => self.open_remove_blank(),
             "page.trim_margins" => self.open_trim_margins(),
             "page.deskew" => self.open_deskew(),

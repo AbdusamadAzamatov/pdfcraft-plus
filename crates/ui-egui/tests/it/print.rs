@@ -964,3 +964,33 @@ fn stitch_dialog_opens_from_the_layout_tools_and_creates_one_long_page_in_a_seco
     assert_eq!(src.info.pages.len(), pages);
     assert!(!src.dirty, "the document itself is unchanged");
 }
+
+/// Organize ▸ Layout ▸ Collage: the dialog opens from the Layout tools of the Organize pages
+/// panel with the identity-card layout, a 2 × 2 grid of fitted pages can be chosen, and Create
+/// opens the sheets in a second tab while the document stays as it was.
+#[test]
+fn collage_dialog_opens_from_the_layout_tools_and_creates_sheets_in_a_second_tab() {
+    let mut h = harness();
+    let source = h.state().views[0].id;
+    let pages = h.state().session.get(source).unwrap().info.pages.len();
+    h.state_mut().set_option("tool", "organize").unwrap();
+    h.run_steps(4);
+    h.get_by_label("Collage…").click();
+    h.run_steps(3);
+    assert_eq!(h.state().dialog, Some(Dialog::Collage));
+    assert_eq!(h.state().collage_draft.options(), pdfcraft_engine::CollageOptions::id_card(), "front and back of a card on A4");
+    h.get_by_label("Grid").click();
+    h.run_steps(2);
+    let o = h.state().collage_draft.options();
+    assert_eq!((o.cols, o.rows, o.actual_size), (2, 2, false));
+    h.get_by_label("Links and comments are not carried over.");
+    h.get_by_role_and_label(Role::Button, "Create").click();
+    h.run_steps(4);
+    assert_eq!(h.state().dialog, None);
+    assert_eq!(h.state().views.len(), 2, "a second tab");
+    let doc = h.state().session.get(h.state().views[1].id).unwrap();
+    assert_eq!(doc.name, "form (collage).pdf");
+    assert_eq!(doc.info.pages.len(), pages.div_ceil(4), "four pages per sheet");
+    assert!((doc.info.pages[0].width - 595.276).abs() < 0.01, "A4");
+    assert!(!h.state().session.get(source).unwrap().dirty, "the document itself is unchanged");
+}

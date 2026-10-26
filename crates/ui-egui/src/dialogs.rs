@@ -79,6 +79,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut boxes_now = false;
     let mut impose_now = false;
     let mut stitch_now = false;
+    let mut collage_now = false;
     let mut divide_now = false;
     let mut blank_now = false;
     let mut deskew_now = false;
@@ -1193,6 +1194,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 close = create || cancel;
                 return;
             }
+            Dialog::Collage => {
+                let (create, cancel) = crate::collage_ui::body(ui, app, &t);
+                collage_now = create;
+                close = create || cancel;
+                return;
+            }
             Dialog::DividePages => {
                 let (apply, cancel) = crate::divide_ui::body(ui, app, &t);
                 divide_now = apply;
@@ -1642,6 +1649,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     }
     if stitch_now {
         app.stitch_with_draft();
+    }
+    if collage_now {
+        app.collage_with_draft();
     }
     if divide_now && let Some((_, id)) = app.active_ids() {
         let count = app.session.get(id).map(|d| d.info.pages.len()).unwrap_or(0);

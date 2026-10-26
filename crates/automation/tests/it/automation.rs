@@ -10034,3 +10034,51 @@ fn a_mosaic_hides_an_area_for_good_through_the_tool() {
     }
     assert!(page_text(&mut a, doc)[0].contains("Page 1"), "refused calls change nothing");
 }
+
+/// Organize ▸ Layout ▸ Collage: `doc_collage` arranges the pages on sheets in a new unsaved
+/// document without touching the source, writes it inside --root with `out`, and refuses bad
+/// options and paths outside the root.
+#[test]
+fn doc_collage_arranges_pages_on_sheets_as_a_new_document() {
+    let dir = workdir("collage");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    // The default: two per A4 sheet, one above the other, at real size: three pages, two sheets.
+    let r = ok(&mut a, "doc_collage", json!({ "doc": doc }));
+    assert_eq!((r["pages"].as_u64(), r["sheets"].as_u64()), (Some(3), Some(2)), "{r}");
+    assert_eq!(r["document"]["name"], "a (collage).pdf");
+    let new = r["document"]["doc"].as_u64().unwrap();
+    let info = ok(&mut a, "doc_info", json!({ "doc": new }))["document"].clone();
+    assert_eq!(info["pages"].as_u64(), Some(2));
+    let text = page_text(&mut a, new);
+    assert!(text[0].contains("Page 1") && text[0].contains("Page 2") && text[1].contains("Page 3"), "{text:?}");
+    let source = ok(&mut a, "doc_info", json!({ "doc": doc }))["document"].clone();
+    assert_eq!((source["pages"].as_u64(), source["dirty"].as_bool()), (Some(3), Some(false)), "the source is unchanged");
+
+    // A 2 × 2 landscape Letter grid of fitted pages, written to a file and not opened.
+    let r = ok(
+        &mut a,
+        "doc_collage",
+        json!({ "doc": doc, "pages": [1, 2, 3, 1], "cols": 2, "rows": 2, "size": "fit", "paper": "letter", "landscape": true, "out": "c/grid.pdf" }),
+    );
+    assert_eq!(r["sheets"].as_u64(), Some(1));
+    assert!(r.get("document").is_none(), "out alone doesn't open it");
+    let reopened = ok(&mut a, "doc_open", json!({ "path": "c/grid.pdf" }))["doc"].as_u64().unwrap();
+    let info = ok(&mut a, "doc_info", json!({ "doc": reopened }));
+    assert_eq!(info["document"]["pages"].as_u64(), Some(1));
+    assert_eq!((info["pages"][0]["width"].as_f64(), info["pages"][0]["height"].as_f64()), (Some(792.0), Some(612.0)), "landscape Letter");
+
+    for (args, why) in [
+        (json!({ "doc": doc, "cols": 0 }), "no columns"),
+        (json!({ "doc": doc, "rows": 7 }), "too many rows"),
+        (json!({ "doc": doc, "size": "huge" }), "size"),
+        (json!({ "doc": doc, "paper": "a3" }), "paper"),
+        (json!({ "doc": doc, "margin": 200 }), "margin"),
+        (json!({ "doc": doc, "gap": -1 }), "gap"),
+        (json!({ "doc": doc, "pages": [4] }), "page"),
+        (json!({ "doc": doc, "out": "../escape.pdf" }), "outside the root"),
+    ] {
+        assert!(a.call("doc_collage", &args).is_err(), "{why}");
+    }
+    assert!(!dir.parent().unwrap().join("escape.pdf").exists(), "nothing written outside --root");
+}

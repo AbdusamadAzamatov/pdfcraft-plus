@@ -9653,3 +9653,51 @@ fn camera_repairs_remove_moire_and_flatten_bent_lines() {
     let (before, after) = (tilt(Repairs::default()), tilt(Repairs { moire: false, flatten: true }));
     assert!(before > 12.0 && after < 3.0, "the line's bend: {before} → {after}");
 }
+
+/// Collage: two 100 × 200 pages side by side at real size on a Letter sheet, drawn as their
+/// sources are, in a new document; the source is unchanged, and a restricted one is refused.
+#[test]
+fn collage_new_puts_pages_side_by_side_at_real_size_on_a_sheet() {
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let id = s.open("cards.pdf", None, Arc::new(stitch_fixture()), None).unwrap();
+    let before = s.save_bytes(id).unwrap();
+    let opts = CollageOptions { cols: 2, rows: 1, sheet: COLLAGE_LETTER, actual_size: true, margin: 36.0, gap: 12.0 };
+    let (bytes, sheets) = s.collage_new(id, &[0, 1, 2], &opts).unwrap();
+    assert_eq!(sheets.iter().map(Vec::len).collect::<Vec<_>>(), [2, 1], "two per sheet");
+    let name = collage_name(&s.get(id).unwrap().name);
+    assert_eq!(name, "cards (collage).pdf");
+    let new = s.open_new(name, bytes).unwrap();
+    let d = s.get(new).unwrap();
+    assert_eq!(d.info.pages.iter().map(|p| (p.width, p.height)).collect::<Vec<_>>(), [(612.0, 792.0); 2]);
+    assert!(!s.get(id).unwrap().dirty && s.save_bytes(id).unwrap() == before, "the source is unchanged");
+    let render = |doc: DocId, page: usize| {
+        let d = s.get(doc).unwrap();
+        let out = pdfcraft_render::PageRenderer::new(d.bytes.clone(), d.config.clone()).render(pdfcraft_render::RenderRequest {
+            page,
+            scale: 1.0,
+            ..Default::default()
+        });
+        assert!(out.error.is_none(), "{:?}", out.error);
+        out
+    };
+    // A block 212 wide, centred: page 1 from x 200, page 2 from x 312, both from y 296 down.
+    let sheet = render(new, 0);
+    for (page, x0) in [(0usize, 200usize), (1, 312)] {
+        let src = render(id, page);
+        let differing = (0..200usize)
+            .flat_map(|y| (0..100usize).map(move |x| (x, y)))
+            .filter(|&(x, y)| {
+                let a = &sheet.rgba[((296 + y) * sheet.width as usize + x0 + x) * 4..][..3];
+                let b = &src.rgba[(y * 100 + x) * 4..][..3];
+                a.iter().zip(b).any(|(p, q)| p.abs_diff(*q) > 8)
+            })
+            .count();
+        assert!(differing < 60, "page {} differs in {differing} pixels", page + 1);
+    }
+    assert!(sheet.rgba[(100 * sheet.width as usize + 100) * 4..][..3].iter().all(|&c| c == 255), "the sheet around the block is blank");
+
+    let bytes = protected("", "owner", 0b0100);
+    let r = s.open("r.pdf", None, bytes, None).unwrap();
+    assert_eq!(s.collage_new(r, &[0], &opts).map(|_| ()), Err(EditError::NotPermitted("making a new document from its pages")));
+    assert!(matches!(s.collage_new(id, &[], &opts), Err(EditError::Organize(_))));
+}
