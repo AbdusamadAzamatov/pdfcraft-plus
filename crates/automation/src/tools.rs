@@ -270,7 +270,7 @@ pub fn tools() -> Vec<ToolDef> {
                 }),
                 &["doc"],
             )),
-        t("page_enhance_camera", "Enhance camera image", "Straighten a photographed document (Scan & OCR ▸ Enhance ▸ Camera image): the part of the page inside the four corners (x1, y1, … x4, y4 in top-left-origin points, any order, a convex quadrilateral; when omitted, the document's edges are found automatically, or an error says they could not be) is warped to an upright rectangle that replaces what the page shows, at the page picture's own resolution (at most 600 dpi). mode is how it looks: original, lighten (brighter, as photographed otherwise), colour (default), vivid (colour with more saturated ink), greyscale, bw (black and white, stored losslessly), eco (black and white that saves ink: solid areas keep only their outline, stored losslessly) or invert (colours inverted first, so chalk on a blackboard becomes dark writing on white). level (0–100, default 0) then cleans the photo up: even lighting so the paper turns white (casts, shadows, dark edges), more contrast, and from 60 no isolated specks; colour ink stays colour. For lighten the level is how much brighter; for bw and eco it is the threshold (higher keeps fainter strokes black). The page's comments, links and bookmarks stay. Undoable.")
+        t("page_enhance_camera", "Enhance camera image", "Straighten a photographed document (Scan & OCR ▸ Enhance ▸ Camera image): the part of the page inside the four corners (x1, y1, … x4, y4 in top-left-origin points, any order, a convex quadrilateral; when omitted, the document's edges are found automatically, or an error says they could not be) is warped to an upright rectangle that replaces what the page shows, at the page picture's own resolution (at most 600 dpi). mode is how it looks: original, lighten (brighter, as photographed otherwise), colour (default), vivid (colour with more saturated ink), greyscale, bw (black and white, stored losslessly), eco (black and white that saves ink: solid areas keep only their outline, stored losslessly) or invert (colours inverted first, so chalk on a blackboard becomes dark writing on white). level (0–100, default 0) then cleans the photo up: even lighting so the paper turns white (casts, shadows, dark edges), more contrast, and from 60 no isolated specks; colour ink stays colour. For lighten the level is how much brighter; for bw and eco it is the threshold (higher keeps fainter strokes black). Before the look, remove_moire (default false) smooths away the pattern in photos of screens and printed pictures and sharpens text again, and flatten (default false) straightens lines of text that bend, as on a book page (only the bending, not the squeeze towards the spine; a page without clear lines of text is left as it is). The page's comments, links and bookmarks stay. Undoable.")
             .cmd("ocr.enhance_camera")
             .with(schema(
                 json!({
@@ -279,6 +279,8 @@ pub fn tools() -> Vec<ToolDef> {
                     "corners": { "type": "array", "items": { "type": "number" }, "minItems": 8, "maxItems": 8 },
                     "level": { "type": "integer", "minimum": 0, "maximum": 100 },
                     "mode": { "type": "string", "enum": ["original", "lighten", "colour", "vivid", "greyscale", "bw", "eco", "invert"] },
+                    "remove_moire": { "type": "boolean" },
+                    "flatten": { "type": "boolean" },
                 }),
                 &["doc", "page"],
             )),

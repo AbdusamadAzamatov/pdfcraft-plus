@@ -81,6 +81,9 @@ camera image. `Edit::AddPagingSeal` (`paging_seal`) cuts one picture into strips
 of several pages as ordinary added images. `Session::mosaic_area` (`mosaic`, `Edit::Mosaic`)
 averages an area into squares, removes what it showed through the redaction path (including the
 renderer check and the full rewrite on save), then places the squares over it.
+`camera::Repairs` adds two steps before the look: `descreen` (moiré removal: YCbCr low-pass plus an
+unsharp mask from the filtered brightness) and `dewarp` (flattening a bent page by following its
+lines of text across strips and bands).
 
 ## Modules
 

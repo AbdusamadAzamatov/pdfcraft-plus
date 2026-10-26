@@ -301,8 +301,8 @@ impl PdfCraftApp {
         applied
     }
 
-    /// Enhance ▸ Camera image ▸ clean-up slider: undo the enhancement (and the turns made since)
-    /// and enhance again from the photo at the new level, turning it as before. Only when the
+    /// Enhance ▸ Camera image ▸ clean-up slider, look or repairs: undo the enhancement (and the
+    /// turns made since) and enhance again from the photo with the new choices, turning it as before. Only when the
     /// top of the undo history is still those steps; otherwise the slider goes back.
     fn camera_level(&mut self, i: usize) {
         let Some(view) = self.views.get(i) else { return };
@@ -317,7 +317,7 @@ impl PdfCraftApp {
         // enhancing a page that is still straightened would warp it a second time.
         let restore = |app: &mut Self| {
             if let Some(d) = app.views.get_mut(i).and_then(|v| v.camera_done.as_mut()) {
-                (d.look, d.level) = d.applied;
+                (d.look, d.level, d.repairs) = d.applied;
             }
         };
         let mut undone = 0;
@@ -333,7 +333,7 @@ impl PdfCraftApp {
             restore(self);
             return;
         }
-        let result = self.session.enhance_camera_page_at(id, done.page, done.corners, done.look, done.level).and_then(|()| {
+        let result = self.session.enhance_camera_page_with(id, done.page, done.corners, done.look, done.level, done.repairs).and_then(|()| {
             let turn = done.turns.rem_euclid(360);
             if turn == 0 { Ok(1) } else { self.session.apply(id, Edit::RotatePages { pages: vec![done.page], degrees: turn }).map(|()| 2) }
         });
@@ -342,10 +342,10 @@ impl PdfCraftApp {
             if let Some(d) = view.camera_done.as_mut() {
                 match result {
                     Ok(steps) => {
-                        d.applied = (d.look, d.level);
+                        d.applied = (d.look, d.level, d.repairs);
                         d.steps = steps;
                     }
-                    Err(_) => (d.look, d.level) = d.applied,
+                    Err(_) => (d.look, d.level, d.repairs) = d.applied,
                 }
             }
         }
@@ -384,8 +384,16 @@ impl PdfCraftApp {
                 if let (Some(doc), Some(view)) = (self.session.get(id), self.views.get_mut(i)) {
                     view.document_changed(&doc.info);
                     view.camera = None;
-                    view.camera_done =
-                        Some(crate::camera_ui::CameraDone { page: q.page, corners, look, level, applied: (look, level), turns: 0, steps: 1 });
+                    view.camera_done = Some(crate::camera_ui::CameraDone {
+                        page: q.page,
+                        corners,
+                        look,
+                        level,
+                        repairs: Default::default(),
+                        applied: (look, level, Default::default()),
+                        turns: 0,
+                        steps: 1,
+                    });
                 }
             }
             Err(e) => {

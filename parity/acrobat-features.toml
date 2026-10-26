@@ -6871,11 +6871,23 @@ title = "Descreen"
 area = "I"
 tier = "P2"
 milestone = "M10"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "partial"
+commands = ["ocr.enhance_camera"]
+tools = ["page_enhance_camera"]
+evidence = ["crates/engine/src/descreen.rs::the_pattern_goes_and_the_text_stays", "crates/engine/src/tests.rs::camera_repairs_remove_moire_and_flatten_bent_lines", "crates/ui-egui/tests/it/camera.rs::the_repairs_enhance_again_with_the_look_kept"]
+notes = "SC4 (PdfCraft Plus): Enhance camera image ▸ Remove moiré (page_enhance_camera remove_moire). In YCbCr the brightness is low-pass filtered (three box blurs of radius 2–6 by photo size, about a Gaussian) and re-sharpened with an unsharp mask taken from the filtered image, and the colour is filtered at twice the radius; a 5-pixel coloured pattern drops to under a quarter of its spread while text keeps its edges. Runs before the look, in the same undo step. Missing: descreening scanned pages outside the camera tool (Acrobat's Enhance scans option), choosing the strength, and coarse patterns (the blur is sized from the photo, not measured from the pattern)."
+
+[[feature]]
+id = "ocr.camera-flatten"
+title = "Flatten curved pages (book pages) in camera images (PdfCraft Plus)"
+area = "I"
+tier = "P3"
+milestone = "M10"
+status = "partial"
+commands = ["ocr.enhance_camera"]
+tools = ["page_enhance_camera"]
+evidence = ["crates/engine/src/dewarp.rs::a_bent_page_comes_out_with_straight_lines", "crates/engine/src/dewarp.rs::straight_blank_and_photo_like_pictures_are_left_alone", "crates/engine/src/tests.rs::camera_repairs_remove_moire_and_flatten_bent_lines", "crates/ui-egui/tests/it/camera.rs::the_repairs_enhance_again_with_the_look_kept"]
+notes = "SC5, not an Acrobat feature (scanner apps' curved-page flattening). Enhance camera image ▸ Flatten curved page (page_enhance_camera flatten). Follows the text: 20 vertical strips, each strip's row-ink profile matched against its neighbour's (within 2/5 of the line pitch found by autocorrelation) in 4 overlapping horizontal bands, a cubic least-squares curve per band, then each column moved up or down by its displacement interpolated between the bands. A synthetic page bent by up to 25 px comes out with lines straight to within 3 px. Pages without clear lines of text (blank, photos, noise) are left as they are, silently. Missing: undoing the squeeze of the text towards a book's spine, pages with columns or little text, telling the user when nothing was found, curved page edges as corner handles."
 
 [[feature]]
 id = "ocr.remove-halo"

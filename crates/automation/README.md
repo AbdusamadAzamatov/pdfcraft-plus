@@ -71,7 +71,8 @@ semantics; they never silently act on partial text.
 ## Scanner-app tools in the personal fork
 
 - `page_enhance_camera` takes `mode` original, lighten, colour, vivid, greyscale, bw, eco or
-  invert; the schema's list is tested against the engine's looks.
+  invert; the schema's list is tested against the engine's looks. `remove_moire` and `flatten`
+  (booleans, default false) repair the straightened photo before its look.
 - `page_paging_seal` splits the picture at `path` (resolved under `--root`) into one strip per
   page on the right or left edge (`{"doc": 1, "path": "seal.png", "width": 113, "position": 0.5}`).
 - `page_mosaic` covers `rect` with squares of `cell` points after removing what it showed for

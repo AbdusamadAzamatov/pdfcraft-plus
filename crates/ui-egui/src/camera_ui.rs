@@ -7,6 +7,7 @@ use egui::{Align2, Color32, CornerRadius, Pos2, Rect, Shape, Stroke, vec2};
 use crate::canvas::{DocView, PageXform, ViewAction};
 use crate::page_pointer::PagePointer;
 use crate::theme::Tokens;
+pub use pdfcraft_engine::camera::Repairs;
 pub use pdfcraft_engine::camera_clean::Look;
 
 /// How far in from the page's edges the corners start, as a share of its size.
@@ -44,10 +45,11 @@ pub struct CameraDone {
     pub page: usize,
     /// The corners it was straightened from, in PDF user space.
     pub corners: [[f64; 2]; 4],
-    /// The look and slider level chosen, and the ones the page shows.
+    /// The look, slider level and repairs chosen, and the ones the page shows.
     pub look: Look,
     pub level: u8,
-    pub applied: (Look, u8),
+    pub repairs: Repairs,
+    pub applied: (Look, u8, Repairs),
     /// Quarter turns made since, in degrees (clockwise positive).
     pub turns: i64,
     /// The undo steps the enhancement and the turns took.
@@ -139,8 +141,8 @@ pub(crate) fn paint(painter: &egui::Painter, xf: &PageXform, page: usize, view: 
 /// The floating bar at the top right of the document area (where the find bar goes, clear of a
 /// centred page's corners): Enhance page and Cancel; once the page is enhanced, rotate it either
 /// way, choose its look (original, lighten, colour, vivid colour, greyscale, black and white, eco,
-/// invert) and clean-up level (how much brighter, for lighten), Crop pages, Organize pages, or
-/// Done. The instructions are a notice (`ocr.enhance_camera`).
+/// invert) and clean-up level (how much brighter, for lighten), remove moiré and flatten a
+/// curved page, Crop pages, Organize pages, or Done. The instructions are a notice (`ocr.enhance_camera`).
 pub(crate) fn bar(ctx: &egui::Context, view: &mut DocView, area: Rect, t: &Tokens, allowed: bool) {
     egui::Area::new(egui::Id::new("camera-bar"))
         .order(egui::Order::Middle)
@@ -186,7 +188,13 @@ pub(crate) fn bar(ctx: &egui::Context, view: &mut DocView, area: Rect, t: &Token
                                     );
                                     // Enhance again once the slider is let go (or moved with the keys).
                                     again |= slider.drag_stopped() || (slider.changed() && !slider.dragged());
-                                    if again && (done.look, done.level) != done.applied {
+                                    ui.separator();
+                                    again |=
+                                        ui.add_enabled(allowed, crate::widgets::checkbox(&mut done.repairs.moire, tl!("Remove moiré"))).changed();
+                                    again |= ui
+                                        .add_enabled(allowed, crate::widgets::checkbox(&mut done.repairs.flatten, tl!("Flatten curved page")))
+                                        .changed();
+                                    if again && (done.look, done.level, done.repairs) != done.applied {
                                         view.pending_action = Some(ViewAction::CameraLevel);
                                     }
                                     ui.separator();

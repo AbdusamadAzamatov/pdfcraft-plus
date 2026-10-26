@@ -3500,6 +3500,15 @@ fn every_camera_look_is_a_mode_of_the_tool() {
     }
     let e = a.call("page_enhance_camera", &json!({ "doc": photo, "page": 1, "corners": whole, "mode": "magic" }));
     assert!(matches!(&e, Err(ToolError::InvalidArgs(m)) if m.contains("eco")), "{e:?}");
+    // The repairs before the look: one step with the enhancement.
+    let r = ok(&mut a, "page_enhance_camera", json!({ "doc": photo, "page": 1, "corners": whole, "remove_moire": true, "flatten": true }));
+    assert_eq!(r["undo"], "Enhance camera image");
+    ok(&mut a, "edit_undo", json!({ "doc": photo }));
+    for bad in [json!({ "remove_moire": "yes" }), json!({ "flatten": 1 })] {
+        let mut args = json!({ "doc": photo, "page": 1, "corners": whole });
+        args.as_object_mut().unwrap().extend(bad.as_object().unwrap().clone());
+        assert!(matches!(a.call("page_enhance_camera", &args), Err(ToolError::InvalidArgs(_))), "{bad}");
+    }
 }
 
 #[test]

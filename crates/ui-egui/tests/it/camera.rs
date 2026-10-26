@@ -222,3 +222,26 @@ fn the_level_leaves_the_page_alone_when_another_edit_came_in_between() {
     assert_eq!(s.session.undo(id).unwrap().as_str(), "Enhance camera image");
     assert_eq!(s.session.get(id).unwrap().can_undo(), None);
 }
+
+#[test]
+fn the_repairs_enhance_again_with_the_look_kept() {
+    let mut h = harness();
+    assert!(h.state_mut().execute("ocr.enhance_camera"));
+    h.run_steps(3);
+    h.get_by_label("Enhance page").click();
+    h.run_steps(4);
+    h.get_by_label("Remove moiré").click();
+    h.run_steps(4);
+    let done = h.state().views[0].camera_done.unwrap();
+    assert_eq!((done.applied.2.moire, done.applied.2.flatten, done.applied.0, done.steps), (true, false, done.look, 1));
+    h.get_by_label("Flatten curved page").click();
+    h.run_steps(4);
+    let done = h.state().views[0].camera_done.unwrap();
+    assert_eq!((done.applied.2.moire, done.applied.2.flatten), (true, true));
+    let s = h.state();
+    assert_eq!(s.session.get(s.views[0].id).unwrap().can_undo(), Some("Enhance camera image"), "still one step");
+    // Unticked again: back to the plain enhancement.
+    h.get_by_label("Remove moiré").click();
+    h.run_steps(4);
+    assert!(!h.state().views[0].camera_done.unwrap().applied.2.moire);
+}

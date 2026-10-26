@@ -317,7 +317,11 @@ impl Automation {
                         ToolError::InvalidArgs(format!("unknown mode {m:?} (original, lighten, colour, vivid, greyscale, bw, eco, invert)"))
                     })?,
                 };
-                self.session.enhance_camera_page_at(id, page, corners, look, level).map_err(failed)?;
+                let repairs = pdfcraft_engine::camera::Repairs {
+                    moire: a.opt_bool("remove_moire")?.unwrap_or(false),
+                    flatten: a.opt_bool("flatten")?.unwrap_or(false),
+                };
+                self.session.enhance_camera_page_with(id, page, corners, look, level, repairs).map_err(failed)?;
                 let r = |v: f32| (v * 100.0).round() / 100.0;
                 let used: Vec<f32> = corners.iter().flat_map(|&[x, y]| info.user_to_view(x as f32, y as f32)).map(r).collect();
                 let mut out = summary(self.doc(&a)?);

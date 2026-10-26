@@ -9585,3 +9585,71 @@ fn a_mosaic_removes_the_text_under_it_and_shows_squares() {
     s.mosaic_area(id, 1, area, 8.0).unwrap();
     assert_eq!(s.get(id).unwrap().redaction_marks(), 1);
 }
+
+/// A photo page (one pixel per point) made from `img`, in a fresh session.
+fn photo_session(img: &image::RgbImage) -> (Session, DocId) {
+    let mut png = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let bytes = s.create_from_images_with_resolution(&[("photo.png".into(), png)], ImageResolution::Dpi(72.0)).unwrap();
+    let id = s.open("photo.pdf", None, bytes, None).unwrap();
+    (s, id)
+}
+
+#[test]
+fn camera_repairs_remove_moire_and_flatten_bent_lines() {
+    use crate::camera::Repairs;
+    // A photographed screen: white paper with a coloured interference pattern 5 pixels across.
+    let screen = image::RgbImage::from_fn(300, 200, |x, y| {
+        let phase = std::f32::consts::TAU * (x as f32 * 0.93 + y as f32 * 0.37) / 5.0;
+        let v = |shift: f32| (220.0 + 28.0 * (phase + shift).sin()) as u8;
+        image::Rgb([v(0.0), v(2.1), v(4.2)])
+    });
+    let whole = |w: f64, h: f64| [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]];
+    let spread = |repairs: Repairs| {
+        let (mut s, id) = photo_session(&screen);
+        s.enhance_camera_page_with(id, 0, whole(300.0, 200.0), camera_clean::Look::Original, 0, repairs).unwrap();
+        assert_eq!(s.get(id).unwrap().can_undo(), Some("Enhance camera image"), "one step");
+        let shot = render_page(&s, id);
+        let vals: Vec<f32> =
+            (40..160).flat_map(|y| (40..260).map(move |x| (x, y))).map(|(x, y)| stamp_pixel(&shot, 2 * x, 2 * y)[0] as f32).collect();
+        let mean = vals.iter().sum::<f32>() / vals.len() as f32;
+        (vals.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / vals.len() as f32).sqrt()
+    };
+    let (kept, removed) = (spread(Repairs::default()), spread(Repairs { moire: true, flatten: false }));
+    assert!(removed * 4.0 < kept, "moiré spread {kept} → {removed}");
+
+    // A page whose lines of text bend down towards both edges.
+    let (w, h) = (600u32, 700u32);
+    let bent = image::RgbImage::from_fn(w, h, |x, y| {
+        let u = (x as f64 + 0.5) / w as f64 * 2.0 - 1.0;
+        let fy = y as f64 + 0.5 - 22.0 * u * u;
+        let line = (fy / 40.0).floor();
+        let word = ((x as f64 + line * 37.0) / 23.0).floor() as i64;
+        let ink = (40.0..h as f64 - 40.0).contains(&fy)
+            && (30..w - 30).contains(&x)
+            && fy - line * 40.0 < 14.0
+            && (word * 7919 + line as i64 * 104_729) % 5 != 0;
+        let v = if ink { 25 } else { 235 };
+        image::Rgb([v, v, v])
+    });
+    let line_at = |repairs: Repairs, x: u32| {
+        let (mut s, id) = photo_session(&bent);
+        s.enhance_camera_page_with(id, 0, whole(w as f64, h as f64), camera_clean::Look::Original, 0, repairs).unwrap();
+        let shot = render_page(&s, id);
+        // The ink rows of the line drawn at 200–214 on the flat page, near column x (scale 2).
+        let (mut sum, mut n) = (0.0, 0.0);
+        for y in 192..236 {
+            for xx in x..x + 40 {
+                if stamp_pixel(&shot, 2 * xx, 2 * y)[0] < 128 {
+                    sum += y as f64;
+                    n += 1.0;
+                }
+            }
+        }
+        sum / n
+    };
+    let tilt = |repairs| (line_at(repairs, 40) - line_at(repairs, 280)).abs();
+    let (before, after) = (tilt(Repairs::default()), tilt(Repairs { moire: false, flatten: true }));
+    assert!(before > 12.0 && after < 3.0, "the line's bend: {before} → {after}");
+}

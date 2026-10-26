@@ -87,6 +87,17 @@ pub fn warp(rgba: &[u8], width: u32, height: u32, quad: [Point; 4]) -> Result<Wa
     Ok(Warped { width: ow, height: oh, rgb })
 }
 
+/// What is repaired on a straightened photo before its look is given: both off by default.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Repairs {
+    /// Remove moiré, the pattern in photos of screens and printed pictures
+    /// ([`crate::descreen`]).
+    pub moire: bool,
+    /// Straighten lines of text that bend, as on a book page ([`crate::dewarp`]); a photo
+    /// without clear lines of text is left as it is.
+    pub flatten: bool,
+}
+
 /// The long side, in pixels, a page is rendered at to look for the document's edges.
 const DETECT_SIDE: f32 = 1200.0;
 
@@ -129,6 +140,20 @@ impl Session {
         look: crate::camera_clean::Look,
         level: u8,
     ) -> Result<(), EditError> {
+        self.enhance_camera_page_with(id, page, corners, look, level, Repairs::default())
+    }
+
+    /// [`Session::enhance_camera_page_at`], with `repairs` made to the straightened photo before
+    /// its look (moiré removal first, then flattening). Still one undoable step.
+    pub fn enhance_camera_page_with(
+        &mut self,
+        id: DocId,
+        page: usize,
+        corners: [Point; 4],
+        look: crate::camera_clean::Look,
+        level: u8,
+        repairs: Repairs,
+    ) -> Result<(), EditError> {
         let doc = self.get(id).ok_or(EditError::NoDocument)?;
         if let Some(why) = &doc.read_only_reason {
             return Err(EditError::ReadOnly(why.clone()));
@@ -160,7 +185,16 @@ impl Session {
             let [vx, vy] = info.user_to_view(x as f32, y as f32);
             [vx as f64 * k, vy as f64 * k]
         });
-        let out = warp(&shot.rgba, shot.width, shot.height, quad).map_err(EditError::Invalid)?;
+        let mut out = warp(&shot.rgba, shot.width, shot.height, quad).map_err(EditError::Invalid)?;
+        if repairs.moire {
+            out.rgb = crate::descreen::descreen(&out.rgb, out.width, out.height)
+                .ok_or_else(|| EditError::Invalid("the straightened page could not be descreened".into()))?;
+        }
+        if repairs.flatten
+            && let Some(flat) = crate::dewarp::flatten(&out.rgb, out.width, out.height)
+        {
+            out.rgb = flat;
+        }
         let pixels = crate::camera_clean::apply(&out.rgb, out.width, out.height, look, level)
             .ok_or_else(|| EditError::Invalid("the straightened page could not be cleaned up".into()))?;
         // Black and white (and eco) is lossless (PNG): JPEG would smear grey around every letter.

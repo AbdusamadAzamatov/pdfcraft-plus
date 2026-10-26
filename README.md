@@ -55,7 +55,7 @@ of tools:
 - **Clean-up:** Fast Web View, rasterize, grayscale, invert colours and remove restrictions (after
   you confirm you have the right to).
 - **Scanner tools:** more looks for camera photos (lighten, vivid colour, ink-saving eco and
-  invert for blackboards), a paging seal stamped across the page edges, and mosaic, which hides
+  invert for blackboards), moiré removal and flattening of curved book pages, a paging seal stamped across the page edges, and mosaic, which hides
   an area behind squares and removes what it showed for good. The seal and mosaic are automation
   tools for now (`page_paging_seal`, `page_mosaic`).
 
