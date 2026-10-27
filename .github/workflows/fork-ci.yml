@@ -47,6 +47,21 @@ jobs:
           assert plist["CFBundleIdentifier"] == "io.github.abdusamadazamatov.pdfcraft-plus"
           print("Info.plist.in OK")
           PY
+      # The Windows packaging scripts parse, and the installer sources are well-formed XML (the
+      # Windows jobs build and test them for real).
+      - name: Windows packaging sources
+        run: |
+          set -euo pipefail
+          pwsh -NoProfile -Command '
+            $bad = 0
+            foreach ($f in Get-ChildItem packaging/windows/*.ps1) {
+              $errors = $null
+              [void] [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref] $null, [ref] $errors)
+              foreach ($e in $errors) { Write-Output "::error file=$($f.Name),line=$($e.Extent.StartLineNumber)::$($e.Message)"; $bad++ }
+            }
+            if ($bad) { exit 1 } else { Write-Output "PowerShell scripts parse" }'
+          for f in packaging/windows/*.wxs; do python3 -c 'import sys, xml.dom.minidom; xml.dom.minidom.parse(sys.argv[1])' "$f"; done
+          echo "WiX sources are well-formed"
 
   rust:
     name: fmt, clippy, test, layers, assets (Linux)
@@ -75,3 +90,23 @@ jobs:
       - run: cargo test --workspace --locked
       - run: cargo xtask layers
       - run: cargo xtask assets
+
+  windows:
+    name: clippy, test (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: fork-ci-windows
+      # Code behind cfg(windows) (single instance, file associations, version resources) only
+      # compiles here.
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked

@@ -1,11 +1,16 @@
-# PdfCraft Plus release for macOS: builds the universal (Apple silicon + Intel) DMG and CLI zip with
-# packaging/macos/package.sh on a free GitHub-hosted runner, writes SHA256SUMS.txt and, for a
-# pushed tag vX.Y.Z, attaches all three to a draft GitHub Release for the owner to review and
-# publish. A manual run builds and uploads the files as a workflow artefact only.
+# PdfCraft Plus release for macOS and Windows, on free GitHub-hosted runners:
+#   macOS:   the universal (Apple silicon + Intel) DMG and CLI zip (packaging/macos/package.sh)
+#   Windows: the x64 MSI and portable zip (packaging/windows/package.ps1), installed silently,
+#            checked and uninstalled again on the runner before they are kept
+# For a pushed tag vX.Y.Z, all of them and one SHA256SUMS.txt go to a draft GitHub Release for the
+# owner to review and publish. A manual run builds and uploads the files as workflow artefacts only.
 #
-# Builds are ad-hoc signed and not notarised (no Apple Developer account yet), so macOS asks users
-# to allow the app once (docs/install-macos.md). When the account exists, add the APPLE_* secrets
-# and an import-cert.sh step: package.sh then signs with Developer ID and notarises.
+# macOS builds are ad-hoc signed and not notarised (no Apple Developer account yet), so macOS asks
+# users to allow the app once (docs/install-macos.md). When the account exists, add the APPLE_*
+# secrets and an import-cert.sh step: package.sh then signs with Developer ID and notarises.
+# Windows builds are unsigned (no code-signing certificate yet), so SmartScreen asks users to allow
+# them once (docs/install-windows.md). With a certificate, set WINDOWS_CERTIFICATE (base64 PFX) and
+# WINDOWS_CERTIFICATE_PASSWORD secrets for the Windows job: sign.ps1 then signs both exes and the MSI.
 name: Fork release
 
 on:
@@ -82,9 +87,114 @@ jobs:
             dist/release/SHA256SUMS.txt
           if-no-files-found: error
 
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # As in the macOS job; the later steps read it as $env:VERSION.
+      - name: Read the version
+        shell: bash
+        run: |
+          set -euo pipefail
+          . packaging/env.sh
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Version: $VERSION"
+          if [[ "$GITHUB_REF_TYPE" = "tag" ]] && [[ "$GITHUB_REF_NAME" != "v$VERSION" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match Cargo.toml version $VERSION (expected v$VERSION)"
+            exit 1
+          fi
+
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: fork-release-windows-x64
+
+      - name: Install WiX v5
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          Add-Content -Path $env:GITHUB_PATH -Value (Join-Path $env:USERPROFILE '.dotnet\tools')
+
+      - name: Build and package (MSI, portable zip)
+        shell: pwsh
+        env:
+          DIST: ${{ github.workspace }}\dist\release
+        run: pwsh packaging/windows/package.ps1 -Arch x64
+
+      # The real thing, as a user gets it: install the MSI for all users without UI, check what it
+      # put on the machine, run the installed CLI, then uninstall and check that it all went.
+      - name: Install, check and uninstall the MSI
+        shell: pwsh
+        working-directory: dist/release
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = (Resolve-Path "pdfcraft-plus-$env:VERSION-windows-x64.msi").Path
+          function Invoke-Msi([string[]] $Arguments) {
+            $p = Start-Process msiexec.exe -ArgumentList $Arguments -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "msiexec $($Arguments -join ' ') exited with $($p.ExitCode)" }
+          }
+          Invoke-Msi @('/i', "`"$msi`"", '/qn', 'ALLUSERS=1', '/l*v', 'install.log')
+          $dir = Join-Path $env:ProgramFiles 'PdfCraft Plus'
+          foreach ($f in 'pdfcraft-plus.exe', 'pdfcraft-cli.exe', 'models\ATTRIBUTION.txt') {
+            if (-not (Test-Path (Join-Path $dir $f))) { throw "not installed: $f" }
+          }
+          $version = & (Join-Path $dir 'pdfcraft-cli.exe') --version
+          if ($LASTEXITCODE -ne 0 -or "$version" -notmatch [regex]::Escape($env:VERSION)) { throw "installed CLI --version: $version" }
+          Write-Output "installed: $version"
+          $keys = @(
+            'HKLM:\Software\Microsoft\Windows\CurrentVersion\App Paths\pdfcraft-plus.exe',
+            'HKLM:\Software\Classes\PdfCraftPlus.Document\shell\open\command',
+            'HKLM:\Software\PdfCraft Plus\Capabilities',
+            'HKLM:\Software\Classes\SystemFileAssociations\.pdf\shell\PdfCraftPlus.Edit')
+          foreach ($k in $keys) { if (-not (Test-Path -LiteralPath $k)) { throw "missing registry key: $k" } }
+          foreach ($k in 'HKLM:\Software\Classes\PdfCraft.Document', 'HKLM:\Software\PdfCraft') {
+            if (Test-Path -LiteralPath $k) { throw "upstream PdfCraft key written: $k" }
+          }
+          if (-not (Test-Path (Join-Path $env:PUBLIC 'Desktop\PdfCraft Plus.lnk'))) { throw 'no desktop shortcut' }
+          Invoke-Msi @('/x', "`"$msi`"", '/qn', '/l*v', 'uninstall.log')
+          if (Test-Path (Join-Path $dir 'pdfcraft-plus.exe')) { throw 'pdfcraft-plus.exe left behind after uninstall' }
+          foreach ($k in $keys) { if (Test-Path -LiteralPath $k) { throw "registry key left behind: $k" } }
+          Remove-Item install.log, uninstall.log
+          Write-Output 'ok: installed, checked and uninstalled'
+
+      # The portable zip runs from where it is unpacked, keeping its settings beside it.
+      - name: Check the portable zip
+        shell: pwsh
+        working-directory: dist/release
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = "pdfcraft-plus-$env:VERSION-windows-x64-portable.zip"
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP\portable"
+          $dir = Join-Path "$env:RUNNER_TEMP\portable" "pdfcraft-plus-$env:VERSION-windows-x64-portable"
+          foreach ($f in 'pdfcraft-plus.exe', 'pdfcraft-cli.exe', 'portable.txt', 'models\ATTRIBUTION.txt') {
+            if (-not (Test-Path (Join-Path $dir $f))) { throw "missing from the portable zip: $f" }
+          }
+          $version = & (Join-Path $dir 'pdfcraft-cli.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw "portable CLI --version failed" }
+          Write-Output "portable: $version"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pdfcraft-plus-windows-x64
+          path: |
+            dist/release/pdfcraft-plus-*-windows-x64.msi
+            dist/release/pdfcraft-plus-*-windows-x64-portable.zip
+          if-no-files-found: error
+
   release:
     name: Draft GitHub Release
-    needs: build
+    needs: [build, build-windows]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -98,25 +208,43 @@ jobs:
       TAG: ${{ github.ref_name }}
       VERSION: ${{ needs.build.outputs.version }}
     steps:
-      - name: Download the build
-        run: gh run download "$GITHUB_RUN_ID" --name pdfcraft-plus-macos-universal --dir release
+      - name: Download the builds
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" --name pdfcraft-plus-macos-universal --dir release
+          gh run download "$GITHUB_RUN_ID" --name pdfcraft-plus-windows-x64 --dir release
 
       - name: Create or update the draft release
         working-directory: release
         run: |
           set -euo pipefail
+          # The macOS job's own sums first, then one file for every platform's downloads.
           shasum -a 256 -c SHA256SUMS.txt
-          files=(pdfcraft-plus-*-macos-universal.dmg pdfcraft-plus-cli-*-macos-universal.zip SHA256SUMS.txt)
+          files=(pdfcraft-plus-*-macos-universal.dmg pdfcraft-plus-cli-*-macos-universal.zip
+                 pdfcraft-plus-*-windows-x64.msi pdfcraft-plus-*-windows-x64-portable.zip)
+          sha256sum "${files[@]}" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          files+=(SHA256SUMS.txt)
           cat > notes.md <<EOF
-          PdfCraft Plus $VERSION for macOS 11 or later (Apple silicon and Intel).
+          PdfCraft Plus $VERSION for macOS 11 or later (Apple silicon and Intel) and Windows 10 or 11 (x64).
 
+          **macOS**
           - **App:** \`pdfcraft-plus-$VERSION-macos-universal.dmg\`: open it and drag PdfCraft Plus to Applications.
           - **CLI:** \`pdfcraft-plus-cli-$VERSION-macos-universal.zip\`
-          - **Checksums:** \`SHA256SUMS.txt\` (\`shasum -a 256 -c --ignore-missing SHA256SUMS.txt\`)
 
           This build is not notarised by Apple, so macOS asks you to allow it the first time: open
           System Settings › Privacy & Security and click Open Anyway. Step-by-step instructions:
           https://github.com/$GH_REPO/blob/$TAG/docs/install-macos.md
+
+          **Windows (x64)**
+          - **Installer:** \`pdfcraft-plus-$VERSION-windows-x64.msi\`: installs for all users, with Start menu and desktop shortcuts.
+          - **Portable:** \`pdfcraft-plus-$VERSION-windows-x64-portable.zip\`: unzip anywhere and run \`pdfcraft-plus.exe\`; settings stay in the folder. The CLI, \`pdfcraft-cli.exe\`, is in both.
+
+          This build is not signed with a code-signing certificate, so Windows SmartScreen may say
+          "Windows protected your PC" the first time: click More info, then Run anyway. Step-by-step
+          instructions: https://github.com/$GH_REPO/blob/$TAG/docs/install-windows.md
+
+          **Checksums:** \`SHA256SUMS.txt\` (macOS: \`shasum -a 256 -c --ignore-missing SHA256SUMS.txt\`; Windows: \`Get-FileHash <file>\`)
           EOF
           if gh release view "$TAG" >/dev/null 2>&1; then
             # A rerun replaces the files on the existing release (draft or not) and leaves its text.
