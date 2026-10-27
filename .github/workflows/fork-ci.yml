@@ -109,4 +109,5 @@ jobs:
       # Code behind cfg(windows) (single instance, file associations, version resources) only
       # compiles here.
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - run: cargo test --workspace --locked
+      # Every failing test binary reported, not only the first.
+      - run: cargo test --workspace --locked --no-fail-fast
