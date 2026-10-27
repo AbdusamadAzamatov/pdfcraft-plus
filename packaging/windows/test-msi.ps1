@@ -170,8 +170,8 @@ Assert-Equal $scope[0] '1' 'Per-machine shortcut scope'
 
 # Each File Explorer menu remembers whether it was installed by finding its key path in HKLM, in the
 # package's own registry view (64-bit for x64 and arm64). Only a release that offered the menu can
-# leave it out, so the OnlyDetect Upgrade rows start at the first release with that menu (every
-# PdfCraft Plus release for Windows has both).
+# leave it out, so the OnlyDetect Upgrade row starts at the first release with the menus (every
+# PdfCraft Plus release for Windows has both, so one row, MENURELEASE, serves both menus).
 $upgradeCode = Read-Row 'SELECT `Value` FROM `Property` WHERE `Property` = ''UpgradeCode''' 1
 $view64 = $Database.SummaryInformation(0).Property(7) -notmatch '^Intel;'
 function Assert-MenuSearch([string] $Found, [string] $Key, [string] $Release, [string] $Since, [string] $What) {
@@ -227,8 +227,8 @@ $imageComponent = Read-Row 'SELECT `KeyPath`, `Attributes` FROM `Component` WHER
 Assert-Equal $imageComponent[0] $imageKeyPath[0] 'Image context menu key path'
 # msidbComponentAttributesRegistryKeyPath (4).
 if (([int] $imageComponent[1] -band 4) -eq 0) { throw "Image context menu key path is not a registry value: attributes $($imageComponent[1])" }
-Assert-KeptOnUpdate 'INSTALLIMAGECONTEXTMENU' 'IMAGECONTEXTMENURELEASE' 'EXISTINGIMAGECONTEXTMENU' 'Create PDF with PdfCraft Plus…' 'PdfcraftImageContextMenu' 'Image context menu'
-Assert-MenuSearch 'EXISTINGIMAGECONTEXTMENU' $imageKey 'IMAGECONTEXTMENURELEASE' '0.14.0' 'Image context menu'
+Assert-KeptOnUpdate 'INSTALLIMAGECONTEXTMENU' 'MENURELEASE' 'EXISTINGIMAGECONTEXTMENU' 'Create PDF with PdfCraft Plus…' 'PdfcraftImageContextMenu' 'Image context menu'
+Assert-MenuSearch 'EXISTINGIMAGECONTEXTMENU' $imageKey 'MENURELEASE' '0.14.0' 'Image context menu'
 if (($secure[0] -split ';') -notcontains 'INSTALLIMAGECONTEXTMENU') { throw "INSTALLIMAGECONTEXTMENU is not secure: '$($secure[0])'" }
 
 # PDF context menu (#682): "Edit with PdfCraft Plus" opens the file in PdfCraft Plus. Its own component, gated
@@ -252,8 +252,8 @@ Assert-Equal $pdfCommand[1] 'PdfcraftPdfContextMenu' 'PDF context menu command c
 $pdfComponent = Read-Row 'SELECT `Condition`, `KeyPath` FROM `Component` WHERE `Component` = ''PdfcraftPdfContextMenu''' 2
 Assert-Equal $pdfComponent[0] 'INSTALLPDFCONTEXTMENU = 1' 'PDF context menu condition'
 Assert-Equal $pdfComponent[1] $pdfMenu[0] 'PDF context menu key path'
-Assert-KeptOnUpdate 'INSTALLPDFCONTEXTMENU' 'PDFCONTEXTMENURELEASE' 'EXISTINGPDFCONTEXTMENU' 'Edit with PdfCraft Plus' 'PdfcraftPdfContextMenu' 'PDF context menu'
-Assert-MenuSearch 'EXISTINGPDFCONTEXTMENU' $pdfKey 'PDFCONTEXTMENURELEASE' '0.14.0' 'PDF context menu'
+Assert-KeptOnUpdate 'INSTALLPDFCONTEXTMENU' 'MENURELEASE' 'EXISTINGPDFCONTEXTMENU' 'Edit with PdfCraft Plus' 'PdfcraftPdfContextMenu' 'PDF context menu'
+Assert-MenuSearch 'EXISTINGPDFCONTEXTMENU' $pdfKey 'MENURELEASE' '0.14.0' 'PDF context menu'
 if (($secure[0] -split ';') -notcontains 'INSTALLPDFCONTEXTMENU') { throw "INSTALLPDFCONTEXTMENU is not secure: '$($secure[0])'" }
 $pdfCheckbox = Read-Row 'SELECT `Type`, `Property`, `Text` FROM `Control` WHERE `Dialog_` = ''InstallWelcome'' AND `Control` = ''PdfContextMenu''' 3
 Assert-Equal $pdfCheckbox[0] 'CheckBox' 'Welcome PDF context-menu control'
