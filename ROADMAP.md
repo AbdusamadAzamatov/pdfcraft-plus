@@ -2,7 +2,8 @@
 
 **Stage: alpha** · next: beta, ~25% (ready for real work 50% → 75%) and ~400–700 h away
 
-> **Last reviewed:** 2026-10-23 | **Last updated:** 2026-10-23 | **Change:** minor (M8, #3205 follow-up: labelled Italian international phone numbers with a slash match whole; estimates unchanged)
+> **Last reviewed:** 2026-10-27 | **Last updated:** 2026-10-27 | **Change:** minor (M10: OCR model downloads use verified ONNX pairs with legacy discovery fallback; estimates unchanged)
+> **Last reviewed:** 2026-10-25 | **Last updated:** 2026-10-25 | **Change:** minor (M14 localization current state: Arabic logical catalog, explicit RTL label direction and mirrored stock chrome; native/browser RTL workflows unqualified. Native release Hans face via LXGW WenKai Lite; estimates unchanged)
 > **Last reviewed:** 2026-10-23 · **Last updated:** 2026-10-23 · **Change:** minor (M7, #2636 partial: pasting added text boxes and images in the engine and through `content_copy`; estimates unchanged)
 > **Last reviewed:** 2026-10-23 · **Last updated:** 2026-10-23 · **Change:** minor (M11: image optimization accounts for page-local UserUnit; estimates unchanged)
 > **Last reviewed:** 2026-10-23 | **Last updated:** 2026-10-23 | **Change:** minor (M10: Word table cells use the widths of their own grid columns; estimates unchanged)
@@ -165,10 +166,10 @@ Portuguese and Spanish vs the current union). Detail and script notes: [localiza
 | Language | Code | Strings | Status |
 |---|---|---|---|
 | English | `en` | 100% | full |
-| Simplified Chinese | `zh-hans` | 97.4% | partial (no Hans UI face in releases, #826) |
+| Simplified Chinese | `zh-hans` | 97.4% | partial (native LXGW WenKai Lite; no Hans face in the web build, #826) |
 | Spanish | `es` | 100% of current union | partial (dialogs / tooltips; no help) |
 | Hindi | `hi` | 0% | none |
-| Arabic | `ar` | 100% | partial (layout not mirrored) |
+| Arabic | `ar` | 100% | partial (logical catalog, explicit RTL labels, mirrored stock chrome; native/browser/IME workflows unqualified) |
 | French | `fr` | 99.3% | partial |
 | Portuguese (Brazil) | `pt-br` | 100% of current union | partial |
 | Indonesian | `id` | 0% | none |
@@ -188,7 +189,7 @@ Ranked; detail and the full milestone table in [docs/roadmap.md](docs/roadmap.md
 | Rank | Milestone | Estimate (h) |
 |---|---|---|
 | 0 | Convert and share: Create PDF from Office, Word export that keeps layout (#773) | 32–55 |
-| 1 | Backlog and platform: crash and wrong-result reports, Chinese UI face (#826) | 50–90 |
+| 1 | Backlog and platform: crash and wrong-result reports, Chinese web UI face (#826) | 50–90 |
 | 2 | Fidelity harness against Acrobat and the renderer decision (M2; owner decision on #841) | 110–190 |
 | 3 | Editing existing content (M7) | 100–180 |
 | 4 | OCR languages and Office export/import (M10) | 95–175 |
@@ -199,6 +200,8 @@ Ranked; detail and the full milestone table in [docs/roadmap.md](docs/roadmap.md
 
 ## Progress log
 
+- **2026-10-28 (U1–U4, PdfCraft Plus upstream sync):** Merged upstream PdfCraft main up to 20eebc1 (259 commits: egui 0.37, native menus, the module split, redaction and installer fixes, ONNX OCR models). The fork's tools moved into the split modules (dialogs on `Pending`, commands per area, automation handlers in `plus.rs`); Help ▸ Check for updates stays the link-only check against this fork's releases (craft-update's self-updater installs only signed Windows builds and knows only upstream's macOS bundle id); the MSI stays the per-machine "PdfCraft Plus" package, taking upstream's font-notice checks and ONNX model names but not its per-user ArtCraft folder; the linearized writer is split up for the new complexity lint.
+- **2026-10-27 (M10, OCR models):** Model staging downloads and verifies the ONNX pair after the upstream RTEN URL brownout; runtime discovery prefers complete ONNX pairs per directory, retains complete RTEN fallback and preserves directory precedence.
 - **2026-10-26 (SC7, PdfCraft Plus):** The paging seal and mosaic reach the app. Edit a PDF ▸ Add content ▸ Paging seal opens a dialog (picture, width, position, edge, pages). Apply redactions asks Cover with: Boxes or Mosaic; Mosaic applies every mark and covers its areas with squares (`Session::mosaic_marks_edit`, `redact_apply mosaic`). `Edit::Mosaic` now takes an optional area of its own plus the pages whose marks it applies, so both paths share the redaction verification. Not Acrobat features: estimates unchanged.
 - **2026-10-26 (SC6, PdfCraft Plus):** Organize ▸ Layout ▸ Collage… (and `doc_collage`) arranges pages on A4 or Letter sheets as a new document: a grid of up to 6 × 6, at real size packed into a centred block (the default puts an ID card's front and back together on A4) or fitted to equal cells; vector, one form per source page. Stitch and Collage now share the page-as-form helper. Not an Acrobat feature: estimates unchanged.
 - **2026-10-26 (SC4, SC5, PdfCraft Plus):** Enhance camera image gains Remove moiré (YCbCr low-pass with an unsharp mask from the filtered brightness; Acrobat's Descreen is now partial, camera images only) and Flatten curved page (text-line profiles matched across 20 strips in 4 bands, cubic fits, columns moved back; the spine squeeze is not undone). Both are checkboxes in the camera bar and `page_enhance_camera` flags, in the same undo step. Estimates unchanged.
@@ -680,10 +683,13 @@ Newest first: the date, what moved, and the new overall estimate.
 
 ## Revision history
 
+**2026-10-25 · minor:** M14 localization current state: Arabic catalogs stay logical, Arabic/Kurdish labels take an explicit RTL direction, and stock chrome mirrors; native/browser RTL input, IME and complex workflows remain unqualified. Native Simplified Chinese uses LXGW WenKai Lite; the web build has no Hans face. Estimates unchanged.
+
 **2026-10-15 · minor:** M14/#2383 candidate: GPU device requests clamp unsupported limits while retaining the adapter texture extent. Synthetic V3D/downlevel regressions and Windows GPU-required tests pass; Raspberry Pi hardware remains unverified. Estimates unchanged.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-27 | minor | M10: OCR stages SHA-256-verified ONNX models after the upstream RTEN URL brownout; discovery prefers a complete ONNX pair per directory, falls back to a complete RTEN pair, and never mixes formats or directories; language/web limits and estimates unchanged. |
 | 2026-10-23 | minor | M8, #3205 follow-up: phone-pattern redaction includes the +39 country code on labelled Italian geographic numbers with a slash; dates, protocol identifiers and whole-run guards remain. Estimates unchanged. |
 | 2026-10-23 | minor | M11: image downsampling measures physical resolution after page-local UserUnit scaling, including shared nested forms; synthetic measurement and optimization regressions. Estimates unchanged. |
 | 2026-10-23 | minor | M10: Word table cells use the grid columns they span, including cells after a merged cell; synthetic export regression and CLI reproduction. Estimates unchanged. |

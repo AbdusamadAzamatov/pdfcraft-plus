@@ -420,7 +420,7 @@ fn rasterize_pages_dialog_turns_the_current_page_into_a_picture() {
 
     assert!(h.state_mut().execute("optimize.rasterize"));
     h.run_steps(3);
-    h.get_by_label("Current page").click();
+    h.get_by_role_and_label(egui::accesskit::Role::RadioButton, "Current page").click();
     h.run_steps(1);
     h.state_mut().rasterize_draft.dpi = 72;
     h.get_by_label("Rasterize").click();

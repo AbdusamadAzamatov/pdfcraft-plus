@@ -84,6 +84,20 @@ fn parse(body: &str) -> Result<Release, String> {
 mod tests {
     use super::*;
 
+    /// The check asks this fork's releases only, and upstream's self-updater (craft-update,
+    /// which downloads and installs `storytold/pdfcraft` builds) is not linked into the app.
+    #[test]
+    fn updates_come_only_from_this_forks_releases() {
+        assert!(LATEST.starts_with("https://api.github.com/repos/AbdusamadAzamatov/pdfcraft-plus/"), "{LATEST}");
+        assert!(RELEASES_PAGE.starts_with("https://github.com/AbdusamadAzamatov/pdfcraft-plus/"), "{RELEASES_PAGE}");
+        for (crate_name, manifest) in
+            [("pdfcraft", include_str!("../Cargo.toml")), ("pdfcraft-ui-egui", include_str!("../../../crates/ui-egui/Cargo.toml"))]
+        {
+            let linked = manifest.lines().map(str::trim_start).any(|l| l.starts_with("craft-update") || l.starts_with("craft_update"));
+            assert!(!linked, "{crate_name} depends on craft-update, which installs upstream PdfCraft releases");
+        }
+    }
+
     #[test]
     fn answers_are_read_and_only_our_release_pages_are_offered() {
         let r = parse(r#"{"tag_name":"v0.2.0","html_url":"https://github.com/AbdusamadAzamatov/pdfcraft-plus/releases/tag/v0.2.0"}"#).unwrap();

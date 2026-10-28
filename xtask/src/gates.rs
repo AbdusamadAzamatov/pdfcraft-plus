@@ -606,7 +606,7 @@ mod tests {
     fn macos_bundle_id_matches_app_id() {
         const BUNDLE_ID: &str = "io.github.abdusamadazamatov.pdfcraft-plus";
         assert!(read("packaging/macos/Info.plist.in").contains(&format!("<string>{BUNDLE_ID}</string>")), "bundle id");
-        let association = read("crates/ui-egui/src/macos_association.rs");
+        let association = read("crates/ui-egui/src/platform/macos_association.rs");
         assert!(association.contains(&format!(r#"const BUNDLE_ID: &str = "{BUNDLE_ID}""#)), "macos_association drifted from the bundle id");
         let main = read("apps/pdfcraft/src/main.rs");
         assert!(main.contains(r#"const APP_ID: &str = "ai.storyteller.pdfcraft""#), "APP_ID drifted from the packaging id");

@@ -16,6 +16,9 @@
   entries are keyed by the file name), ProgID, registry keys and menu verbs.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <?ifndef HasCraftFontLicences ?>
+  <?define HasCraftFontLicences=0 ?>
+  <?endif?>
   <Package
       Name="PdfCraft Plus"
       Manufacturer="PdfCraft Plus contributors"
@@ -93,12 +96,21 @@
     <StandardDirectory Id="DesktopFolder" />
 
     <Feature Id="Main" Title="PdfCraft Plus" Level="1">
+      <?if $(var.HasCraftFontLicences) = 1 ?>
+      <ComponentGroupRef Id="CraftFontLicences" />
+      <?endif?>
       <ComponentGroupRef Id="PdfcraftFiles" />
       <ComponentGroupRef Id="PdfcraftModels" />
     </Feature>
   </Package>
 
   <Fragment>
+    <!-- The OFL notices of the craft-fonts faces a CRAFT_FONTS_DIR build embeds (package.ps1). -->
+    <?if $(var.HasCraftFontLicences) = 1 ?>
+    <ComponentGroup Id="CraftFontLicences" Directory="INSTALLFOLDER">
+      <Files Include="$(var.DocsDir)\**" />
+    </ComponentGroup>
+    <?endif?>
     <ComponentGroup Id="PdfcraftFiles" Directory="INSTALLFOLDER">
       <Component Id="PdfcraftApp" Guid="0F5B51BC-F865-4FC5-BC11-8E1526EEBA17">
         <File Id="PdfcraftExe" Source="$(var.BinDir)\pdfcraft-plus.exe" KeyPath="yes" />

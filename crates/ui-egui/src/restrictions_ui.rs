@@ -7,7 +7,7 @@ use crate::widgets;
 pub(crate) fn body(ui: &mut egui::Ui, name: &str, confirmed_rights: &mut bool, t: &Tokens) -> (bool, bool) {
     ui.label(egui::RichText::new(tl!("Remove restrictions")).font(theme::semibold(18.0)));
     ui.add_space(8.0);
-    ui.label(egui::RichText::new(crate::bidi::visual(name)).strong());
+    ui.label(egui::RichText::new(name).strong());
     ui.add_space(8.0);
     ui.label(
         egui::RichText::new(tl!("Fork only. Removes security without the permissions password. Saving rewrites the file unencrypted."))

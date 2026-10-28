@@ -55,7 +55,9 @@ Error details that come from the operating system, and faults rather than mistak
 ## Adding a language
 
 1. Copy the header of `ru.tsv` into `xx.tsv` and translate entries.
-2. Add one row to `LANGUAGES` in `crates/ui-egui/src/i18n/mod.rs`: code, native name, catalog and plural rule.
+2. Add one row to `LANGUAGES` in `crates/ui-egui/src/i18n.rs`: code, native name, catalog and plural rule.
 3. Add an `ATTRIBUTION.toml` entry for the catalog (`kind = "translation"`, no `sha256`), then run `cargo xtask assets --write` (it regenerates `ATTRIBUTION.md` only) and `cargo xtask assets`.
 
 The Preferences dropdown, the system-language match, the catalog tests (format, duplicates, placeholders, plural forms, command ids) and the translation gaps report then pick it up.
+
+The egui 0.37 migration pins craft-fonts `b076417b5880bd4154bd22f00695b1d28c6bea83`. That manifest supplies Arabic, Hebrew, Thai and Devanagari faces selected for the web payload, but contains no Telugu face. The build code accepts a `Telu` row when a future input provides one; it does not establish Telugu glyph coverage with the current pin.

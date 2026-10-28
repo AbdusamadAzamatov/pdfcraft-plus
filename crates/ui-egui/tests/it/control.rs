@@ -162,6 +162,9 @@ fn control_resize_reports_observed_dimensions_and_rejects_invalid_sizes() {
     assert_eq!(state["documents"][0]["dirty"], false);
 }
 
+/// Kittest calls only `App::logic` and `App::ui`, not eframe's `raw_input_hook`, so this checks
+/// the widget tree and key handling but not the production focus-generation ordering. The
+/// `production_*` tests above drive `prepare_raw_input` first and cover that ordering.
 #[test]
 fn control_focus_traverses_real_widgets_and_keyboard_activates() {
     let (mut h, c) = harness();
@@ -181,6 +184,55 @@ fn control_focus_traverses_real_widgets_and_keyboard_activates() {
     let state = ok(&mut h, &c, "ui.state", json!({}));
     assert_eq!(state["mode"], "Convert");
     assert_eq!(state["documents"][0]["dirty"], false);
+}
+
+/// A frame driven in production order: eframe's raw input hook runs before egui's input hooks, so
+/// the control plugin sees the focus/dialog generation produced by the previous UI pass. The
+/// kittest harness does not call `raw_input_hook`, which otherwise hides focus-change bugs.
+fn production_step(h: &mut Harness<'static, PdfCraftApp>) {
+    let ctx = h.ctx.clone();
+    let mut raw = std::mem::take(h.input_mut());
+    h.state_mut().prepare_raw_input(&ctx, &mut raw);
+    *h.input_mut() = raw;
+    h.step();
+}
+
+fn call_production(h: &mut Harness<'static, PdfCraftApp>, c: &ControlClient, method: &str, params: Value) -> Reply {
+    let rx = c.send(method, params);
+    for _ in 0..30 {
+        production_step(h);
+        if let Ok(r) = rx.try_recv() {
+            return r;
+        }
+    }
+    panic!("{method}: no reply after 30 production-ordered frames");
+}
+
+#[test]
+fn production_key_release_survives_the_focus_change_its_press_causes() {
+    let (mut h, c) = harness();
+    ok(&mut h, &c, "ui.focus", json!({"label": "Convert"}));
+    let reply = call_production(&mut h, &c, "ui.key", json!({"key": "Tab"}));
+    reply.unwrap_or_else(|e| panic!("a Tab press that moves focus must not leave its release unapplied: {e}"));
+    let sign = ok(&mut h, &c, "ui.inspect", json!({"query": "E-Sign", "role": "Button"}));
+    assert!(sign["widgets"].as_array().unwrap().iter().any(|w| w["label"] == "E-Sign" && w["focused"] == true), "focus moved on the press: {sign}");
+    assert!(!h.ctx.input(|i| i.keys_down.contains(&egui::Key::Tab)), "the release reached egui: no stuck Tab");
+}
+
+#[test]
+fn production_drag_releases_the_button_after_the_press_moves_focus() {
+    let (mut h, c) = harness_pages(2);
+    h.state_mut().apply_edit(pdfcraft_engine::Edit::AddBookmark { parent: vec![], index: 0, title: "Target".into(), page: 0, left: None, top: None });
+    ok(&mut h, &c, "ui.set", json!({"key": "panel", "value": "bookmarks"}));
+    let field = ok(&mut h, &c, "ui.inspect", json!({"query": "Search", "role": "TextInput"}));
+    let rect = field["widgets"][0]["rect"].as_array().expect("the search field has a rect");
+    let (x0, y0, x1, y1) = (rect[0].as_f64().unwrap(), rect[1].as_f64().unwrap(), rect[2].as_f64().unwrap(), rect[3].as_f64().unwrap());
+    let start = json!([x0 + 8.0, (y0 + y1) / 2.0]);
+    let end = json!([x1 - 8.0, (y0 + y1) / 2.0]);
+    call_production(&mut h, &c, "ui.drag", json!({"from": start, "to": end, "steps": 3}))
+        .unwrap_or_else(|e| panic!("the press's focus change must not cancel its moves and release: {e}"));
+    assert!(!h.ctx.input(|i| i.pointer.button_down(egui::PointerButton::Primary)), "the pointer button was released");
+    assert_eq!(h.ctx.input(|i| i.modifiers), egui::Modifiers::NONE, "no modifier is left held");
 }
 
 #[test]
@@ -209,7 +261,7 @@ fn control_text_focus_retains_text_undo_ownership() {
     ok(&mut h, &c, "ui.focus", json!({"id": widgets["widgets"][0]["id"]}));
     assert!(h.ctx.text_edit_focused());
     ok(&mut h, &c, "ui.type", json!({"text": "target"}));
-    let search_id = egui::Id::new(("bookmark_search", h.state().views[0].id.0));
+    let search_id = egui::Id::unique(("bookmark_search", h.state().views[0].id.0));
     assert_eq!(h.ctx.data(|d| d.get_temp::<String>(search_id)).as_deref(), Some("target"));
     ok(&mut h, &c, "ui.key", json!({"key": "Z", "modifiers": ["command"]}));
     assert_eq!(h.ctx.data(|d| d.get_temp::<String>(search_id)).as_deref(), Some(""));
@@ -409,6 +461,9 @@ fn language_switch_preserves_document_and_command_ids() {
     assert_eq!(documents[0]["dirty"], true);
     let commands = ok(&mut h, &c, "ui.commands", json!({}));
     for code in ["ru", "en"] {
+        if crate::support::skip_without_glyphs(&format!("language_switch_preserves_document_and_command_ids ({code})"), code, "") {
+            continue;
+        }
         ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": code }));
         h.run_steps(2);
         let state = ok(&mut h, &c, "ui.state", json!({}));
@@ -417,12 +472,16 @@ fn language_switch_preserves_document_and_command_ids() {
         assert_eq!(ok(&mut h, &c, "ui.commands", json!({})), commands);
 
         let lang = i18n::Lang::from_code(code).unwrap();
-        h.get_by_label(i18n::tr(lang, "Menu")).click();
+        // A title without an ASCII letter shows its mnemonic after it ("ファイル(F)").
+        let file = i18n::tr(lang, "File");
+        h.get_by(|n| n.role() == egui::accesskit::Role::MenuItem && n.label().is_some_and(|l| l.starts_with(file))).click();
         h.run_steps(2);
-        h.get_by_label(&format!("{} ⏵", i18n::tr(lang, "File"))).hover();
-        h.run_steps(3);
-        h.get_by_label_contains(i18n::tr(lang, "Open…"));
-        ok(&mut h, &c, "ui.key", json!({ "key": "Escape" }));
+        // The mnemonic goes before an ellipsis: "開く(O)…".
+        let open = i18n::tr(lang, "Open…").trim_end_matches('…');
+        let open_row = |n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.role() == egui::accesskit::Role::MenuItem && n.label().is_some_and(|l| l.starts_with(open))
+        };
+        assert!(h.query_all_by(open_row).next().is_some(), "File lists Open… in {code}");
         ok(&mut h, &c, "ui.key", json!({ "key": "Escape" }));
         h.run_steps(2);
     }
@@ -681,6 +740,7 @@ fn autoscroll_cancels_on_click_wheel_focus_loss_and_pointer_exit() {
         delta: egui::vec2(0.0, -20.0),
         phase: egui::TouchPhase::Move,
         modifiers: egui::Modifiers::NONE,
+        source: egui::MouseWheelSource::Unknown,
     });
     h.run_steps(2);
     assert!(!h.state().views[0].auto_scrolling());
@@ -1015,6 +1075,10 @@ fn screenshots_of_window_and_region() {
     let region = ok(&mut h, &c, "ui.screenshot", json!({ "region": [10, 20, 110, 70] }));
     assert_eq!((region["width"].as_f64().unwrap(), region["height"].as_f64().unwrap()), ((100.0 * ppp).round(), (50.0 * ppp).round()));
     assert!(call(&mut h, &c, "ui.screenshot", json!({ "region": [5, 5, 1, 1] })).is_err());
+    // A region that cannot be inside the window is refused at admission, before a frame or slot
+    // is used, with an actionable message.
+    let outside = call(&mut h, &c, "ui.screenshot", json!({ "region": [1300, 0, 1500, 10] })).unwrap_err();
+    assert!(outside.contains("inside the window"), "{outside}");
 }
 
 #[test]
@@ -1386,6 +1450,9 @@ fn control_quit_retains_inactive_fill_sign_typing_after_cancel() {
 
 #[test]
 fn control_quit_retains_blocked_content_typing_after_cancel() {
+    if crate::support::skip_without_glyphs("control_quit_retains_blocked_content_typing_after_cancel", "en", "Keep 世界") {
+        return;
+    }
     let (mut h, c) = harness();
     ok(&mut h, &c, "ui.command", json!({"id":"edit.text"}));
     h.run_steps(3);
@@ -1511,7 +1578,13 @@ fn navigation_wheel(h: &mut Harness<'static, PdfCraftApp>, pos: egui::Pos2, delt
         vec![
             egui::Event::ModifiersChanged(modifiers),
             egui::Event::PointerMoved(pos),
-            egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Point, delta: egui::vec2(0.0, delta), modifiers, phase: egui::TouchPhase::Move },
+            egui::Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                delta: egui::vec2(0.0, delta),
+                modifiers,
+                phase: egui::TouchPhase::Move,
+                source: egui::MouseWheelSource::Unknown,
+            },
         ],
     );
     h.run_steps(20);
@@ -1611,7 +1684,7 @@ fn page_size_shows_while_the_pointer_is_in_the_bottom_left_quadrant() {
     let (mut h, _c) = harness();
     let area = h.state().views[0].viewport_rect();
     let shown = |h: &Harness<'static, PdfCraftApp>| {
-        let layer = egui::LayerId::new(egui::Order::Foreground, egui::Id::new("page-size-hint"));
+        let layer = egui::LayerId::new(egui::Order::Foreground, egui::Id::unique("page-size-hint"));
         h.ctx.memory(|m| m.areas().visible_last_frame(&layer))
     };
     let away = area.center() + egui::vec2(300.0, -200.0);
@@ -1692,6 +1765,7 @@ fn routine_continuous_scrolling_does_not_add_navigation_history() {
         delta: egui::vec2(0.0, -1200.0),
         modifiers: egui::Modifiers::NONE,
         phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Unknown,
     });
     h.run_steps(8);
     assert!(h.state().views[0].current > 0, "the wheel really moved to a later page");

@@ -15,6 +15,19 @@ fn families() -> Vec<FontId> {
     vec![FontId::proportional(13.0), FontId::monospace(13.0), theme::medium(13.0), theme::semibold(17.0)]
 }
 
+/// The bundled faces, with no craft-fonts and no installed system face: 0.37 gates its emoji
+/// fonts behind `monochrome_emoji_fonts`, which the app and this test crate explicitly enable.
+/// Text symbols must keep working with `PDFCRAFT_SYSTEM_FONTS=0`.
+#[test]
+fn bundled_monochrome_symbols_have_glyphs() {
+    let mut fonts = Fonts::new(TextOptions::default(), theme::font_definitions());
+    for id in families() {
+        for text in ["✔", "▲", "▼"] {
+            assert!(fonts.has_glyphs(&id, text), "{id:?} lacks {text} with default_fonts + monochrome_emoji_fonts");
+        }
+    }
+}
+
 /// Lays `text` out in every interface family and returns each galley's width.
 fn layout_widths(fonts: &mut Fonts, text: &str) -> Vec<f32> {
     let mut view = fonts.with_pixels_per_point(2.0);
@@ -290,7 +303,7 @@ fn primary_ui_fonts_cover_latin_and_cyrillic_catalogs() {
     let defs = theme::font_definitions();
     assert_eq!(&defs.families[&FontFamily::Monospace][..2], ["JetBrainsMono", "Inter"]);
     let fallback = &defs.font_data["Inter"];
-    let fallback_font = skrifa::FontRef::from_index(&fallback.font, fallback.index).unwrap();
+    let fallback_font = skrifa::FontRef::from_index(fallback.font.as_ref().as_ref(), fallback.index).unwrap();
     let fallback_charmap = fallback_font.charmap();
     for (code, catalog) in [("ru", include_str!("../../src/i18n/ru.tsv"))] {
         // Vietnamese stacks its diacritics: the precomposed letters and the base letters they
@@ -305,7 +318,7 @@ fn primary_ui_fonts_cover_latin_and_cyrillic_catalogs() {
         }
         for name in ["Inter", "Inter-Medium", "Inter-SemiBold", "JetBrainsMono"] {
             let data = &defs.font_data[name];
-            let font = skrifa::FontRef::from_index(&data.font, data.index).unwrap();
+            let font = skrifa::FontRef::from_index(data.font.as_ref().as_ref(), data.index).unwrap();
             let charmap = font.charmap();
             let mut missing: Vec<char> =
                 text.chars().filter(|c| charmap.map(*c).is_none() && (name != "JetBrainsMono" || fallback_charmap.map(*c).is_none())).collect();

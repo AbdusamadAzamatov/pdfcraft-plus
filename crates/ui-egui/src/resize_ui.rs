@@ -122,7 +122,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> Outc
                 Target::SameAsPage(_) => tl!("Same as page").to_string(),
                 Target::Custom => tl!("Custom").to_string(),
             };
-            egui::ComboBox::from_id_salt("resize-target")
+            craft_ui::ComboBox::from_id_salt("resize-target")
                 .selected_text(shown)
                 .height(400.0)
                 .show_ui(ui, |ui| {
@@ -159,7 +159,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> Outc
                                 *v = (shown / k).clamp(1.0, pdfcraft_engine::MAX_PAGE_SIDE);
                             }
                         }
-                        egui::ComboBox::from_id_salt("resize-unit").width(56.0).selected_text(d.unit.label()).show_ui(ui, |ui| {
+                        craft_ui::ComboBox::from_id_salt("resize-unit").width(56.0).selected_text(d.unit.label()).show_ui(ui, |ui| {
                             for u in Unit::ALL {
                                 ui.selectable_value(&mut d.unit, u, u.label());
                             }

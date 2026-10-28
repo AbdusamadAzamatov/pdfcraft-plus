@@ -124,15 +124,7 @@ pub fn write_linearized(doc: &Document, opts: &SaveOptions) -> Result<Vec<u8>, C
     if pages.is_empty() {
         return Err(fail("the document has no pages"));
     }
-    let mut encryption: HashSet<ObjRef> = HashSet::new();
-    let mut pending: Vec<ObjRef> = trailer_in.reference(b"Encrypt").into_iter().collect();
-    while let Some(r) = pending.pop() {
-        if let Some(node) = nodes.get(&r)
-            && encryption.insert(r)
-        {
-            pending.extend(node.refs.iter().chain(&node.aside).copied());
-        }
-    }
+    let encryption = encryption_objects(&trailer_in, &nodes);
     let page_set: HashSet<ObjRef> = pages.iter().copied().collect();
     if page_set.contains(&root) || pages.iter().any(|p| encryption.contains(p)) {
         return Err(fail("the page tree is malformed"));
@@ -140,20 +132,8 @@ pub fn write_linearized(doc: &Document, opts: &SaveOptions) -> Result<Vec<u8>, C
 
     // What each page needs: its object first, then its content streams, then the rest.
     let mut budget = MAX_EDGE_VISITS;
-    let mut memberships = 0usize;
-    let mut closures: Vec<Vec<ObjRef>> = Vec::with_capacity(pages.len());
-    let mut contents: Vec<HashSet<ObjRef>> = Vec::with_capacity(pages.len());
-    for &page in &pages {
-        let (streams, array) = content_refs(&mut reader, page, &nodes);
-        let blocked = |r: ObjRef| r == root || tree_nodes.contains(&r) || encryption.contains(&r) || (r != page && page_set.contains(&r));
-        let closure = closure(&nodes, page, &streams, array, &blocked, &mut budget)?;
-        memberships = memberships.saturating_add(closure.len());
-        if memberships > MAX_MEMBERSHIPS {
-            return Err(too_shared());
-        }
-        closures.push(closure);
-        contents.push(streams.into_iter().collect());
-    }
+    let blocked = |r: ObjRef, page: ObjRef| r == root || tree_nodes.contains(&r) || encryption.contains(&r) || (r != page && page_set.contains(&r));
+    let (closures, contents) = page_closures(&mut reader, &pages, &nodes, &blocked, &mut budget)?;
 
     // Classification in priority order; every object lands in exactly one part.
     let mut part: HashMap<ObjRef, Part> = HashMap::with_capacity(order.len());
@@ -252,49 +232,13 @@ pub fn write_linearized(doc: &Document, opts: &SaveOptions) -> Result<Vec<u8>, C
         map.insert(*r, o_num + count(i)?);
     }
 
-    // Shared object identifiers (Table F.4 item 4): first-page objects by number from /O, then
-    // the shared-objects section by number. Each later page lists those it uses.
     let n_first = first_page.len();
-    let shared_index: HashMap<ObjRef, u64> = first_page.iter().chain(&shared).enumerate().map(|(i, r)| (*r, i as u64)).collect();
-    let mut page_shared: Vec<Vec<u64>> = Vec::with_capacity(pages.len());
-    for (k, closure) in closures.iter().enumerate() {
-        let mut ids: Vec<u64> = if k == 0 { Vec::new() } else { closure.iter().filter_map(|r| shared_index.get(r).copied()).collect() };
-        ids.sort_unstable();
-        page_shared.push(ids);
-    }
-    drop(shared_index);
+    let page_shared = shared_ids(&first_page, &shared, &closures);
     drop(closures);
     drop(part);
 
     // Trailer of the first-page section (the one readers use): everything a full save keeps.
-    let mut trailer = Dict::new();
-    trailer.set(b"Size".to_vec(), Object::Int(i64::from(n_total)));
-    for key in [&b"Root"[..], b"Info", b"Encrypt"] {
-        if let Some(r) = trailer_in.reference(key).and_then(|r| map.get(&r)) {
-            trailer.set(key.to_vec(), Object::Ref(ObjRef::new(*r, 0)));
-        }
-    }
-    if let Some(Object::Dict(d)) = trailer_in.get(b"Encrypt") {
-        trailer.set(b"Encrypt".to_vec(), Object::Dict(d.clone()));
-    }
-    if let Some(id) = trailer_in.get(b"ID") {
-        trailer.set(b"ID".to_vec(), id.clone());
-    }
-    if reader.document.output_security().0.is_none() {
-        ensure_id(&mut trailer, opts, reader.document.bytes());
-    }
-    let mut main_trailer = Dict::new();
-    main_trailer.set(b"Size".to_vec(), Object::Int(i64::from(n_main)));
-    for key in [&b"Root"[..], b"Info", b"Encrypt", b"ID"] {
-        if let Some(v) = trailer.get(key) {
-            main_trailer.set(key.to_vec(), v.clone());
-        }
-    }
-    for (key, value) in trailer_in.iter() {
-        if !trailer_key_rewritten(key) {
-            trailer.set(key.clone(), renumber(value, &map));
-        }
-    }
+    let (trailer, main_trailer) = trailers(&reader.document, &trailer_in, &map, (n_total, n_main), opts);
 
     let version = reader.document.version().chars().take(3).collect::<String>();
     let version = if version.as_str() < "1.2" { "1.2".to_string() } else { version };
@@ -328,27 +272,8 @@ pub fn write_linearized(doc: &Document, opts: &SaveOptions) -> Result<Vec<u8>, C
 
     // The hint stream, from those positions.
     let at = |r: &ObjRef| map.get(r).and_then(|n| pos.get(*n as usize)).copied().unwrap_or((0, 0));
-    let mut entries = Vec::with_capacity(page_lists.len());
-    for (k, list) in page_lists.iter().enumerate() {
-        let streams = contents.get(k);
-        let is_content = |r: &ObjRef| streams.is_some_and(|s| s.contains(r));
-        let (mut content_offset, mut content_length) = (0, 0);
-        if let (Some(page), Some(first_content)) = (list.first(), list.get(1))
-            && is_content(first_content)
-        {
-            content_offset = at(page).1;
-            content_length = list.iter().skip(1).take_while(|r| is_content(r)).map(|r| at(r).1).sum();
-        }
-        entries.push(PageEntry {
-            objects: list.len() as u64,
-            length: list.iter().map(|r| at(r).1).sum(),
-            shared: page_shared.get(k).cloned().unwrap_or_default(),
-            content_offset,
-            content_length,
-        });
-    }
     let hints = Hints {
-        pages: entries,
+        pages: page_entries(&page_lists, &contents, &page_shared, &at),
         first_page_offset: first_page.first().map(|r| at(r).0).unwrap_or(hint_at),
         first_page_objects: n_first as u64,
         shared_start: shared.first().map(|r| (u64::from(map.get(r).copied().unwrap_or(0)), at(r).0)).unwrap_or((0, 0)),
@@ -408,6 +333,124 @@ pub fn write_linearized(doc: &Document, opts: &SaveOptions) -> Result<Vec<u8>, C
     out.extend_from_slice(&hint);
     out.extend_from_slice(&rest);
     Ok(out)
+}
+
+/// The encryption dictionary and everything it refers to: never part of a page.
+fn encryption_objects(trailer: &Dict, nodes: &HashMap<ObjRef, Node>) -> HashSet<ObjRef> {
+    let mut encryption: HashSet<ObjRef> = HashSet::new();
+    let mut pending: Vec<ObjRef> = trailer.reference(b"Encrypt").into_iter().collect();
+    while let Some(r) = pending.pop() {
+        if let Some(node) = nodes.get(&r)
+            && encryption.insert(r)
+        {
+            pending.extend(node.refs.iter().chain(&node.aside).copied());
+        }
+    }
+    encryption
+}
+
+/// What each page needs: its object first, then its content streams, then the rest; and each
+/// page's content streams. `blocked(r, page)` is an object page `page` never takes.
+#[allow(clippy::type_complexity)]
+fn page_closures(
+    reader: &mut ObjectReader,
+    pages: &[ObjRef],
+    nodes: &HashMap<ObjRef, Node>,
+    blocked: &dyn Fn(ObjRef, ObjRef) -> bool,
+    budget: &mut usize,
+) -> Result<(Vec<Vec<ObjRef>>, Vec<HashSet<ObjRef>>), CosError> {
+    let mut memberships = 0usize;
+    let mut closures: Vec<Vec<ObjRef>> = Vec::with_capacity(pages.len());
+    let mut contents: Vec<HashSet<ObjRef>> = Vec::with_capacity(pages.len());
+    for &page in pages {
+        let (streams, array) = content_refs(reader, page, nodes);
+        let closure = closure(nodes, page, &streams, array, &|r| blocked(r, page), budget)?;
+        memberships = memberships.saturating_add(closure.len());
+        if memberships > MAX_MEMBERSHIPS {
+            return Err(too_shared());
+        }
+        closures.push(closure);
+        contents.push(streams.into_iter().collect());
+    }
+    Ok((closures, contents))
+}
+
+/// Shared object identifiers (Table F.4 item 4): first-page objects by number from /O, then
+/// the shared-objects section by number. Each later page lists those it uses.
+fn shared_ids(first_page: &[ObjRef], shared: &[ObjRef], closures: &[Vec<ObjRef>]) -> Vec<Vec<u64>> {
+    let shared_index: HashMap<ObjRef, u64> = first_page.iter().chain(shared).enumerate().map(|(i, r)| (*r, i as u64)).collect();
+    let mut page_shared: Vec<Vec<u64>> = Vec::with_capacity(closures.len());
+    for (k, closure) in closures.iter().enumerate() {
+        let mut ids: Vec<u64> = if k == 0 { Vec::new() } else { closure.iter().filter_map(|r| shared_index.get(r).copied()).collect() };
+        ids.sort_unstable();
+        page_shared.push(ids);
+    }
+    page_shared
+}
+
+/// The trailer of the first-page section (the one readers use: everything a full save keeps)
+/// and the main section's, for `sizes` = (all objects, main-section objects).
+fn trailers(document: &Document, trailer_in: &Dict, map: &HashMap<ObjRef, u32>, sizes: (u32, u32), opts: &SaveOptions) -> (Dict, Dict) {
+    let (n_total, n_main) = sizes;
+    let mut trailer = Dict::new();
+    trailer.set(b"Size".to_vec(), Object::Int(i64::from(n_total)));
+    for key in [&b"Root"[..], b"Info", b"Encrypt"] {
+        if let Some(r) = trailer_in.reference(key).and_then(|r| map.get(&r)) {
+            trailer.set(key.to_vec(), Object::Ref(ObjRef::new(*r, 0)));
+        }
+    }
+    if let Some(Object::Dict(d)) = trailer_in.get(b"Encrypt") {
+        trailer.set(b"Encrypt".to_vec(), Object::Dict(d.clone()));
+    }
+    if let Some(id) = trailer_in.get(b"ID") {
+        trailer.set(b"ID".to_vec(), id.clone());
+    }
+    if document.output_security().0.is_none() {
+        ensure_id(&mut trailer, opts, document.bytes());
+    }
+    let mut main_trailer = Dict::new();
+    main_trailer.set(b"Size".to_vec(), Object::Int(i64::from(n_main)));
+    for key in [&b"Root"[..], b"Info", b"Encrypt", b"ID"] {
+        if let Some(v) = trailer.get(key) {
+            main_trailer.set(key.to_vec(), v.clone());
+        }
+    }
+    for (key, value) in trailer_in.iter() {
+        if !trailer_key_rewritten(key) {
+            trailer.set(key.clone(), renumber(value, map));
+        }
+    }
+    (trailer, main_trailer)
+}
+
+/// The page offset hint table's entries (Table F.3): each page's objects, its length and where
+/// its content streams are, from `at(r)` = (offset, length) of each written object.
+fn page_entries(
+    page_lists: &[Vec<ObjRef>],
+    contents: &[HashSet<ObjRef>],
+    page_shared: &[Vec<u64>],
+    at: &dyn Fn(&ObjRef) -> (u64, u64),
+) -> Vec<PageEntry> {
+    let mut entries = Vec::with_capacity(page_lists.len());
+    for (k, list) in page_lists.iter().enumerate() {
+        let streams = contents.get(k);
+        let is_content = |r: &ObjRef| streams.is_some_and(|s| s.contains(r));
+        let (mut content_offset, mut content_length) = (0, 0);
+        if let (Some(page), Some(first_content)) = (list.first(), list.get(1))
+            && is_content(first_content)
+        {
+            content_offset = at(page).1;
+            content_length = list.iter().skip(1).take_while(|r| is_content(r)).map(|r| at(r).1).sum();
+        }
+        entries.push(PageEntry {
+            objects: list.len() as u64,
+            length: list.iter().map(|r| at(r).1).sum(),
+            shared: page_shared.get(k).cloned().unwrap_or_default(),
+            content_offset,
+            content_length,
+        });
+    }
+    entries
 }
 
 /// Serialize object `r` as its new number at file offset `base + out.len()`, recording where.

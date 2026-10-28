@@ -110,6 +110,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Executable and icon carry the display name (CFBundleExecutable / CFBundleIconFile).
 cp "$WORK/bin/pdfcraft" "$APP/Contents/MacOS/PdfCraft"
 cp "$ROOT/assets/app-icon/pdfcraft.icns" "$APP/Contents/Resources/PdfCraft.icns"
+# Required embedded-font notices are independent of optional font inputs.
+cp "$ROOT/NOTICE" "$APP/Contents/Resources/NOTICE"
 # The standard About panel (app menu > About) shows Credits.rtf under the version: what the fork is
 # and where upstream PdfCraft and this fork live (#1287).
 cp "$HERE/Credits.rtf" "$APP/Contents/Resources/Credits.rtf"
