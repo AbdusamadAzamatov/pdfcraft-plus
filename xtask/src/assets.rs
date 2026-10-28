@@ -140,6 +140,10 @@ pub struct Bundled {
 pub struct Fetched {
     pub file: String,
     pub url: String,
+    /// Copies of the same file, tried in order when `url` fails (or serves other bytes); only a
+    /// file with `sha256` is ever accepted, wherever it came from.
+    #[serde(default)]
+    pub mirrors: Vec<String>,
     pub title: String,
     pub author: String,
     pub source: String,
@@ -315,7 +319,7 @@ pub fn check(root: &Path, m: &Manifest, repo_files: &[String], lock: &BTreeSet<(
         if f.sha256.len() != 64 || f.licence_sha256.len() != 64 {
             problems.push(format!("{}: sha256 and licence_sha256 must be 64 hex digits", f.file));
         }
-        if !f.url.starts_with("https://") || !f.licence_url.starts_with("https://") {
+        if !f.url.starts_with("https://") || !f.licence_url.starts_with("https://") || f.mirrors.iter().any(|u| !u.starts_with("https://")) {
             problems.push(format!("{}: URLs must be https", f.file));
         }
     }
@@ -338,31 +342,44 @@ pub fn fetch_all(m: &Manifest, dir: &Path, kind: &str) -> Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     for f in m.fetched.iter().filter(|f| f.kind == kind) {
         let path = dir.join(&f.file);
-        fetch_verified(&f.url, &path, &f.sha256)?;
+        let sources: Vec<&str> = std::iter::once(f.url.as_str()).chain(f.mirrors.iter().map(String::as_str)).collect();
+        fetch_verified(&sources, &path, &f.sha256)?;
         let licence = dir.join(format!("{}.LICENCE.txt", f.file));
-        fetch_verified(&f.licence_url, &licence, &f.licence_sha256)?;
+        fetch_verified(&[f.licence_url.as_str()], &licence, &f.licence_sha256)?;
         out.push(path);
     }
     Ok(out)
 }
 
-fn fetch_verified(url: &str, path: &Path, sha256: &str) -> Result<()> {
+/// Fetch `path` from the first of `sources` that serves bytes with `sha256` (a file already there
+/// with that hash is kept). A source that fails or serves other bytes is reported and the next one
+/// tried; when none works, the error names each source and what went wrong.
+fn fetch_verified(sources: &[&str], path: &Path, sha256: &str) -> Result<()> {
     if std::fs::read(path).is_ok_and(|b| sha256_hex(&b) == sha256) {
         return Ok(());
     }
-    println!("assets: fetching {url}");
     let tmp = path.with_extension("part");
-    let status = Command::new("curl").args(["-sSfL", "--retry", "3", "-o"]).arg(&tmp).arg(url).status().context("running curl")?;
-    if !status.success() {
-        bail!("download failed: {url}");
-    }
-    let bytes = std::fs::read(&tmp)?;
-    if sha256_hex(&bytes) != sha256 {
+    let mut failures = Vec::new();
+    for url in sources {
+        println!("assets: fetching {url}");
         let _ = std::fs::remove_file(&tmp);
-        bail!("{url}: SHA-256 mismatch (expected {sha256}); refusing to use it");
+        let status = Command::new("curl").args(["-sSfL", "--retry", "3", "-o"]).arg(&tmp).arg(url).status().context("running curl")?;
+        if !status.success() {
+            println!("assets: download failed: {url}");
+            failures.push(format!("download failed: {url}"));
+            continue;
+        }
+        let bytes = std::fs::read(&tmp)?;
+        if sha256_hex(&bytes) != sha256 {
+            println!("assets: {url}: SHA-256 mismatch (expected {sha256}); not using it");
+            failures.push(format!("{url}: SHA-256 mismatch (expected {sha256})"));
+            continue;
+        }
+        std::fs::rename(&tmp, path)?;
+        return Ok(());
     }
-    std::fs::rename(&tmp, path)?;
-    Ok(())
+    let _ = std::fs::remove_file(&tmp);
+    bail!("no source served {} with the expected SHA-256: {}", path.display(), failures.join("; "))
 }
 
 /// `cargo xtask models [DIR]`: fetch the OCR models (`kind = "model"`) into `assets/models/` (git-ignored),
@@ -463,6 +480,31 @@ mod tests {
     use super::*;
 
     /// The release packages ship assets/models as fetched (#103): every model is credited there.
+    #[test]
+    fn a_failing_or_wrong_source_falls_back_to_the_next_that_has_the_file() {
+        let dir = std::env::temp_dir().join(format!("xtask-fetch-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let (good, wrong) = (dir.join("good.bin"), dir.join("wrong.bin"));
+        std::fs::write(&good, b"the model").unwrap();
+        std::fs::write(&wrong, b"another build").unwrap();
+        let sha = sha256_hex(b"the model");
+        let url = |p: &Path| format!("file://{}", p.display()).replace('\\', "/");
+        let (good, wrong, missing) = (url(&good), url(&wrong), url(&dir.join("missing.bin")));
+        let out = dir.join("out.bin");
+        fetch_verified(&[&missing, &wrong, &good], &out, &sha).unwrap();
+        assert_eq!(std::fs::read(&out).unwrap(), b"the model");
+        assert!(!out.with_extension("part").exists(), "no partial file left");
+        // Kept as it is when it is already there.
+        fetch_verified(&[&missing], &out, &sha).unwrap();
+        // Nothing usable: an error naming every source, and no file.
+        let none = dir.join("none.bin");
+        let e = fetch_verified(&[&missing, &wrong], &none, &sha).unwrap_err().to_string();
+        assert!(e.contains("download failed") && e.contains("SHA-256 mismatch"), "{e}");
+        assert!(!none.exists() && !none.with_extension("part").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn models_attribution_credits_every_model() {
         let m = load(&root()).unwrap();

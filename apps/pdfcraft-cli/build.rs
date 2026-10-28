@@ -1,6 +1,6 @@
 //! Windows only: embed version info (VERSIONINFO) into `pdfcraft-cli.exe`, so Explorer's
 //! Details tab, `(Get-Item pdfcraft-cli.exe).VersionInfo` and inventory tools can read the version
-//! and publisher, as they can for `pdfcraft.exe` (`apps/pdfcraft/build.rs`).
+//! and publisher, as they can for the app (`apps/pdfcraft/build.rs`).
 //!
 //! On every other target this does nothing. A missing resource compiler is a warning, so a
 //! cross-compile from macOS or Linux still links, unless `PDFCRAFT_REQUIRE_WINRES=1` turns it
@@ -13,9 +13,9 @@ fn main() {
         return;
     }
     let mut res = winresource::WindowsResource::new();
-    res.set("ProductName", "PdfCraft")
-        .set("FileDescription", "PdfCraft command-line tool")
-        .set("LegalCopyright", "Copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.")
+    res.set("ProductName", "PdfCraft Plus")
+        .set("FileDescription", "PdfCraft Plus command-line tool")
+        .set("LegalCopyright", "Copyright (c) the PdfCraft and PdfCraft Plus contributors. MIT OR Apache-2.0.")
         .set("OriginalFilename", "pdfcraft-cli.exe")
         .set("InternalName", "pdfcraft-cli");
     if let Err(e) = res.compile() {

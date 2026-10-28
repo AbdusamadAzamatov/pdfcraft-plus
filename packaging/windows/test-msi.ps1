@@ -2,7 +2,7 @@
 .SYNOPSIS
   Check the compiled MSI's install scope, publisher, shortcuts, native UI and OCR models, without installing it.
 .EXAMPLE
-  pwsh packaging/windows/test-msi.ps1 dist/release/pdfcraft-0.2.1-windows-x64.msi
+  pwsh packaging/windows/test-msi.ps1 dist/release/pdfcraft-plus-0.14.3-windows-x64.msi
 #>
 param([Parameter(Mandatory)] [string] $Path)
 $ErrorActionPreference = 'Stop'
@@ -35,7 +35,7 @@ function Assert-NoRow([string] $Sql, [string] $What) {
 # Test the compiled condition with Windows Installer's evaluator, in a restricted session that
 # cannot change machine state. Normal installs/repairs work, per-user overrides fail, and removal
 # of an older incorrectly scoped installation remains possible (#305).
-$scopeMessage = 'PdfCraft must be installed for all users. Run setup with administrator privileges and ALLUSERS=1; per-user installation is not supported.'
+$scopeMessage = 'PdfCraft Plus must be installed for all users. Run setup with administrator privileges and ALLUSERS=1; per-user installation is not supported.'
 $scopeCondition = Read-Row ('SELECT `Condition` FROM `LaunchCondition` WHERE `Description` = ''' + $scopeMessage + '''') 1
 $Installer.UILevel = 2
 $session = $null
@@ -68,12 +68,35 @@ foreach ($sequence in @('InstallUISequence', 'InstallExecuteSequence')) {
   }
 }
 $manufacturer = Read-Row 'SELECT `Value` FROM `Property` WHERE `Property` = ''Manufacturer''' 1
-Assert-Equal $manufacturer[0] 'Learning Machines LLC' 'MSI manufacturer'
+Assert-Equal $manufacturer[0] 'PdfCraft Plus contributors' 'MSI manufacturer'
+# PdfCraft Plus installs beside upstream PdfCraft, never over it or into its registrations: its own
+# product name, UpgradeCode and program file name, and no key or verb of upstream's.
+$product = Read-Row 'SELECT `Value` FROM `Property` WHERE `Property` = ''ProductName''' 1
+Assert-Equal $product[0] 'PdfCraft Plus' 'MSI product name'
+$ownUpgrade = Read-Row 'SELECT `Value` FROM `Property` WHERE `Property` = ''UpgradeCode''' 1
+if ($ownUpgrade[0] -eq '{EA00C367-7270-4C50-9D8B-A7A5C88AD27F}') { throw 'the MSI reuses upstream PdfCraft''s UpgradeCode' }
+$exe = Read-Row 'SELECT `FileName` FROM `File` WHERE `File` = ''PdfcraftExe''' 1
+# FileName is `name`, or `SHORT|name` with a generated 8.3 name.
+if ($exe[0] -notmatch '(^|\|)pdfcraft-plus\.exe$') { throw "app file name: '$($exe[0])'" }
+$view = $Database.OpenView('SELECT `Key`, `Name` FROM `Registry`')
+try {
+  [void] $view.Execute()
+  while ($record = $view.Fetch()) {
+    $key, $name = $record.StringData(1), $record.StringData(2)
+    if ($key -match '(^|\\)PdfCraft\.|\\pdfcraft\.exe($|\\)|^Software\\PdfCraft(\\|$)' -or $name -match '^PdfCraft(\.|$)') {
+      throw "upstream PdfCraft registration: $key [$name]"
+    }
+  }
+} finally { [void] $view.Close() }
+$appPath = Read-Row 'SELECT `Value` FROM `Registry` WHERE `Key` = ''Software\Microsoft\Windows\CurrentVersion\App Paths\pdfcraft-plus.exe''' 1
+Assert-Equal $appPath[0] '[#PdfcraftExe]' 'App Paths entry'
+$registered = Read-Row 'SELECT `Value` FROM `Registry` WHERE `Key` = ''Software\RegisteredApplications'' AND `Name` = ''PdfCraft Plus''' 1
+Assert-Equal $registered[0] 'Software\PdfCraft Plus\Capabilities' 'Default Programs registration'
 $status = Read-Row 'SELECT `Text` FROM `Control` WHERE `Dialog_` = ''InstallProgress'' AND `Control` = ''Status''' 1
 Assert-Equal $status[0] 'Please wait while setup completes.' 'Persistent progress message'
 Assert-NoRow 'SELECT `Event` FROM `EventMapping` WHERE `Dialog_` = ''InstallProgress'' AND `Control_` = ''Status''' 'progress text subscription'
 
-# Plain (non-advertised) shortcuts to pdfcraft.exe, each in its own component; the desktop one is
+# Plain (non-advertised) shortcuts to pdfcraft-plus.exe, each in its own component; the desktop one is
 # gated by INSTALLDESKTOPSHORTCUT, which is secure so the UI choice reaches the
 # elevated install.
 foreach ($entry in @(@('StartMenuShortcut', 'ProgramMenuFolder', 'PdfcraftStartMenuShortcut', ''),
@@ -131,7 +154,7 @@ function Assert-KeptOnUpdate([string] $Property, [string] $Release, [string] $Fo
     if ($session) { [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($session) }
   }
 }
-Assert-KeptOnUpdate 'INSTALLDESKTOPSHORTCUT' 'WIX_UPGRADE_DETECTED' 'EXISTINGDESKTOPSHORTCUT' 'C:\Users\Public\Desktop\PdfCraft.lnk' 'PdfcraftDesktopShortcut' 'Desktop shortcut'
+Assert-KeptOnUpdate 'INSTALLDESKTOPSHORTCUT' 'WIX_UPGRADE_DETECTED' 'EXISTINGDESKTOPSHORTCUT' 'C:\Users\Public\Desktop\PdfCraft Plus.lnk' 'PdfcraftDesktopShortcut' 'Desktop shortcut'
 $secure = Read-Row 'SELECT `Value` FROM `Property` WHERE `Property` = ''SecureCustomProperties''' 1
 if (($secure[0] -split ';') -notcontains 'INSTALLDESKTOPSHORTCUT') { throw "INSTALLDESKTOPSHORTCUT is not secure: '$($secure[0])'" }
 $checkbox = Read-Row 'SELECT `Type`, `Property`, `Text` FROM `Control` WHERE `Dialog_` = ''InstallWelcome'' AND `Control` = ''DesktopShortcut''' 3
@@ -147,7 +170,8 @@ Assert-Equal $scope[0] '1' 'Per-machine shortcut scope'
 
 # Each File Explorer menu remembers whether it was installed by finding its key path in HKLM, in the
 # package's own registry view (64-bit for x64 and arm64). Only a release that offered the menu can
-# leave it out, so the OnlyDetect Upgrade rows start at the first release with that menu.
+# leave it out, so the OnlyDetect Upgrade row starts at the first release with the menus (every
+# PdfCraft Plus release for Windows has both, so one row, MENURELEASE, serves both menus).
 $upgradeCode = Read-Row 'SELECT `Value` FROM `Property` WHERE `Property` = ''UpgradeCode''' 1
 $view64 = $Database.SummaryInformation(0).Property(7) -notmatch '^Intel;'
 function Assert-MenuSearch([string] $Found, [string] $Key, [string] $Release, [string] $Since, [string] $What) {
@@ -177,11 +201,11 @@ if ([int] $remove[0] -le [int] $validate[0] -or [int] $remove[0] -ge [int] $init
 # Image context menu (#190) opens the DPI chooser. Its own component, gated by INSTALLIMAGECONTEXTMENU
 # (on for a first install, kept on update only while present, secure), with the .png label as key
 # path so uninstall removes every row. No image default association is changed.
-$imageKey = 'Software\Classes\SystemFileAssociations\.png\shell\PdfCraft.CreatePdf'
+$imageKey = 'Software\Classes\SystemFileAssociations\.png\shell\PdfCraftPlus.CreatePdf'
 foreach ($ext in @('png', 'jpg', 'jpeg', 'tif', 'tiff', 'gif', 'bmp', 'jp2', 'j2k', 'jpx')) {
-  $key = 'Software\Classes\SystemFileAssociations\.' + $ext + '\shell\PdfCraft.CreatePdf'
+  $key = 'Software\Classes\SystemFileAssociations\.' + $ext + '\shell\PdfCraftPlus.CreatePdf'
   $menu = Read-Row ('SELECT `Value`, `Component_`, `Root` FROM `Registry` WHERE `Key` = ''' + $key + ''' AND `Name` IS NULL') 3
-  Assert-Equal $menu[0] 'Create PDF with PdfCraft…' "$ext context menu label"
+  Assert-Equal $menu[0] 'Create PDF with PdfCraft Plus…' "$ext context menu label"
   Assert-Equal $menu[1] 'PdfcraftImageContextMenu' "$ext context menu component"
   Assert-Equal $menu[2] '2' "$ext context menu HKLM root"
   $command = Read-Row ('SELECT `Value`, `Component_` FROM `Registry` WHERE `Key` = ''' + $key + '\command''') 2
@@ -195,7 +219,7 @@ $view = $Database.OpenView('SELECT `Key` FROM `Registry` WHERE `Component_` = ''
 try {
   [void] $view.Execute()
   while ($record = $view.Fetch()) {
-    if ($record.StringData(1) -match 'PdfCraft\.CreatePdf') { throw "image menu row left in PdfcraftApp: $($record.StringData(1))" }
+    if ($record.StringData(1) -match 'PdfCraftPlus\.CreatePdf') { throw "image menu row left in PdfcraftApp: $($record.StringData(1))" }
   }
 } finally { [void] $view.Close() }
 $imageKeyPath = Read-Row ('SELECT `Registry` FROM `Registry` WHERE `Key` = ''' + $imageKey + ''' AND `Name` IS NULL') 1
@@ -203,18 +227,18 @@ $imageComponent = Read-Row 'SELECT `KeyPath`, `Attributes` FROM `Component` WHER
 Assert-Equal $imageComponent[0] $imageKeyPath[0] 'Image context menu key path'
 # msidbComponentAttributesRegistryKeyPath (4).
 if (([int] $imageComponent[1] -band 4) -eq 0) { throw "Image context menu key path is not a registry value: attributes $($imageComponent[1])" }
-Assert-KeptOnUpdate 'INSTALLIMAGECONTEXTMENU' 'IMAGECONTEXTMENURELEASE' 'EXISTINGIMAGECONTEXTMENU' 'Create PDF with PdfCraft…' 'PdfcraftImageContextMenu' 'Image context menu'
-Assert-MenuSearch 'EXISTINGIMAGECONTEXTMENU' $imageKey 'IMAGECONTEXTMENURELEASE' '0.4.0' 'Image context menu'
+Assert-KeptOnUpdate 'INSTALLIMAGECONTEXTMENU' 'MENURELEASE' 'EXISTINGIMAGECONTEXTMENU' 'Create PDF with PdfCraft Plus…' 'PdfcraftImageContextMenu' 'Image context menu'
+Assert-MenuSearch 'EXISTINGIMAGECONTEXTMENU' $imageKey 'MENURELEASE' '0.14.0' 'Image context menu'
 if (($secure[0] -split ';') -notcontains 'INSTALLIMAGECONTEXTMENU') { throw "INSTALLIMAGECONTEXTMENU is not secure: '$($secure[0])'" }
 
-# PDF context menu (#682): "Edit with PdfCraft" opens the file in PdfCraft. Its own component, gated
+# PDF context menu (#682): "Edit with PdfCraft Plus" opens the file in PdfCraft Plus. Its own component, gated
 # by INSTALLPDFCONTEXTMENU (on for a first install, kept on update only while present, secure, welcome
-# checkbox), with its menu value as key path so uninstall removes it. Several selected PDFs each start pdfcraft.exe "%1" (Document), which the
+# checkbox), with its menu value as key path so uninstall removes it. Several selected PDFs each start pdfcraft-plus.exe "%1" (Document), which the
 # single-instance hand-off opens as tabs. The .pdf default is never set, so the user's default app
 # stays.
-$pdfKey = 'Software\Classes\SystemFileAssociations\.pdf\shell\PdfCraft.Edit'
+$pdfKey = 'Software\Classes\SystemFileAssociations\.pdf\shell\PdfCraftPlus.Edit'
 $pdfMenu = Read-Row ('SELECT `Registry`, `Value`, `Component_`, `Root` FROM `Registry` WHERE `Key` = ''' + $pdfKey + ''' AND `Name` IS NULL') 4
-Assert-Equal $pdfMenu[1] 'Edit with PdfCraft' 'PDF context menu label'
+Assert-Equal $pdfMenu[1] 'Edit with PdfCraft Plus' 'PDF context menu label'
 Assert-Equal $pdfMenu[2] 'PdfcraftPdfContextMenu' 'PDF context menu component'
 Assert-Equal $pdfMenu[3] '2' 'PDF context menu HKLM root'
 foreach ($value in @(@('Icon', '"[#PdfcraftExe]",0'), @('MultiSelectModel', 'Document'))) {
@@ -228,13 +252,13 @@ Assert-Equal $pdfCommand[1] 'PdfcraftPdfContextMenu' 'PDF context menu command c
 $pdfComponent = Read-Row 'SELECT `Condition`, `KeyPath` FROM `Component` WHERE `Component` = ''PdfcraftPdfContextMenu''' 2
 Assert-Equal $pdfComponent[0] 'INSTALLPDFCONTEXTMENU = 1' 'PDF context menu condition'
 Assert-Equal $pdfComponent[1] $pdfMenu[0] 'PDF context menu key path'
-Assert-KeptOnUpdate 'INSTALLPDFCONTEXTMENU' 'PDFCONTEXTMENURELEASE' 'EXISTINGPDFCONTEXTMENU' 'Edit with PdfCraft' 'PdfcraftPdfContextMenu' 'PDF context menu'
-Assert-MenuSearch 'EXISTINGPDFCONTEXTMENU' $pdfKey 'PDFCONTEXTMENURELEASE' '0.7.1' 'PDF context menu'
+Assert-KeptOnUpdate 'INSTALLPDFCONTEXTMENU' 'MENURELEASE' 'EXISTINGPDFCONTEXTMENU' 'Edit with PdfCraft Plus' 'PdfcraftPdfContextMenu' 'PDF context menu'
+Assert-MenuSearch 'EXISTINGPDFCONTEXTMENU' $pdfKey 'MENURELEASE' '0.14.0' 'PDF context menu'
 if (($secure[0] -split ';') -notcontains 'INSTALLPDFCONTEXTMENU') { throw "INSTALLPDFCONTEXTMENU is not secure: '$($secure[0])'" }
 $pdfCheckbox = Read-Row 'SELECT `Type`, `Property`, `Text` FROM `Control` WHERE `Dialog_` = ''InstallWelcome'' AND `Control` = ''PdfContextMenu''' 3
 Assert-Equal $pdfCheckbox[0] 'CheckBox' 'Welcome PDF context-menu control'
 Assert-Equal $pdfCheckbox[1] 'INSTALLPDFCONTEXTMENU' 'Welcome PDF context-menu property'
-if ($pdfCheckbox[2] -notmatch 'Edit with PdfCraft') { throw "Welcome PDF context-menu label: '$($pdfCheckbox[2])'" }
+if ($pdfCheckbox[2] -notmatch 'Edit with PdfCraft Plus') { throw "Welcome PDF context-menu label: '$($pdfCheckbox[2])'" }
 $pdfChecked = Read-Row 'SELECT `Value` FROM `CheckBox` WHERE `Property` = ''INSTALLPDFCONTEXTMENU''' 1
 Assert-Equal $pdfChecked[0] '1' 'Welcome PDF context-menu value'
 Assert-NoRow 'SELECT `Registry` FROM `Registry` WHERE `Key` = ''Software\Classes\.pdf'' AND `Name` IS NULL' '.pdf default app'
@@ -253,7 +277,7 @@ foreach ($exit in @(@('InstallComplete', '-1'), @('InstallCancelled', '-2'), @('
 }
 $title = Read-Row 'SELECT `Text` FROM `Control` WHERE `Dialog_` = ''InstallComplete'' AND `Control` = ''Title''' 1
 if ($title[0] -notmatch 'completed successfully') { throw 'Success dialog does not confirm completion' }
-# OCR models (#103): installed into models\ beside pdfcraft.exe, where the app looks for them.
+# OCR models (#103): installed into models\ beside pdfcraft-plus.exe, where the app looks for them.
 $modelsDir = Read-Row 'SELECT `Directory_Parent`, `DefaultDir` FROM `Directory` WHERE `Directory` = ''ModelsFolder''' 2
 Assert-Equal $modelsDir[0] 'INSTALLFOLDER' 'OCR models folder parent'
 # DefaultDir is `models`, or `SHORT|models` with a generated 8.3 name.
@@ -269,4 +293,4 @@ $rm = Read-Row 'SELECT `Dialog` FROM `Dialog` WHERE `Dialog` = ''MsiRMFilesInUse
 Assert-Equal $rm[0] 'MsiRMFilesInUse' 'Files-in-use dialog'
 [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($Database)
 [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($Installer)
-Write-Output 'ok MSI: per-machine scope guard, publisher, persistent progress text, Start Menu shortcut, optional desktop shortcut and PDF and image context menus (on for a first install, kept on update only while present; checkboxes for the first two), icon/key path, full-UI success/cancel/error and Finish controls, files-in-use dialog, OCR models'
+Write-Output 'ok MSI: PdfCraft Plus identity (no upstream key, verb or UpgradeCode), per-machine scope guard, publisher, persistent progress text, Start Menu shortcut, optional desktop shortcut and PDF and image context menus (on for a first install, kept on update only while present; checkboxes for the first two), icon/key path, full-UI success/cancel/error and Finish controls, files-in-use dialog, OCR models'

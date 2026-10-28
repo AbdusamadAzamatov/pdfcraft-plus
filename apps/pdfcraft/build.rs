@@ -1,6 +1,7 @@
 //! Windows only: embed the app icon and version info (VERSIONINFO) into `pdfcraft.exe`, so it
 //! shows in Explorer, the taskbar, the Start menu and Alt-Tab. A separate PDF document icon
-//! uses resource ID 2; the installer references it as `pdfcraft.exe,-2`.
+//! uses resource ID 2; the installer references it as `pdfcraft-plus.exe,-2` (the packages ship
+//! the program under that name, packaging/windows/package.ps1).
 //!
 //! On every other target this does nothing. A missing resource compiler is a warning, so a
 //! cross-compile from macOS or Linux still links, unless `PDFCRAFT_REQUIRE_WINRES=1` turns it
@@ -22,11 +23,11 @@ fn main() {
     res.set_icon("../../assets/app-icon/pdfcraft.ico")
         .set_icon_with_id("../../assets/app-icon/pdfcraft-document.ico", "2")
         .set_manifest(windows_manifest::WINDOWS_MANIFEST)
-        .set("ProductName", "PdfCraft")
-        .set("FileDescription", "PdfCraft PDF workbench")
-        .set("LegalCopyright", "Copyright (c) the PdfCraft contributors. MIT OR Apache-2.0.")
-        .set("OriginalFilename", "pdfcraft.exe")
-        .set("InternalName", "pdfcraft");
+        .set("ProductName", "PdfCraft Plus")
+        .set("FileDescription", "PdfCraft Plus PDF workbench")
+        .set("LegalCopyright", "Copyright (c) the PdfCraft and PdfCraft Plus contributors. MIT OR Apache-2.0.")
+        .set("OriginalFilename", "pdfcraft-plus.exe")
+        .set("InternalName", "pdfcraft-plus");
     if let Err(e) = res.compile() {
         if std::env::var_os("PDFCRAFT_REQUIRE_WINRES").is_some() {
             println!("cargo::error=embedding Windows resources failed: {e}");

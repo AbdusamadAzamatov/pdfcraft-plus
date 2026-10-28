@@ -6,13 +6,13 @@
 
 <p align="center">
   <b>A personal fork of <a href="https://github.com/storytold/pdfcraft">PdfCraft</a>, the open-source PDF reader and editor written in pure Rust, with extra page layout and clean-up tools.</b><br>
-  Ready-made builds for macOS 11 or later (Apple silicon and Intel)
+  Ready-made builds for macOS 11 or later (Apple silicon and Intel) and Windows 10 or 11 (x64)
 </p>
 
 <p align="center">
   <img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-12a58a?style=flat-square">
   <img alt="Written in Rust" src="https://img.shields.io/badge/written%20in-Rust-0a7563?style=flat-square">
-  <img alt="Builds: macOS universal" src="https://img.shields.io/badge/builds-macOS%20universal-12a58a?style=flat-square">
+  <img alt="Builds: macOS universal, Windows x64" src="https://img.shields.io/badge/builds-macOS%20universal%20%7C%20Windows%20x64-12a58a?style=flat-square">
   <img alt="No account, no telemetry" src="https://img.shields.io/badge/no%20account-no%20telemetry-0a7563?style=flat-square">
 </p>
 
@@ -27,6 +27,7 @@
 <p align="center">
   <a href="#about-this-fork">About this fork</a> ·
   <a href="#install-on-macos">Install</a> ·
+  <a href="#install-on-windows">Windows</a> ·
   <a href="#highlights">Highlights</a> ·
   <a href="#read-anything-beautifully">Read</a> ·
   <a href="#find-it-select-it-copy-it">Find</a> ·
@@ -97,6 +98,21 @@ PdfCraft Plus has its own bundle identifier, so its settings and file associatio
 separate from upstream PdfCraft, and both apps can be installed side by side. Step-by-step
 instructions, troubleshooting and building from source are in
 [docs/install-macos.md](docs/install-macos.md).
+
+## Install on Windows
+
+PdfCraft Plus runs on **Windows 10 or 11, 64-bit, on an x64 (Intel or AMD) processor**.
+
+1. From the [latest release](https://github.com/AbdusamadAzamatov/pdfcraft-plus/releases/latest),
+   download either `pdfcraft-plus-<version>-windows-x64.msi` (the installer: Start menu and desktop
+   shortcuts, "Open with" for PDFs) or `pdfcraft-plus-<version>-windows-x64-portable.zip` (unzip
+   anywhere and run `pdfcraft-plus.exe`; settings stay in the folder).
+2. The build is not signed with a code-signing certificate yet, so the first time SmartScreen may
+   say **"Windows protected your PC"**: click **More info**, then **Run anyway**.
+
+PdfCraft Plus installs beside upstream PdfCraft, never over it, and never makes itself the default
+PDF app. Step-by-step instructions, checksums, unattended installs and building from source are in
+[docs/install-windows.md](docs/install-windows.md).
 
 ## Highlights
 
@@ -287,7 +303,7 @@ Press <kbd>⌘K</kbd> to search every tool and command, or browse the **All tool
 
 ## Runs everywhere, stays yours
 
-- **Native on macOS, Windows, Linux and FreeBSD**, and **in the browser** through WebAssembly, from the same Rust codebase. PdfCraft Plus publishes ready-made builds for macOS; the rest build from source.
+- **Native on macOS, Windows, Linux and FreeBSD**, and **in the browser** through WebAssembly, from the same Rust codebase. PdfCraft Plus publishes ready-made builds for macOS and Windows (x64); the rest build from source.
 - **Private by design.** Documents never leave your machine. There's no account, no telemetry and no cloud processing.
 - **Engine first.** Parsing, rendering and editing live in reusable library crates. The interface is one swappable layer on top.
 - **Scriptable.** The `pdfcraft-cli` tool (see [Built for agents, too](#built-for-agents-too)) covers inspecting, rendering, extracting text, editing, combining, extracting pages and splitting. Robustness sweeps run on the same engine as the app.
@@ -419,8 +435,9 @@ or the operating system keep their own text.
 
 PdfCraft Plus builds without upstream's optional Japanese fonts (`craft-fonts`), so writing
 Japanese text into a PDF returns an error; PDFs that already contain Japanese still display
-normally. Ready-made builds are for macOS only (see [Install on macOS](#install-on-macos)); on
-Windows, Linux and FreeBSD, build from source as above.
+normally. Ready-made builds are for macOS and Windows x64 (see [Install on macOS](#install-on-macos)
+and [Install on Windows](#install-on-windows)); on Windows ARM64, Linux and FreeBSD, build from
+source as above.
 
 Logs, environment variables and other development notes are in [docs/development.md](docs/development.md).
 

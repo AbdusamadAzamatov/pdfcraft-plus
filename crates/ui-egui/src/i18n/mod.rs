@@ -601,15 +601,16 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[test]
     fn neutral_locale_does_not_override_display_language() {
-        let fr = Lang::from_code("fr").unwrap();
+        // Russian: PdfCraft Plus ships English and Russian only.
+        let ru = RU();
         for tag in ["C", "C.UTF-8", "POSIX", "posix.UTF-8", "", "  C.UTF-8  ", "unsupported"] {
             assert_eq!(language_override(tag), None, "{tag}");
-            assert_eq!(language_override(tag).or_else(|| first_supported("unsupported-XY\nfr-FR\nen-US")), Some(fr));
+            assert_eq!(language_override(tag).or_else(|| first_supported("unsupported-XY\nru-RU\nen-US")), Some(ru));
         }
-        assert_eq!(["C.UTF-8", "POSIX", "fr_FR.UTF-8"].into_iter().find_map(language_override), Some(fr));
-        assert_eq!(language_override("fr_FR.UTF-8"), Some(fr));
+        assert_eq!(["C.UTF-8", "POSIX", "ru_RU.UTF-8"].into_iter().find_map(language_override), Some(ru));
+        assert_eq!(language_override("ru_RU.UTF-8"), Some(ru));
         assert_eq!(language_override("en_US.UTF-8"), Some(Lang::EN));
-        assert_eq!(language_override("ru_RU.UTF-8"), Some(RU()));
+        assert_eq!(language_override("fr_FR.UTF-8"), None, "a language without a catalog doesn't override");
     }
 
     #[cfg(target_os = "windows")]

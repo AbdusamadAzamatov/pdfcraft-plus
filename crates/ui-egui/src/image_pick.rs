@@ -79,8 +79,8 @@ fn safe_name(s: &str) -> String {
 
 /// The per-user folder that holds the file of the last Copy Image in Original Format: `Clipboard`
 /// in the portable data folder in portable mode ([`crate::portable`]), otherwise the platform's
-/// per-user cache folder: `~/Library/Caches/PdfCraft/Clipboard` (macOS),
-/// `%LOCALAPPDATA%\PdfCraft\Clipboard` (Windows), or `$XDG_CACHE_HOME/pdfcraft/clipboard` /
+/// per-user cache folder: `~/Library/Caches/PdfCraft Plus/Clipboard` (macOS),
+/// `%LOCALAPPDATA%\PdfCraft Plus\Clipboard` (Windows), or `$XDG_CACHE_HOME/pdfcraft/clipboard` /
 /// `~/.cache/pdfcraft/clipboard` (others). Never the shared temporary folder, where another user
 /// could plant a link or a folder of their own.
 #[cfg(not(target_arch = "wasm32"))]
@@ -91,9 +91,9 @@ fn clipboard_dir() -> Option<std::path::PathBuf> {
     }
     let env = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from).filter(|p| p.is_absolute());
     if cfg!(target_os = "macos") {
-        env("HOME").map(|h| h.join("Library/Caches/PdfCraft/Clipboard"))
+        env("HOME").map(|h| h.join("Library/Caches").join(pdfcraft_engine::build_info::APP_NAME).join("Clipboard"))
     } else if cfg!(windows) {
-        env("LOCALAPPDATA").map(|d| d.join("PdfCraft").join("Clipboard"))
+        env("LOCALAPPDATA").map(|d| d.join(pdfcraft_engine::build_info::APP_NAME).join("Clipboard"))
     } else {
         env("XDG_CACHE_HOME").or_else(|| env("HOME").map(|h| h.join(".cache"))).map(|d| d.join("pdfcraft/clipboard"))
     }

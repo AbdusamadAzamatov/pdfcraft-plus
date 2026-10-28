@@ -2975,6 +2975,8 @@ sha256 = "f46881724a6621f3686a612a79dbdce4f7dbe9e2025610e44c9a094341334c2c"
 [[fetched]]
 file = "text-detection.rten"
 url = "https://ocrs-models.s3-accelerate.amazonaws.com/text-detection.rten"
+# The original host refuses downloads since 2026-10-27: an unchanged copy, checked by sha256.
+mirrors = ["https://github.com/AbdusamadAzamatov/pdfcraft-plus/releases/download/ocr-models/text-detection.rten"]
 title = "Ocrs text detection model"
 author = "Robert Knight (ocrs-models; trained on HierText, CC-BY-SA-4.0)"
 source = "https://github.com/robertknight/ocrs-models (the models ocrs downloads; model card: https://huggingface.co/robertknight/ocrs, cc-by-sa-4.0)"
@@ -2988,6 +2990,8 @@ sha256 = "f15cfb56bd02c4bf478a20343986504a1f01e1665c2b3a0ad66340f054b1b5ca"
 [[fetched]]
 file = "text-recognition.rten"
 url = "https://ocrs-models.s3-accelerate.amazonaws.com/text-recognition.rten"
+# The original host refuses downloads since 2026-10-27: an unchanged copy, checked by sha256.
+mirrors = ["https://github.com/AbdusamadAzamatov/pdfcraft-plus/releases/download/ocr-models/text-recognition.rten"]
 title = "Ocrs text recognition model"
 author = "Robert Knight (ocrs-models; trained on HierText, CC-BY-SA-4.0)"
 source = "https://github.com/robertknight/ocrs-models (the models ocrs downloads; model card: https://huggingface.co/robertknight/ocrs, cc-by-sa-4.0)"
