@@ -254,8 +254,17 @@ fn english(labeled: Labeled<'_>) -> Option<String> {
 }
 
 fn translate(english: &'static str) -> String {
+    // craft-menu titles the menu of titles that don't fit "⋯" (U+22EF). PdfCraft Plus builds
+    // carry no craft-fonts face with it (upstream's do), so it would be tofu on a machine without
+    // such a font; "…" is in Inter.
+    if english == OVERFLOW {
+        return "…".to_owned();
+    }
     tl!(english).to_owned()
 }
+
+/// The overflow menu's title as craft-menu writes it.
+const OVERFLOW: &str = "⋯";
 
 /// The layouts' own labels (About, Quit, Window…) through the app's translations.
 pub(crate) fn layout_options() -> LayoutOptions<'static> {
@@ -650,6 +659,16 @@ mod tests {
 
     fn linux(app: &PdfCraftApp, ctx: &egui::Context) -> MenuBar {
         craft_menu::layout(&app.menu_bar(ctx), Target::Linux, &layout_options()).bar
+    }
+
+    /// The overflow menu's title is drawn with the faces every build bundles: a Windows PC
+    /// without a system face for "⋯" (U+22EF), and no craft-fonts, showed it as tofu (and the
+    /// harness, which panics on a missing glyph, failed there).
+    #[test]
+    fn the_overflow_title_needs_no_system_or_craft_font() {
+        let mut fonts = egui::epaint::text::Fonts::new(egui::epaint::text::TextOptions::default(), crate::theme::font_definitions());
+        let title = translate(OVERFLOW);
+        assert!(fonts.has_glyphs(&egui::FontId::proportional(13.0), &title), "{title:?}");
     }
 
     fn item<'b>(bar: &'b MenuBar, command: &CommandRef) -> &'b Item {
