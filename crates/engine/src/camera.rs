@@ -186,6 +186,7 @@ impl Session {
             [vx as f64 * k, vy as f64 * k]
         });
         let mut out = warp(&shot.rgba, shot.width, shot.height, quad).map_err(EditError::Invalid)?;
+        trim_background_edges(&mut out.rgb, out.width, out.height);
         if repairs.moire {
             out.rgb = crate::descreen::descreen(&out.rgb, out.width, out.height)
                 .ok_or_else(|| EditError::Invalid("the straightened page could not be descreened".into()))?;
@@ -240,6 +241,70 @@ impl Session {
     }
 }
 
+/// Replace the lines along each edge of a straightened page that still show what the paper lay
+/// on (corners found on, or set a little outside, the paper's edge sample the table too) with
+/// the first clean line inside them. Clean-up would otherwise stretch that sliver into a dark,
+/// dashed frame. The outermost 1/400 of the shorter side (2 to 6 lines) always goes: a corner on
+/// a tilted edge leaves a wedge of table, mixed with paper, too faint to measure but not to
+/// stretch. Further in, lines go while they are not paper, up to 1/150 (4 to 16 lines).
+pub(crate) fn trim_background_edges(rgb: &mut [u8], width: u32, height: u32) {
+    let (w, h) = (width as usize, height as usize);
+    if w < 8 || h < 8 || w.checked_mul(h).and_then(|n| n.checked_mul(3)) != Some(rgb.len()) {
+        return;
+    }
+    let lum = |p: &[u8]| {
+        (p.first().copied().unwrap_or(0) as u32 * 299 + p.get(1).copied().unwrap_or(0) as u32 * 587 + p.get(2).copied().unwrap_or(0) as u32 * 114)
+            / 1000
+    };
+    // The paper: the 90th percentile of the page's brightness. Darker than 85 % of it is not paper.
+    let mut hist = [0usize; 256];
+    for p in rgb.chunks_exact(3) {
+        if let Some(slot) = hist.get_mut(lum(p) as usize) {
+            *slot += 1;
+        }
+    }
+    let want = w * h * 9 / 10;
+    let mut seen = 0;
+    let paper = hist.iter().position(|&n| {
+        seen += n;
+        seen > want
+    });
+    let dark = paper.unwrap_or(255) as u32 * 85 / 100;
+    let always = (w.min(h) / 400).clamp(2, 6);
+    let depth = (w.min(h) / 150).clamp(4, 16).max(always + 2);
+    // Pixel index of the `i`-th pixel along line `line` (0 at the edge) of `side`.
+    let at = |side: u8, line: usize, i: usize| -> usize {
+        match side {
+            0 => line * w + i,           // top: rows
+            1 => (h - 1 - line) * w + i, // bottom
+            2 => i * w + line,           // left: columns
+            _ => i * w + (w - 1 - line), // right
+        }
+    };
+    for side in 0..4u8 {
+        let len = if side < 2 { w } else { h };
+        let dirty = |rgb: &[u8], line: usize| {
+            let n = (0..len).filter(|&i| rgb.get(at(side, line, i) * 3..at(side, line, i) * 3 + 3).is_some_and(|p| lum(p) < dark)).count();
+            // More than 1 % of the line: a letter's stroke crossing it is less.
+            n * 100 > len
+        };
+        let measured = (always..depth).take_while(|&line| dirty(rgb, line)).count();
+        // Not paper all the way in: content (a bar, a frame) reaches the edge, not a sliver of
+        // table, so only the outermost lines go.
+        let bad = if always + measured >= depth { always } else { always + measured };
+        for line in 0..bad {
+            for i in 0..len {
+                let (from, to) = (at(side, bad, i) * 3, at(side, line, i) * 3);
+                if let Some(px) = rgb.get(from..from + 3).map(|p| [p[0], p[1], p[2]])
+                    && let Some(dst) = rgb.get_mut(to..to + 3)
+                {
+                    dst.copy_from_slice(&px);
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,6 +353,63 @@ mod tests {
         let px = |x: u32, y: u32| &a.rgb[((y * a.width + x) * 3) as usize..][..3];
         assert!(px(a.width - 3, 10)[0] > px(2, 10)[0] + 100);
         assert!(px(10, a.height - 3)[1] > px(10, 2)[1] + 100);
+    }
+
+    #[test]
+    fn a_sliver_of_table_along_the_edges_becomes_paper() {
+        // Paper with a line of text, and a dashed 2-pixel band of dark table along every edge.
+        let (w, h) = (300u32, 400u32);
+        let mut rgb: Vec<u8> = (0..w * h)
+            .flat_map(|i| {
+                let (x, y) = (i % w, i / w);
+                let edge = x < 2 || y < 2 || x >= w - 2 || y >= h - 2;
+                let text = (40..48).contains(&y) && (30..270).contains(&x) && x % 6 < 3;
+                if (edge && (x + y) % 4 < 2) || text { [40, 35, 30] } else { [235, 230, 220] }
+            })
+            .collect();
+        let before = rgb.clone();
+        trim_background_edges(&mut rgb, w, h);
+        let px = |rgb: &[u8], x: u32, y: u32| rgb[((y * w + x) * 3) as usize];
+        for (x, y) in [(0, 0), (1, 150), (150, 0), (150, 1), (299, 200), (298, 200), (150, 399), (299, 399)] {
+            assert_eq!(px(&rgb, x, y), 235, "({x}, {y}) is paper again");
+        }
+        // The text and the rest of the page are untouched.
+        for y in 2..h - 2 {
+            for x in 2..w - 2 {
+                assert_eq!(px(&rgb, x, y), px(&before, x, y), "({x}, {y})");
+            }
+        }
+    }
+
+    #[test]
+    fn a_faint_wedge_of_table_on_a_tilted_edge_goes_too() {
+        // Grey, part table and part paper, 0 pixels wide at the top of the left edge and 4 at the
+        // bottom: too faint to call dark, but clean-up would stretch it into a black wedge.
+        let (w, h) = (600u32, 800u32);
+        let mut rgb: Vec<u8> = (0..w * h).flat_map(|i| if i % w < (i / w) * 4 / h { [170, 165, 160] } else { [235, 230, 220] }).collect();
+        trim_background_edges(&mut rgb, w, h);
+        for y in [0, 400, 600, 799] {
+            for x in 0..4 {
+                assert_eq!(rgb[((y * w + x) * 3) as usize], 235, "({x}, {y})");
+            }
+        }
+    }
+
+    #[test]
+    fn content_reaching_the_edge_is_left_alone() {
+        // A clean page, and one with a dark bar across the top as deep as the search: unchanged.
+        let (w, h) = (300u32, 400u32);
+        let clean: Vec<u8> = vec![240; (w * h * 3) as usize];
+        let mut out = clean.clone();
+        trim_background_edges(&mut out, w, h);
+        assert_eq!(out, clean);
+        let bar: Vec<u8> = (0..w * h).flat_map(|i| if i / w < 30 { [20, 40, 120] } else { [240, 240, 240] }).collect();
+        let mut out = bar.clone();
+        trim_background_edges(&mut out, w, h);
+        assert_eq!(out, bar);
+        // Too small, or the wrong length: nothing happens and nothing panics.
+        trim_background_edges(&mut [0u8; 12], 2, 2);
+        trim_background_edges(&mut [0u8; 10], 300, 400);
     }
 
     #[test]
