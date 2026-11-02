@@ -258,7 +258,7 @@ pub(crate) fn trim_background_edges(rgb: &mut [u8], width: u32, height: u32) {
     };
     // The paper: the 90th percentile of the page's brightness. Darker than 85 % of it is not paper.
     let mut hist = [0usize; 256];
-    for p in rgb.chunks_exact(3) {
+    for p in rgb.as_chunks::<3>().0 {
         if let Some(slot) = hist.get_mut(lum(p) as usize) {
             *slot += 1;
         }
