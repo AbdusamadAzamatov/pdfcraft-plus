@@ -507,7 +507,14 @@ $n = [PdfCraftProbe.Console]::GetConsoleProcessList($ids, 256)
         std::fs::OpenOptions::new().write(true).create_new(true).open(&file).unwrap();
         let sddl = sddl_of(&file).unwrap();
         assert!(!sddl.contains(";BU)") && !sddl.contains(";S-1-5-32-545)"), "Users must not inherit read access: {sddl}");
-        assert_eq!(foreign_access(&sddl, &me), None, "{sddl}");
+        // Run elevated (the windows-latest runner), a new file is owned by the Administrators group
+        // and not by the user; the access list it inherits is what is checked here.
+        let admins_own_it = ["O:BA", "O:S-1-5-32-544"].into_iter().find(|owner| sddl.starts_with(owner));
+        let checked = match admins_own_it {
+            Some(owner) if elevated() => sddl.replacen(owner, &format!("O:{me}"), 1),
+            _ => sddl.clone(),
+        };
+        assert_eq!(foreign_access(&checked, &me), None, "{sddl}");
         // The name is taken: the folder isn't reused.
         assert!(create_private_dir(&private, &user()).is_err());
         let _ = std::fs::remove_dir_all(&dir);
