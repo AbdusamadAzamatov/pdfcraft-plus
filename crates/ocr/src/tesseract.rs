@@ -130,18 +130,18 @@ pub fn program_is_usable(program: &Path) -> bool {
 /// executable FILE (on Unix the executable bits must be set; elsewhere being a file is what
 /// the OS requires). A directory or a missing file is simply unavailable — never a panic.
 fn program_is_executable(program: &Path) -> bool {
-    if !program.is_absolute() || !program.is_file() {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::metadata(program).is_ok_and(|m| m.permissions().mode() & 0o111 != 0)
-    }
-    #[cfg(not(unix))]
-    {
-        true
-    }
+    program.is_absolute() && program.is_file() && has_executable_bits(program)
+}
+
+#[cfg(unix)]
+fn has_executable_bits(program: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(program).is_ok_and(|m| m.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(not(unix))]
+fn has_executable_bits(_program: &Path) -> bool {
+    true
 }
 
 /// One row of Tesseract's TSV output. `level` 5 rows are the words; `conf` is −1 on the header
