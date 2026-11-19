@@ -100,6 +100,26 @@ fn every_registered_command_is_implemented() {
         if spec.id == "edit.redo" {
             app.undo();
         }
+        if spec.id == "prepress.marks.remove" {
+            use pdfcraft_engine::{Edit, PrinterMarks};
+            app.apply_edit(Edit::AddPrinterMarks { pages: vec![0], settings: PrinterMarks::default(), replace: false });
+        }
+        // Copying comments needs a selected comment; pasting needs copied ones.
+        if matches!(spec.id, "comment.copy" | "comment.paste") {
+            let shape = pdfcraft_engine::Shape::Rectangle { rect: [10.0, 10.0, 50.0, 50.0] };
+            let style = pdfcraft_engine::Style::default_for(&shape);
+            assert!(app.apply_edit(pdfcraft_engine::Edit::AddAnnotation(pdfcraft_engine::NewAnnotation {
+                page: 0,
+                shape,
+                style,
+                contents: String::new(),
+                author: String::new(),
+            })));
+            app.views[0].comments.select_only((0, 0));
+            if spec.id == "comment.paste" {
+                assert!(app.copy_selected_comments(0));
+            }
+        }
         if spec.id.starts_with("edit.") && (spec.id.ends_with(".update") || spec.id.ends_with(".remove")) {
             use pdfcraft_engine::{Background, Edit, HeaderFooter, Watermark};
             let mut hf = HeaderFooter::default();
@@ -414,7 +434,7 @@ fn the_shortcuts_dialog_lists_the_real_bindings() {
     h.get_by_label("Zoom in / out (also pinch or ⌘-scroll)");
 }
 
-/// Menu ▸ View open, with egui told the app runs on `os`.
+/// View ▸ Zoom open in the menu bar, with egui told the app runs on `os`.
 fn view_menu(os: OperatingSystem) -> Harness<'static, PdfCraftApp> {
     let mut h = harness();
     h.ctx.set_os(os);

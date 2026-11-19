@@ -2,10 +2,10 @@ use super::blocks::{BlockStyle, TextBlock};
 use super::fallback::MAX_TYPE3_GLYPHS;
 use super::lines::{page_dict, text_lines};
 use super::rewrite::rewrite_block_from;
-use super::{DecodeBudget, Document, EditError, Metrics, Object, TextLine, TextSession};
+use super::{DecodeBudget, Dict, Document, EditError, Metrics, Object, TextLine, TextSession};
 
-/// An embedded sfnt source face, read only for the inline editor. Bytes stay in memory and
-/// are never installed, copied into assets, or used as a font for another document.
+/// An embedded source font or an approved bundled document-font choice.
+/// Source bytes stay in memory and are never installed or copied into another document.
 #[derive(Clone, Debug)]
 pub struct TextEditorFont {
     pub resource: String,
@@ -14,6 +14,21 @@ pub struct TextEditorFont {
     /// Not the resource's own program: a full face or look-alike of its family, shown because
     /// the editor can't read the program (see [`text_editor_fonts`]).
     pub stand_in: bool,
+    /// A selectable replacement, rather than a source/matching preview face. Merely listing
+    /// this choice must not reload an open editor's font atlas.
+    pub choice_only: bool,
+}
+
+/// Reserved document-font choice for explicitly replacing text with the bundled Thai face.
+/// This is a selector, never a font resource written into a PDF.
+const BUILTIN_THAI_FONT: &str = "builtin:thai";
+
+pub(super) fn builtin_thai_choice(fonts: &Dict) -> String {
+    let mut choice = BUILTIN_THAI_FONT.to_owned();
+    while fonts.contains(choice.as_bytes()) {
+        choice.push('_');
+    }
+    choice
 }
 
 pub fn text_editor_fonts(doc: &Document, page: usize) -> Result<Vec<TextEditorFont>, EditError> {
@@ -42,7 +57,7 @@ pub fn text_editor_fonts(doc: &Document, page: usize) -> Result<Vec<TextEditorFo
             continue;
         }
         budget -= bytes.len();
-        result.push(TextEditorFont { resource: String::from_utf8_lossy(name).into_owned(), face, bytes, stand_in });
+        result.push(TextEditorFont { resource: String::from_utf8_lossy(name).into_owned(), face, bytes, stand_in, choice_only: false });
     }
     // The approved full face follows all source subsets in the editor's font stack. It can
     // display newly inserted glyphs before Apply without changing the source text's face.
@@ -59,8 +74,22 @@ pub fn text_editor_fonts(doc: &Document, page: usize) -> Result<Vec<TextEditorFo
                 face: face.clone(),
                 bytes: full.bytes.to_vec(),
                 stand_in: true,
+                choice_only: false,
             });
         }
+    }
+    // A missing source family must not make the bundled Thai replacement undiscoverable.
+    // Offering it does not change the source; callers explicitly select this choice to replace it.
+    if let Some(thai) = pdfcraft_fonts::document_thai_font()
+        && thai.bytes.len() <= budget
+    {
+        result.push(TextEditorFont {
+            resource: builtin_thai_choice(&fonts),
+            face: thai.family.into(),
+            bytes: thai.bytes.to_vec(),
+            stand_in: false,
+            choice_only: true,
+        });
     }
     Ok(result)
 }

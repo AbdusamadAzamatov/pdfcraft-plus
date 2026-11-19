@@ -127,7 +127,7 @@ mod tests {
         let comment = NewAnnotation {
             page: 0,
             shape: Shape::Rectangle { rect: [20.0, 20.0, 60.0, 60.0] },
-            style: Style { color: [0.0, 0.0, 1.0], opacity: 1.0, width: 2.0, fill: None },
+            style: Style { color: [0.0, 0.0, 1.0], opacity: 1.0, width: 2.0, fill: None, ..Default::default() },
             contents: "Look".into(),
             author: "Reviewer".into(),
         };

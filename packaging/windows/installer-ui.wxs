@@ -15,11 +15,15 @@
         <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="105" Width="330" Height="17"
             Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="Create a &amp;desktop shortcut" />
         <Control Id="PdfContextMenu" Type="CheckBox" X="20" Y="123" Width="330" Height="17"
-            Property="INSTALLPDFCONTEXTMENU" CheckBoxValue="1" Text="Add &quot;&amp;Edit with PdfCraft Plus&quot; to the right-click menu of PDF files" />
+            Property="INSTALLPDFCONTEXTMENU" CheckBoxValue="1" Text="Add &amp;Edit and Combine files to the right-click menu of PDF files" />
         <Control Id="Install" Type="PushButton" X="195" Y="145" Width="75" Height="23" Default="yes" ElevationShield="yes" Text="&amp;Install">
           <Publish Event="EndDialog" Value="Return" />
         </Control>
-        <Control Id="Cancel" Type="PushButton" X="280" Y="145" Width="70" Height="23" Cancel="yes" Text="Cancel">
+        <Control Id="InstallUser" Type="PushButton" DefaultCondition="ALLUSERS &lt;&gt; 1" HideCondition="ALLUSERS = 1" ShowCondition="ALLUSERS &lt;&gt; 1" X="195" Y="175" Width="75" Height="23" Text="&amp;Install">
+          <Publish Event="SetTargetPath" Value="INSTALLFOLDER" Order="1" />
+          <Publish Event="EndDialog" Value="Return" Order="2" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="280" Y="175" Width="70" Height="23" Cancel="yes" Text="Cancel">
           <Publish Event="EndDialog" Value="Exit" />
         </Control>
       </Dialog>

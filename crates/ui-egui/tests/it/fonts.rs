@@ -299,6 +299,9 @@ fn ui_fonts_work_without_craft_fonts() {
 /// `has_glyphs` can't answer this: with only the primary face it is also the replacement face.)
 #[test]
 fn primary_ui_fonts_cover_latin_and_cyrillic_catalogs() {
+    if crate::support::skip_without_catalogs("primary_ui_fonts_cover_latin_and_cyrillic_catalogs") {
+        return;
+    }
     use skrifa::MetadataProvider as _;
     let defs = theme::font_definitions();
     assert_eq!(&defs.families[&FontFamily::Monospace][..2], ["JetBrainsMono", "Inter"]);

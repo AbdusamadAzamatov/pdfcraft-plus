@@ -3,8 +3,7 @@
 //! `ATTRIBUTION.toml` lists every asset: committed or vendored files (`[[asset]]`), files that
 //! Cargo dependencies compile into PdfCraft (`[[bundled]]`), and files xtask downloads at build
 //! time (`[[fetched]]`). This gate fails when:
-//! - an asset-like file in the repository has no entry, or its SHA-256 is missing or differs
-//!   (translation catalogs are project files and carry none);
+//! - an asset-like file in the repository has no entry, or its SHA-256 is missing or differs;
 //! - a licence is not on the allowlist, or a declared licence file is missing;
 //! - an icon, image or font names Adobe as author or source, or an `adobe_data` entry is not on
 //!   the closed list approved in AGENTS.md §1.1;
@@ -30,6 +29,7 @@ pub const ALLOWED_LICENCES: &[&str] = &[
     "OFL-1.1",
     "Ubuntu-font-1.0",
     "Bitstream-Vera",
+    "Unicode-3.0",
     "CC0-1.0",
     "CC-BY-4.0",
     "CC-BY-SA-4.0",
@@ -49,11 +49,6 @@ pub const ADOBE_DATA_ALLOWED: &[(&str, &str)] = &[("hayro-cmap", "assets/cmaps.b
 /// `[[asset]]` entry with `adobe_data = true`, so its SHA-256 is checked and any change to the
 /// table has to be re-attested deliberately.
 pub const ADOBE_DATA_FILES: &[&str] = &["crates/fonts/src/std14_metrics.rs", "vendor/hayro-cmap/assets/cmaps.brotli"];
-
-/// Where the UI translation catalogs live. `kind = "translation"` entries for `.tsv` files here
-/// are project files under the project licence: they carry no `sha256`, because git history
-/// already records their provenance (AGENTS.md §1.3).
-pub const TRANSLATION_DIR: &str = "crates/ui-egui/src/i18n/";
 
 /// File extensions that count as assets wherever they appear in the repository.
 const ASSET_EXTENSIONS: &[&str] = &[
@@ -109,6 +104,11 @@ pub struct Asset {
     #[serde(default)]
     pub adobe_data: bool,
 }
+
+/// Where PdfCraft Plus keeps its own UI translation rows. `kind = "translation"` entries for
+/// `.tsv` files here are project files under the project licence: they carry no `sha256`, because
+/// git history already records their provenance (AGENTS.md §1.3).
+const TRANSLATION_DIR: &str = "crates/ui-egui/src/i18n/";
 
 impl Asset {
     /// A UI translation catalog: a project file whose entry carries no hash.
@@ -180,9 +180,6 @@ pub fn run(args: &[String]) -> Result<()> {
     if args.iter().any(|a| a == "--write") {
         std::fs::write(root.join("ATTRIBUTION.md"), &markdown)?;
         println!("assets: wrote ATTRIBUTION.md");
-    }
-    for a in manifest.asset.iter().filter(|a| a.is_translation_catalog() && a.sha256.is_some()) {
-        println!("assets: note: {}: translation catalogs aren't hashed; its sha256 line can be deleted", a.path);
     }
     let mut problems = check(&root, &manifest, &repo_files(&root)?, &cargo_lock_versions(&root)?);
     match std::fs::read_to_string(root.join("ATTRIBUTION.md")) {
@@ -279,7 +276,7 @@ pub fn check(root: &Path, m: &Manifest, repo_files: &[String], lock: &BTreeSet<(
         let catalog = a.is_translation_catalog();
         match (std::fs::read(root.join(&a.path)), &a.sha256) {
             (Err(_), _) => problems.push(format!("{}: listed but missing", a.path)),
-            // A leftover hash line (e.g. kept while resolving a rebase) is not checked; `run` notes it.
+            // A leftover hash line (e.g. kept while resolving a rebase) is not checked.
             (Ok(_), _) if catalog => {}
             (Ok(_), None) => problems.push(format!("{}: sha256 is missing (only translation catalogs go without one)", a.path)),
             (Ok(bytes), Some(hash)) if sha256_hex(&bytes) == *hash => {}
@@ -416,7 +413,7 @@ pub fn render_markdown(m: &Manifest) -> String {
     s.push_str("<!-- Generated from ATTRIBUTION.toml by `cargo xtask assets --write`. Do not edit by hand. -->\n\n");
     s.push_str("Every asset PdfCraft includes, bundles or uses to build its published material, with its author, source and licence. ");
     s.push_str(
-        "The policy is in [AGENTS.md](AGENTS.md) §1. The machine-readable list, with the SHA-256 of every asset but the translation catalogs, is [ATTRIBUTION.toml](ATTRIBUTION.toml). ",
+        "The policy is in [AGENTS.md](AGENTS.md) §1. The machine-readable list, with the SHA-256 of every asset, is [ATTRIBUTION.toml](ATTRIBUTION.toml). ",
     );
     s.push_str("Licence texts are kept beside the assets and summarised in [NOTICE](NOTICE).\n\n");
     let esc = |t: &str| t.replace('|', "\\|");
