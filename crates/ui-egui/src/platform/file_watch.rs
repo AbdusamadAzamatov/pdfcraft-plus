@@ -630,7 +630,9 @@ mod tests {
         app.views[0].select_pages(&[0]);
         app.apply_edit(pdfcraft_engine::Edit::RotatePages { pages: vec![0], degrees: 90 });
         assert!(app.save_active(SaveTarget::InPlace), "the document save uses upstream preservation limits");
-        assert_eq!(xattr::get(&path, "com.apple.LaunchServices.OpenWith").unwrap().unwrap().len(), 65537);
+        // The xattr crate's own empty-buffer size query fails on macOS 27 for a value this large.
+        let kept = pdfcraft_platform::staging::xattr_len(|probe| rustix::fs::getxattr(&path, "com.apple.LaunchServices.OpenWith", probe)).unwrap();
+        assert_eq!(kept, 65537);
         assert_eq!(xattr::get(&path, "com.apple.quarantine").unwrap(), Some(b"0082;1234;Preview;".to_vec()));
     }
 

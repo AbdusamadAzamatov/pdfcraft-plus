@@ -52,11 +52,15 @@ fn read_attribute_with(mut get: impl FnMut(&mut [u8]) -> rustix::io::Result<usiz
         Errno::RANGE => Err(io::Error::new(io::ErrorKind::InvalidData, "opening metadata exceeds 64 KiB or changed while reading")),
         _ => Ok(None),
     };
-    let len = match get(&mut []) {
+    // No empty buffer for the size: macOS 27 answers ERANGE to one (see `xattr_len`).
+    let len = match pdfcraft_platform::staging::xattr_len(&mut get) {
         Ok(len) if len <= MAX_ATTRIBUTE => len,
         Ok(_) => return unreadable(Errno::RANGE),
         Err(e) => return unreadable(e),
     };
+    if len == 0 {
+        return Ok(Some(Vec::new()));
+    }
     let mut bytes = vec![0; len];
     match get(bytes.as_mut_slice()) {
         Ok(len) if len <= bytes.len() => {
@@ -290,7 +294,9 @@ mod tests {
         assert!(OpeningMetadata::read(&file).is_err());
         crate::editing::write_atomically(file.to_str().unwrap(), b"new PDF").unwrap();
         assert_eq!(std::fs::read(&file).unwrap(), b"new PDF");
-        assert_eq!(xattr::get(&file, OPEN_WITH).unwrap().unwrap().len(), MAX_ATTRIBUTE + 1);
+        // The xattr crate's own empty-buffer size query fails on macOS 27 for a value this large.
+        let kept = pdfcraft_platform::staging::xattr_len(|probe| rustix::fs::getxattr(&file, OPEN_WITH, probe)).unwrap();
+        assert_eq!(kept, MAX_ATTRIBUTE + 1);
         assert_eq!(xattr::get(&file, QUARANTINE).unwrap(), Some(b"0082;1234;Preview;".to_vec()));
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -407,7 +413,7 @@ mod tests {
         let small = read_attribute_with(|out| {
             calls += 1;
             if calls == 1 {
-                assert!(out.is_empty());
+                assert!(out.len() > 3, "the size probe passes a buffer, never an empty one");
                 return Ok(3);
             }
             assert_eq!(out.len(), 3);

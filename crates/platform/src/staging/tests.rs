@@ -197,10 +197,10 @@ fn a_growing_resource_fork_refuses_publication_and_keeps_original() {
         setxattr(&target, name, b"ABC", XattrFlags::empty()).unwrap();
         let source = std::fs::File::open(&target).unwrap();
         let result = write_atomically_with(&target, b"REPLACEMENT PDF", form, [23], |staged| {
-            let size = fgetxattr(&source, name, &mut [] as &mut [u8])?;
+            let size = xattr_len(|probe| fgetxattr(&source, name, probe))?;
             let value = read_xattr_value(size, |buffer| {
                 if buffer.is_empty() {
-                    return Ok(fgetxattr(&source, name, buffer)?);
+                    return Ok(xattr_len(|probe| fgetxattr(&source, name, probe))?);
                 }
                 // HFS can return the prefix that fits instead of ERANGE. APFS need not
                 // have that behaviour: model the kernel response, not a timing race.
@@ -267,7 +267,7 @@ fn oversized_extended_attributes_refuse_the_save_without_replacing_the_target() 
     assert!(e.to_string().contains("Save As"), "{e}");
     assert!(!flushed, "metadata failure must stop before flush and rename");
     assert_eq!(std::fs::read(&target).unwrap(), b"OLD");
-    let size = getxattr(&target, "com.apple.ResourceFork", &mut [] as &mut [u8]).unwrap();
+    let size = xattr_len(|probe| getxattr(&target, "com.apple.ResourceFork", probe)).unwrap();
     assert_eq!(size, fork.len());
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
     std::fs::remove_dir_all(dir).unwrap();

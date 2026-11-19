@@ -257,16 +257,39 @@ fn preserve_target_xattrs(path: &Path, staged: &std::fs::File) -> std::io::Resul
             continue;
         }
         let name = std::ffi::CString::new(name).map_err(|_| std::io::Error::other("invalid extended attribute name"))?;
-        let size = fgetxattr(&source, &name, &mut [] as &mut [u8])?;
+        // An empty buffer asks for the size, and macOS 27 answers ERANGE to one: probe instead.
+        let mut get = |buffer: &mut [u8]| -> std::io::Result<usize> {
+            Ok(if buffer.is_empty() { xattr_len(|probe| fgetxattr(&source, &name, probe))? } else { fgetxattr(&source, &name, buffer)? })
+        };
+        let size = get(&mut [])?;
         if size > MAX_VALUE_BYTES || size > MAX_TOTAL_BYTES.saturating_sub(total) {
             return Err(std::io::Error::other("extended attributes exceed the 16 MiB per-value or 64 MiB total limit"));
         }
         // Resource forks may return a prefix instead of ERANGE on growth; check the size again.
-        let value = read_xattr_value(size, |buffer| Ok(fgetxattr(&source, &name, buffer)?))?;
+        let value = read_xattr_value(size, &mut get)?;
         fsetxattr(staged, &name, &value, XattrFlags::empty())?;
         total = total.saturating_add(value.len());
     }
     Ok(())
+}
+
+/// The size of an attribute, read without an empty buffer: macOS 27 answers ERANGE to a size
+/// query whose buffer is empty but not null, which is what a safe wrapper passes. The buffer grows
+/// until the value fits with room to spare (a resource fork may return the prefix that fits
+/// instead of ERANGE). Past 64 MiB the buffer's own size is returned, which every caller refuses.
+#[cfg(target_os = "macos")]
+pub fn xattr_len(mut read: impl FnMut(&mut [u8]) -> rustix::io::Result<usize>) -> rustix::io::Result<usize> {
+    const GIVE_UP: usize = 64 * 1024 * 1024;
+    let mut capacity = 256usize;
+    loop {
+        let mut probe = vec![0u8; capacity];
+        match read(probe.as_mut_slice()) {
+            Ok(len) if len < capacity => return Ok(len),
+            Ok(_) | Err(rustix::io::Errno::RANGE) if capacity <= GIVE_UP => capacity = capacity.saturating_mul(2),
+            Ok(_) | Err(rustix::io::Errno::RANGE) => return Ok(capacity),
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 /// Read an already size-bounded attribute, refusing a partial result or a changed post-read size.
