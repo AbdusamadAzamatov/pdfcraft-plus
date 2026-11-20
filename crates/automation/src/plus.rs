@@ -1,9 +1,10 @@
 //! PdfCraft Plus tools whose handling is more than a call: rotation by any angle, rasterizing,
-//! greyscale, look-alike fonts and removing restrictions. `dispatch` routes to them.
+//! greyscale, look-alike fonts, unlocking and removing restrictions. `dispatch` routes to them.
 
 use super::error::{Result, ToolError, failed};
 use super::json::{Args, security, summary};
-use super::{Automation, Edit, Value, json};
+use super::paths::{read_input, write_atomic};
+use super::{Arc, Automation, Edit, Path, Value, json};
 
 impl Automation {
     /// Rotate page content by any angle (organize.rotate-angle), optionally flattening first.
@@ -136,4 +137,85 @@ impl Automation {
         out["security"] = security(self.doc(a)?);
         Ok(out)
     }
+
+    /// Enter the permissions (owner) password of an open document, lifting its restrictions for
+    /// this session (`protect.unlock`; the app's Unlock… prompt). Not an edit: nothing is marked
+    /// unsaved and there is no undo step, and saving keeps the lifted rights.
+    pub(crate) fn doc_unlock(&mut self, a: &Args) -> Result<Value> {
+        let id = self.doc(a)?.id;
+        self.session.unlock(id, a.str("password")?).map_err(failed)?;
+        let mut out = summary(self.doc(a)?);
+        out["security"] = security(self.doc(a)?);
+        Ok(out)
+    }
+
+    /// Open an encrypted file with its password, strip its security and write the decrypted PDF
+    /// to `output` (the web tools' Decrypt PDF; qpdf's `--decrypt` and `--remove-restrictions`
+    /// in one step). `output` must not exist; nothing enters the session — the file is worked on
+    /// at the object layer so the document's own open actions never run against it. When the
+    /// file restricts the caller — it was opened with its user password — `confirmed_rights`
+    /// must confirm the right to edit it, exactly as `doc_remove_restrictions` requires.
+    pub(crate) fn file_decrypt(&mut self, a: &Args) -> Result<Value> {
+        let input = a.str("input")?;
+        let output = a.str("output")?;
+        let source = self.resolve(input, false)?;
+        let target = self.resolve(output, true)?;
+        // Read before the output is claimed, so a bad argument leaves no placeholder behind.
+        let password = a.opt_str("password")?;
+        let confirmed_rights = a.opt_bool("confirmed_rights")?.unwrap_or(false);
+        let parent = target.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+        if !parent.is_dir() {
+            return Err(failed(format!("output directory does not exist: {}", parent.display())));
+        }
+        // Claim the output name atomically: create_new fails on a file, folder or dangling
+        // symlink already there, so nothing planted between the check and the write slips in.
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // A decrypted copy deserves private permissions from creation; write_atomic then
+        // replaces this placeholder, keeping its owner-only mode.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt as _;
+            options.mode(0o600);
+        }
+        match options.open(&target) {
+            Ok(placeholder) => drop(placeholder),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                return Err(failed(format!("output already exists; refusing to replace it: {output}")));
+            }
+            Err(e) => return Err(failed(format!("{output}: {e}"))),
+        }
+        // The file is hostile: a panic while reading or writing it is an error like any other,
+        // and still removes the placeholder.
+        let written = pdfcraft_engine::guard(|| file_decrypt_write(&source, &target, password, confirmed_rights))
+            .unwrap_or_else(|m| Err(failed(format!("decrypting failed unexpectedly ({m})"))));
+        if written.is_err() {
+            let _ = std::fs::remove_file(&target); // remove the placeholder this call created
+        }
+        written
+    }
+}
+
+fn file_decrypt_write(source: &Path, target: &Path, password: Option<&str>, confirmed_rights: bool) -> Result<Value> {
+    let bytes = read_input(source)?;
+    let mut doc = pdfcraft_cos::Document::open_with_password(Arc::new(bytes), password).map_err(failed)?;
+    if doc.security().is_none() {
+        return Err(failed("the input file isn't encrypted: there is nothing to decrypt"));
+    }
+    // The permission bits the engine's `unrestricted` computes: bits 3–6 and 9–12 all set, or
+    // owner access. Anything less means the file restricts this caller.
+    let restricted = doc.permissions().is_some_and(|p| !p.owner && p.bits & 0b1111_0011_1100 != 0b1111_0011_1100);
+    if restricted && !confirmed_rights {
+        return Err(ToolError::InvalidArgs(
+            "this file restricts you (it was opened with its user password): pass confirmed_rights: true to confirm that you have the right to edit it".into(),
+        ));
+    }
+    doc.remove_encryption();
+    let out = pdfcraft_cos::write_full(&doc, &Default::default()).map_err(failed)?;
+    write_atomic(target, &out)?;
+    Ok(json!({
+        "output": target.to_string_lossy(),
+        "bytes": out.len(),
+        "security": json!({ "protected": false }),
+    }))
 }

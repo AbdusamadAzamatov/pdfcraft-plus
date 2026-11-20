@@ -517,6 +517,7 @@ mod tests {
             "read_review_sidecar",
             "process",
             "linked",
+            "file_decrypt_write",
             "walk",
             "publish",
             "check_unique_outputs",

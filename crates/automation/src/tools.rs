@@ -1346,6 +1346,20 @@ pub fn tools() -> Vec<ToolDef> {
                 "doc": doc(),
                 "confirmed_rights": { "type": "boolean", "const": true, "description": "Explicit confirmation: I have the right to edit this file. Required anew for every call." }
             }), &["doc", "confirmed_rights"])),
+        t("doc_unlock", "Unlock an open document", "Enter an open document's permissions (owner) password to lift its restrictions for this session (the app's Unlock… prompt and security notice). Not an edit: nothing is marked unsaved and there is no undo step; undo and redo states are unlocked as well, and the next save keeps the lifted rights.")
+            .cmd("protect.unlock")
+            .with(schema(json!({
+                "doc": doc(),
+                "password": { "type": "string", "minLength": 1, "description": "The document's permissions (owner) password." }
+            }), &["doc", "password"])),
+        t("file_decrypt", "Decrypt a PDF to a new file (fork only)", "One shot: open an encrypted PDF with its open (user) or permissions (owner) password, remove its password security and restrictions, and write the decrypted PDF to a new file — the web tools' Decrypt PDF, or qpdf's --decrypt and --remove-restrictions together. The output must not exist and is written with the normal atomic write and path confinement; nothing stays open in the session. When the file restricts you (it was opened with its user password), confirmed_rights: true is required, exactly as doc_remove_restrictions requires.")
+            .destructive()
+            .with(schema(json!({
+                "input": { "type": "string", "minLength": 1, "description": "Encrypted input PDF path." },
+                "output": { "type": "string", "minLength": 1, "description": "New output PDF path; must not exist." },
+                "password": { "type": "string", "description": "The file's open (user) or permissions (owner) password. Omit for a file that needs none." },
+                "confirmed_rights": { "type": "boolean", "description": "Required when the file restricts you (opened with its user password): explicit confirmation that you have the right to edit this file." }
+            }), &["input", "output"])),
         t("page_replace", "Replace pages", "Replace the content of pages with pages of another PDF (same count). Links, comments, form fields and bookmarks on the original pages stay, as in Acrobat. Undoable.")
             .cmd("page.replace")
             .with(schema(json!({ "doc": doc(), "pages": pages("to replace"), "path": path_arg(), "from_pages": pages("of the other file, in order (default: its first pages)") }), &["doc", "pages", "path"])),

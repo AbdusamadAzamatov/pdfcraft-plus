@@ -754,3 +754,174 @@ fn replace_all_reports_a_page_whose_text_cannot_be_read() {
     assert_eq!((r["replaced"].clone(), r["changed"].clone(), r["skipped_by"]["refused"].clone()), (json!(0), json!(false), json!(1)), "{r}");
     assert!(r["refusals"][0].as_str().unwrap().starts_with("page 2:"), "{r}");
 }
+
+/// A two-page file whose user password is `user` and whose permissions (owner) password is
+/// `owner`, with printing allowed but modification refused.
+fn locked_file(user: &str, owner: &str) -> Vec<u8> {
+    locked(numbered_pages(2), user, owner)
+}
+
+fn locked(pdf: Vec<u8>, user: &str, owner: &str) -> Vec<u8> {
+    let mut doc = pdfcraft_cos::Document::open(Arc::new(pdf)).unwrap();
+    doc.set_encryption(&pdfcraft_cos::NewEncryption {
+        algorithm: pdfcraft_cos::Algorithm::Aes256,
+        user_password: user,
+        owner_password: owner,
+        permissions: 0b0100,
+        encrypt_metadata: true,
+        seed: [7; 32],
+    })
+    .unwrap();
+    pdfcraft_cos::write_full(&doc, &Default::default()).unwrap()
+}
+
+/// `file_decrypt` (the web tools' Decrypt PDF; qpdf's `--decrypt`/`--remove-restrictions`):
+/// open with a password, strip security and write a decrypted copy, leaving nothing open.
+#[test]
+fn file_decrypt_writes_an_unencrypted_copy() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut a = Automation::new().with_root(dir.path()).unwrap();
+    std::fs::write(dir.path().join("locked.pdf"), locked_file("open", "owner")).unwrap();
+
+    // Opened with the user password, the file restricts the caller: confirmation is required.
+    let refused = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "decrypted.pdf", "password": "open" })).unwrap_err();
+    assert!(refused.to_string().contains("confirmed_rights"), "{refused}");
+    assert!(!dir.path().join("decrypted.pdf").exists(), "a refused call writes nothing");
+
+    let out = json(&mut a, "file_decrypt", json!({ "input": "locked.pdf", "output": "decrypted.pdf", "password": "open", "confirmed_rights": true }));
+    assert!(out["bytes"].as_u64().unwrap() > 100, "{out}");
+    assert_eq!(out["security"]["protected"], false, "{out}");
+    let cos = pdfcraft_cos::Document::open(Arc::new(std::fs::read(dir.path().join("decrypted.pdf")).unwrap())).unwrap();
+    assert!(cos.security().is_none() && cos.trailer().get(b"Encrypt").is_none());
+    let list = json(&mut a, "doc_list", json!({}));
+    assert_eq!(list["documents"].as_array().unwrap().len(), 0, "nothing enters the session: {list}");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = std::fs::metadata(dir.path().join("decrypted.pdf")).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600, "decrypted output is owner-only: {mode:o}");
+    }
+    // A bare filename lands in the working directory, not in an "empty parent" refusal.
+    let bare = json(&mut a, "file_decrypt", json!({ "input": "locked.pdf", "output": "bare.pdf", "password": "owner" }));
+    assert!(std::fs::metadata(dir.path().join("bare.pdf")).is_ok(), "{bare}");
+}
+
+/// Opened with its permissions password, the caller is the owner: no confirmation is needed.
+#[test]
+fn file_decrypt_with_the_permissions_password_needs_no_confirmation() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut a = Automation::new().with_root(dir.path()).unwrap();
+    std::fs::write(dir.path().join("locked.pdf"), locked_file("open", "owner")).unwrap();
+    let out = json(&mut a, "file_decrypt", json!({ "input": "locked.pdf", "output": "decrypted.pdf", "password": "owner" }));
+    assert!(out["bytes"].as_u64().unwrap() > 100, "{out}");
+}
+
+/// Bad input fails before anything is written, and a written output is never replaced.
+#[test]
+fn file_decrypt_refuses_bad_input_and_an_existing_output() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut a = Automation::new().with_root(dir.path()).unwrap();
+    std::fs::write(dir.path().join("locked.pdf"), locked_file("open", "owner")).unwrap();
+    std::fs::write(dir.path().join("plain.pdf"), numbered_pages(1)).unwrap();
+    std::fs::write(dir.path().join("taken.pdf"), b"keep me").unwrap();
+
+    let existing = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "taken.pdf", "password": "owner" })).unwrap_err();
+    assert!(existing.to_string().contains("already exists"), "{existing}");
+    assert_eq!(std::fs::read(dir.path().join("taken.pdf")).unwrap(), b"keep me");
+    let nested = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "no/such/dir/out.pdf", "password": "owner" })).unwrap_err();
+    assert!(nested.to_string().contains("output directory does not exist"), "{nested}");
+    // A dangling symlink at the output is refused, never followed: the resolver refuses it
+    // under a root, and create_new reports the name as taken without one.
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("no-such-target.pdf", dir.path().join("dangling.pdf")).unwrap();
+        a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "dangling.pdf", "password": "owner" })).unwrap_err();
+        assert!(dir.path().join("dangling.pdf").symlink_metadata().is_ok_and(|m| m.is_symlink()), "the link was followed");
+    }
+    let bad_args = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "x.pdf", "password": 5 })).unwrap_err();
+    assert!(bad_args.to_string().contains("password"), "{bad_args}");
+    assert!(dir.path().join("x.pdf").symlink_metadata().is_err(), "a bad argument leaves no placeholder");
+    let wrong = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "x.pdf", "password": "nope" })).unwrap_err();
+    assert!(wrong.to_string().contains("password"), "{wrong}");
+    let plain = a.call("file_decrypt", &json!({ "input": "plain.pdf", "output": "x.pdf" })).unwrap_err();
+    assert!(plain.to_string().contains("isn't encrypted"), "{plain}");
+    assert!(!dir.path().join("x.pdf").exists(), "a failed call writes nothing — not even the claimed placeholder");
+    let list = json(&mut a, "doc_list", json!({}));
+    assert_eq!(list["documents"].as_array().unwrap().len(), 0, "nothing stays open after a failure: {list}");
+}
+
+/// A decrypted copy keeps the form values the file was saved with: the open action that would
+/// change them doesn't run, and the caller's own documents keep their scripts.
+#[test]
+fn file_decrypt_keeps_saved_form_values_and_runs_no_open_action() {
+    let objs = [
+        "<< /Type /Catalog /Pages 2 0 R /OpenAction 5 0 R /AcroForm << /Fields [4 0 R] >> >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 200 300] >>",
+        "<< /Type /Page /Parent 2 0 R /Annots [4 0 R] >>",
+        "<< /Type /Annot /Subtype /Widget /FT /Tx /T (log) /V (saved) /Rect [20 250 180 270] /P 3 0 R /F 4 >>",
+        "<< /S /JavaScript /JS (getField\\('log'\\).value = 'changed on open';) >>",
+    ];
+    let mut pdf = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(pdf.len());
+        pdf.extend_from_slice(format!("{} 0 obj\n{o}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = pdf.len();
+    pdf.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        pdf.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    pdf.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("form.pdf"), locked(pdf, "open", "owner")).unwrap();
+    let mut a = Automation::new().with_root(dir.path()).unwrap();
+    assert!(a.session.javascript(), "the caller's session runs scripts");
+    json(&mut a, "file_decrypt", json!({ "input": "form.pdf", "output": "decrypted.pdf", "password": "owner" }));
+    assert!(a.session.javascript(), "and still does");
+
+    let mut reader = Automation::new().with_root(dir.path()).unwrap();
+    reader.session.set_javascript(false);
+    let doc = json(&mut reader, "doc_open", json!({ "path": "decrypted.pdf" }))["doc"].clone();
+    let fields = json(&mut reader, "form_fields", json!({ "doc": doc }));
+    let log = fields["fields"].as_array().unwrap().iter().find(|f| f["name"] == "log").map(|f| f["value"].clone());
+    assert_eq!(log, Some(json!("saved")), "{fields}");
+}
+
+/// Without a root, a bare output name is a file in the current folder.
+#[test]
+fn file_decrypt_writes_a_bare_output_name_to_the_current_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("locked.pdf");
+    std::fs::write(&input, locked_file("open", "owner")).unwrap();
+    let name = format!(".file-decrypt-bare-{}.pdf", std::process::id());
+    struct Remove<'a>(&'a str);
+    impl Drop for Remove<'_> {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(self.0);
+        }
+    }
+    let _remove = Remove(&name);
+    let mut a = Automation::new();
+    json(&mut a, "file_decrypt", json!({ "input": input.to_string_lossy(), "output": name, "password": "owner" }));
+    let cos = pdfcraft_cos::Document::open(Arc::new(std::fs::read(&name).unwrap())).unwrap();
+    assert!(cos.security().is_none());
+}
+
+/// `doc_unlock` enters an open document's permissions password (the app's Unlock… prompt):
+/// restrictions lift for the session, and a wrong password is refused.
+#[test]
+fn doc_unlock_lifts_restrictions_with_the_permissions_password() {
+    let mut a = Automation::new();
+    let id = a.session.open("locked.pdf", None, Arc::new(locked_file("open", "owner")), Some("open")).unwrap();
+    assert!(a.session.get(id).unwrap().can_unlock(), "restricted until unlocked");
+
+    let wrong = a.call("doc_unlock", &json!({ "doc": id.0, "password": "nope" })).unwrap_err();
+    assert!(wrong.to_string().contains("password"), "{wrong}");
+    assert!(a.session.get(id).unwrap().can_unlock(), "a wrong password lifts nothing");
+
+    let out = json(&mut a, "doc_unlock", json!({ "doc": id.0, "password": "owner" }));
+    assert_eq!(out["security"]["protected"], true, "{out}");
+    assert_eq!(out["security"]["modify"], true, "{out}");
+    assert!(!a.session.get(id).unwrap().can_unlock() && !a.session.get(id).unwrap().dirty, "unlocked and still saved");
+}
