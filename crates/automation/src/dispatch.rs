@@ -726,6 +726,8 @@ impl Automation {
                 out
             }
             "doc_remove_restrictions" => self.doc_remove_restrictions(&a)?,
+            "doc_unlock" => self.doc_unlock(&a)?,
+            "file_decrypt" => self.file_decrypt(&a)?,
             "form_fields" => self.form_fields(&a)?,
             "form_fill" => self.form_fill(&a)?,
             "form_focus" => self.form_focus(&a)?,

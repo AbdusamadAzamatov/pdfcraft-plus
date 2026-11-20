@@ -1,9 +1,10 @@
 //! PdfCraft Plus tools whose handling is more than a call: rotation by any angle, rasterizing,
-//! greyscale, look-alike fonts and removing restrictions. `dispatch` routes to them.
+//! greyscale, look-alike fonts, unlocking and removing restrictions. `dispatch` routes to them.
 
 use super::error::{Result, ToolError, failed};
 use super::json::{Args, security, summary};
-use super::{Automation, Edit, Value, json};
+use super::paths::{read_input, write_atomic};
+use super::{Arc, Automation, DocId, Edit, Path, Value, json};
 
 impl Automation {
     /// Rotate page content by any angle (organize.rotate-angle), optionally flattening first.
@@ -135,5 +136,66 @@ impl Automation {
         let mut out = self.apply(a, Edit::RemoveRestrictions { confirmed_rights: true })?;
         out["security"] = security(self.doc(a)?);
         Ok(out)
+    }
+
+    /// Enter the permissions (owner) password of an open document, lifting its restrictions for
+    /// this session (`protect.unlock`; the app's Unlock… prompt). Not an edit: nothing is marked
+    /// unsaved and there is no undo step, and saving keeps the lifted rights.
+    pub(crate) fn doc_unlock(&mut self, a: &Args) -> Result<Value> {
+        let id = self.doc(a)?.id;
+        self.session.unlock(id, a.str("password")?).map_err(failed)?;
+        let mut out = summary(self.doc(a)?);
+        out["security"] = security(self.doc(a)?);
+        Ok(out)
+    }
+
+    /// Open an encrypted file with its password, strip its security and write the decrypted PDF
+    /// to `output` (the web tools' Decrypt PDF; qpdf's `--decrypt` and `--remove-restrictions`
+    /// in one step). `output` must not exist; nothing stays open in the session. When the file
+    /// restricts the caller — it was opened with its user password — `confirmed_rights` must
+    /// confirm the right to edit it, exactly as `doc_remove_restrictions` requires.
+    pub(crate) fn file_decrypt(&mut self, a: &Args) -> Result<Value> {
+        let input = a.str("input")?;
+        let output = a.str("output")?;
+        let source = self.resolve(input, false)?;
+        let target = self.resolve(output, true)?;
+        if target.exists() {
+            return Err(failed(format!("output already exists; refusing to replace it: {output}")));
+        }
+        let parent = target.parent().ok_or_else(|| failed(format!("output has no parent directory: {output}")))?;
+        if !parent.is_dir() {
+            return Err(failed(format!("output directory does not exist: {}", parent.display())));
+        }
+        let bytes = read_input(&source)?;
+        let name = source.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let id = self.session.open(name, Some(source.to_string_lossy().into_owned()), Arc::new(bytes), a.opt_str("password")?).map_err(failed)?;
+        // Whatever happens next, the document leaves the session.
+        let result = self.file_decrypt_write(id, a.opt_bool("confirmed_rights")?.unwrap_or(false), &target);
+        self.session.close(id);
+        self.renderers.remove(&id);
+        self.texts.remove(&id);
+        result
+    }
+
+    fn file_decrypt_write(&mut self, id: DocId, confirmed_rights: bool, target: &Path) -> Result<Value> {
+        let doc = self.session.get(id).ok_or_else(|| failed("the opened document vanished"))?;
+        if doc.security_summary().is_none() {
+            return Err(failed("the input file isn't encrypted: there is nothing to decrypt"));
+        }
+        if doc.can_unlock() && !confirmed_rights {
+            return Err(ToolError::InvalidArgs(
+                "this file restricts you (it was opened with its user password): pass confirmed_rights: true to confirm that you have the right to edit it".into(),
+            ));
+        }
+        let pages = doc.info.pages.len();
+        self.session.apply(id, Edit::RemoveRestrictions { confirmed_rights: true }).map_err(failed)?;
+        let bytes = self.session.save_bytes(id).map_err(failed)?;
+        write_atomic(target, &bytes)?;
+        Ok(json!({
+            "output": target.to_string_lossy(),
+            "bytes": bytes.len(),
+            "pages": pages,
+            "security": security(self.session.get(id).ok_or_else(|| failed("the opened document vanished"))?),
+        }))
     }
 }
