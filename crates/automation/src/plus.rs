@@ -160,6 +160,9 @@ impl Automation {
         let output = a.str("output")?;
         let source = self.resolve(input, false)?;
         let target = self.resolve(output, true)?;
+        // Read before the output is claimed, so a bad argument leaves no placeholder behind.
+        let password = a.opt_str("password")?;
+        let confirmed_rights = a.opt_bool("confirmed_rights")?.unwrap_or(false);
         let parent = target.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
         if !parent.is_dir() {
             return Err(failed(format!("output directory does not exist: {}", parent.display())));
@@ -182,7 +185,10 @@ impl Automation {
             }
             Err(e) => return Err(failed(format!("{output}: {e}"))),
         }
-        let written = file_decrypt_write(&source, &target, a.opt_str("password")?, a.opt_bool("confirmed_rights")?.unwrap_or(false));
+        // The file is hostile: a panic while reading or writing it is an error like any other,
+        // and still removes the placeholder.
+        let written = pdfcraft_engine::guard(|| file_decrypt_write(&source, &target, password, confirmed_rights))
+            .unwrap_or_else(|m| Err(failed(format!("decrypting failed unexpectedly ({m})"))));
         if written.is_err() {
             let _ = std::fs::remove_file(&target); // remove the placeholder this call created
         }

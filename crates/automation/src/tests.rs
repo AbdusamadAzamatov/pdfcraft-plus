@@ -838,6 +838,9 @@ fn file_decrypt_refuses_bad_input_and_an_existing_output() {
         a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "dangling.pdf", "password": "owner" })).unwrap_err();
         assert!(dir.path().join("dangling.pdf").symlink_metadata().is_ok_and(|m| m.is_symlink()), "the link was followed");
     }
+    let bad_args = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "x.pdf", "password": 5 })).unwrap_err();
+    assert!(bad_args.to_string().contains("password"), "{bad_args}");
+    assert!(dir.path().join("x.pdf").symlink_metadata().is_err(), "a bad argument leaves no placeholder");
     let wrong = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "x.pdf", "password": "nope" })).unwrap_err();
     assert!(wrong.to_string().contains("password"), "{wrong}");
     let plain = a.call("file_decrypt", &json!({ "input": "plain.pdf", "output": "x.pdf" })).unwrap_err();
