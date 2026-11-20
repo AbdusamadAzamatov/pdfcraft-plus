@@ -653,7 +653,7 @@ mod tests {
         let comment = crate::NewAnnotation {
             page: 0,
             shape: crate::Shape::Rectangle { rect: [20.0, 20.0, 60.0, 60.0] },
-            style: crate::Style { color: [0.0, 0.0, 1.0], opacity: 1.0, width: 2.0, fill: None },
+            style: crate::Style { color: [0.0, 0.0, 1.0], opacity: 1.0, width: 2.0, fill: None, ..Default::default() },
             contents: "Look".into(),
             author: "Reviewer".into(),
         };

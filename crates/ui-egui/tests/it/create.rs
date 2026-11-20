@@ -187,6 +187,12 @@ fn the_pdf_optimizer_dialog_saves_an_optimized_copy() {
     h.run_steps(2);
     h.get_by_label("PDF Optimizer");
     h.get_by_label("Color Images");
+    h.get_by_label("Monochrome Images");
+    assert_eq!(h.state().optimize_draft.settings.mono, pdfcraft_engine::optimize::MonoSettings::REDUCE);
+    // Monochrome Images ▸ Downsample to can be turned off.
+    h.get_by_label("Downsample to").click();
+    h.run_steps(2);
+    assert!(!h.state().optimize_draft.settings.mono.downsample);
     h.get_by_label("Discard Objects").click();
     h.run_steps(2);
     h.get_by_label("Discard document tags").click();
@@ -420,7 +426,7 @@ fn rasterize_pages_dialog_turns_the_current_page_into_a_picture() {
 
     assert!(h.state_mut().execute("optimize.rasterize"));
     h.run_steps(3);
-    h.get_by_label("Current page").click();
+    h.get_by_role_and_label(egui::accesskit::Role::RadioButton, "Current page").click();
     h.run_steps(1);
     h.state_mut().rasterize_draft.dpi = 72;
     h.get_by_label("Rasterize").click();
@@ -432,5 +438,26 @@ fn rasterize_pages_dialog_turns_the_current_page_into_a_picture() {
     assert_eq!(page_images(doc.bytes.clone(), 0), 1, "the current page is one picture");
     if pages > 1 {
         assert_eq!(page_images(doc.bytes.clone(), 1), 0, "the other pages are untouched");
+    }
+}
+
+/// Create ▸ Blank page uses the system region's paper, not always US Letter (#5644): the app
+/// starts with the system's, and a blank page is on A4 and on Letter as the paper says
+/// (CodeRabbit on #5651: a Letter host alone would not tell a hard-coded Letter apart).
+#[test]
+fn a_blank_page_is_on_the_system_regions_paper() {
+    use pdfcraft_ui_egui::paper::Paper;
+    assert_eq!(PdfCraftApp::new().blank_paper, Paper::system());
+    for paper in [Paper::A4, Paper::Letter] {
+        let mut app = PdfCraftApp::new();
+        app.blank_paper = paper;
+        assert!(app.execute("create.blank"));
+        let docs = app.session.docs();
+        let crop = docs.last().and_then(|d| d.info.pages.first()).map(|p| p.crop).unwrap();
+        let (w, h) = paper.points();
+        assert!(
+            ((crop[2] - crop[0]) as f64 - w).abs() < 0.01 && ((crop[3] - crop[1]) as f64 - h).abs() < 0.01,
+            "{paper:?}: {crop:?} is not {w} × {h}"
+        );
     }
 }

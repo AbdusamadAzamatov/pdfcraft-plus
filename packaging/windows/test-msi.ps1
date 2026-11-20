@@ -4,7 +4,13 @@
 .EXAMPLE
   pwsh packaging/windows/test-msi.ps1 dist/release/pdfcraft-plus-0.14.3-windows-x64.msi
 #>
-param([Parameter(Mandatory)] [string] $Path)
+param(
+  [Parameter(Mandatory)] [string] $Path,
+  # 1 when package.ps1 staged craft-fonts OFL notices, 0 when the binaries embed no craft-fonts.
+  # -1 (the default) skips the check when the MSI is inspected by hand.
+  [int] $CraftFontLicences = -1,
+  [string] $ExpectedFontNoticesDirectory
+)
 $ErrorActionPreference = 'Stop'
 $Installer = New-Object -ComObject WindowsInstaller.Installer
 $Database = $Installer.OpenDatabase((Resolve-Path -LiteralPath $Path).Path, 0)
@@ -92,19 +98,44 @@ $appPath = Read-Row 'SELECT `Value` FROM `Registry` WHERE `Key` = ''Software\Mic
 Assert-Equal $appPath[0] '[#PdfcraftExe]' 'App Paths entry'
 $registered = Read-Row 'SELECT `Value` FROM `Registry` WHERE `Key` = ''Software\RegisteredApplications'' AND `Name` = ''PdfCraft Plus''' 1
 Assert-Equal $registered[0] 'Software\PdfCraft Plus\Capabilities' 'Default Programs registration'
+
+# Embedded craft-fonts must ship their OFL notices; a build without them must not claim any.
+# Check the compiled File table, not only the WiX source, so a staging or component-group mistake
+# cannot silently omit the licences.
+$fontNotices = @()
+$fileView = $Database.OpenView('SELECT `FileName` FROM `File`')
+try {
+  [void] $fileView.Execute()
+  while ($record = $fileView.Fetch()) {
+    $name = $record.StringData(1)
+    if ($name -like '*OFL-*') { $fontNotices += $name }
+  }
+} finally { [void] $fileView.Close() }
+if ($CraftFontLicences -eq 1 -and $fontNotices.Count -eq 0) {
+  throw 'the MSI carries no craft-font OFL notices'
+}
+if ($CraftFontLicences -eq 0 -and $fontNotices.Count -gt 0) {
+  throw "the MSI carries craft-font notices that packaging did not stage: $($fontNotices -join ', ')"
+}
+if ($ExpectedFontNoticesDirectory) {
+  . (Join-Path $PSScriptRoot 'font-notices.ps1')
+  $expected = @(Get-ChildItem -LiteralPath $ExpectedFontNoticesDirectory -File -Filter 'OFL-*.txt' | ForEach-Object { $_.Name })
+  Assert-CraftFontNoticeNames $expected $fontNotices
+}
 $status = Read-Row 'SELECT `Text` FROM `Control` WHERE `Dialog_` = ''InstallProgress'' AND `Control` = ''Status''' 1
 Assert-Equal $status[0] 'Please wait while setup completes.' 'Persistent progress message'
 Assert-NoRow 'SELECT `Event` FROM `EventMapping` WHERE `Dialog_` = ''InstallProgress'' AND `Control_` = ''Status''' 'progress text subscription'
 
-# Plain (non-advertised) shortcuts to pdfcraft-plus.exe, each in its own component; the desktop one is
-# gated by INSTALLDESKTOPSHORTCUT, which is secure so the UI choice reaches the
+# Plain (non-advertised) shortcuts to pdfcraft-plus.exe, each in its own component and with no Icon
+# table entry, so the shell takes the exe's own icon and a pin keeps it across updates. The
+# desktop one is gated by INSTALLDESKTOPSHORTCUT, which is secure so the UI choice reaches the
 # elevated install.
 foreach ($entry in @(@('StartMenuShortcut', 'ProgramMenuFolder', 'PdfcraftStartMenuShortcut', ''),
                      @('DesktopShortcut', 'DesktopFolder', 'PdfcraftDesktopShortcut', 'INSTALLDESKTOPSHORTCUT = 1'))) {
   $row = Read-Row ('SELECT `Directory_`, `Target`, `Icon_`, `WkDir`, `Component_` FROM `Shortcut` WHERE `Shortcut` = ''' + $entry[0] + '''') 5
   Assert-Equal $row[0] $entry[1] "$($entry[0]) directory"
   Assert-Equal $row[1] '[#PdfcraftExe]' "$($entry[0]) target"
-  Assert-Equal $row[2] 'PdfcraftIcon.ico' "$($entry[0]) icon"
+  Assert-Equal $row[2] '' "$($entry[0]) icon"
   Assert-Equal $row[3] 'INSTALLFOLDER' "$($entry[0]) working directory"
   Assert-Equal $row[4] $entry[2] "$($entry[0]) component"
   $component = Read-Row ('SELECT `Directory_`, `Condition` FROM `Component` WHERE `Component` = ''' + $entry[2] + '''') 2
@@ -258,10 +289,26 @@ if (($secure[0] -split ';') -notcontains 'INSTALLPDFCONTEXTMENU') { throw "INSTA
 $pdfCheckbox = Read-Row 'SELECT `Type`, `Property`, `Text` FROM `Control` WHERE `Dialog_` = ''InstallWelcome'' AND `Control` = ''PdfContextMenu''' 3
 Assert-Equal $pdfCheckbox[0] 'CheckBox' 'Welcome PDF context-menu control'
 Assert-Equal $pdfCheckbox[1] 'INSTALLPDFCONTEXTMENU' 'Welcome PDF context-menu property'
-if ($pdfCheckbox[2] -notmatch 'Edit with PdfCraft Plus') { throw "Welcome PDF context-menu label: '$($pdfCheckbox[2])'" }
+if ($pdfCheckbox[2] -notmatch '&Edit' -or $pdfCheckbox[2] -notmatch 'Combine files') { throw "Welcome PDF context-menu label: '$($pdfCheckbox[2])'" }
 $pdfChecked = Read-Row 'SELECT `Value` FROM `CheckBox` WHERE `Property` = ''INSTALLPDFCONTEXTMENU''' 1
 Assert-Equal $pdfChecked[0] '1' 'Welcome PDF context-menu value'
 Assert-NoRow 'SELECT `Registry` FROM `Registry` WHERE `Key` = ''Software\Classes\.pdf'' AND `Name` IS NULL' '.pdf default app'
+# "Combine files in PdfCraft Plus" (upstream #585): in the PDF menu's component, so the one switch covers both
+# verbs. Each selected file starts `pdfcraft --combine "<file>"` (Document), and the running
+# PdfCraft collects them into its Combine files tab.
+$combineKey = 'Software\Classes\SystemFileAssociations\.pdf\shell\PdfCraftPlus.Combine'
+$combineMenu = Read-Row ('SELECT `Value`, `Component_`, `Root` FROM `Registry` WHERE `Key` = ''' + $combineKey + ''' AND `Name` IS NULL') 3
+Assert-Equal $combineMenu[0] 'Combine files in PdfCraft Plus' 'Combine verb label'
+Assert-Equal $combineMenu[1] 'PdfcraftPdfContextMenu' 'Combine verb component'
+Assert-Equal $combineMenu[2] '2' 'Combine verb HKLM root'
+foreach ($value in @(@('Icon', '"[#PdfcraftExe]",0'), @('MultiSelectModel', 'Document'))) {
+  $row = Read-Row ('SELECT `Value`, `Component_` FROM `Registry` WHERE `Key` = ''' + $combineKey + ''' AND `Name` = ''' + $value[0] + '''') 2
+  Assert-Equal $row[0] $value[1] "Combine verb $($value[0])"
+  Assert-Equal $row[1] 'PdfcraftPdfContextMenu' "Combine verb $($value[0]) component"
+}
+$combineCommand = Read-Row ('SELECT `Value`, `Component_` FROM `Registry` WHERE `Key` = ''' + $combineKey + '\command''') 2
+Assert-Equal $combineCommand[0] '"[#PdfcraftExe]" --combine "%1"' 'Combine verb command'
+Assert-Equal $combineCommand[1] 'PdfcraftPdfContextMenu' 'Combine verb command component'
 
 # Negative sequences are Windows Installer's success/user-exit/failure paths. Only full UI
 # shows these dialogs: an unattended /qn or /qb install must never wait for a Finish click.
@@ -282,15 +329,18 @@ $modelsDir = Read-Row 'SELECT `Directory_Parent`, `DefaultDir` FROM `Directory` 
 Assert-Equal $modelsDir[0] 'INSTALLFOLDER' 'OCR models folder parent'
 # DefaultDir is `models`, or `SHORT|models` with a generated 8.3 name.
 if ($modelsDir[1] -notmatch '(^|\|)models$') { throw "OCR models folder name: '$($modelsDir[1])'" }
-$modelFiles = 0
+$modelFiles = @()
 $view = $Database.OpenView('SELECT `File`.`FileName` FROM `File`, `Component` WHERE `File`.`Component_` = `Component`.`Component` AND `Component`.`Directory_` = ''ModelsFolder''')
 try {
   [void] $view.Execute()
-  while ($record = $view.Fetch()) { if ($record.StringData(1) -match '\.rten$') { $modelFiles++ } }
+  # FileName can contain a generated 8.3 name before the long name: SHORT|long.
+  while ($record = $view.Fetch()) { $modelFiles += ($record.StringData(1) -split '\|')[-1] }
 } finally { [void] $view.Close() }
-if ($modelFiles -lt 2) { throw "expected the OCR models (*.rten) in models\, found $modelFiles" }
+foreach ($model in @('text-detection.onnx', 'text-recognition.onnx')) {
+  Assert-Equal (@($modelFiles | Where-Object { $_ -ceq $model }).Count) 1 "OCR model $model in models\"
+}
 $rm = Read-Row 'SELECT `Dialog` FROM `Dialog` WHERE `Dialog` = ''MsiRMFilesInUse''' 1
 Assert-Equal $rm[0] 'MsiRMFilesInUse' 'Files-in-use dialog'
 [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($Database)
 [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($Installer)
-Write-Output 'ok MSI: PdfCraft Plus identity (no upstream key, verb or UpgradeCode), per-machine scope guard, publisher, persistent progress text, Start Menu shortcut, optional desktop shortcut and PDF and image context menus (on for a first install, kept on update only while present; checkboxes for the first two), icon/key path, full-UI success/cancel/error and Finish controls, files-in-use dialog, OCR models'
+Write-Output 'ok MSI: PdfCraft Plus identity (no upstream key, verb or UpgradeCode), per-machine scope guard, publisher, persistent progress text, Start Menu shortcut, optional desktop shortcut and PDF (Edit, Combine files) and image context menus (on for a first install, kept on update only while present; checkboxes for the first two), icon/key path, full-UI success/cancel/error and Finish controls, files-in-use dialog, OCR models'

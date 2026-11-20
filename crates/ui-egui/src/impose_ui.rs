@@ -113,7 +113,7 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, handlin
             Some((name, _)) => tl!(name),
             None => tl!("Same as first page"),
         };
-        egui::ComboBox::from_id_salt("impose-paper").selected_text(shown).width(260.0).show_ui(ui, |ui| {
+        craft_ui::ComboBox::from_id_salt("impose-paper").selected_text(shown).width(260.0).show_ui(ui, |ui| {
             ui.selectable_value(&mut d.paper, None, tl!("Same as first page"));
             for (i, (name, _)) in PAPERS.iter().enumerate() {
                 ui.selectable_value(&mut d.paper, Some(i), tl!(name));

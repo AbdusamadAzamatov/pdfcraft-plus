@@ -41,6 +41,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The interface translations (Russian), at the commit craft-i18n.rev pins. Required, so a
+      # build without them fails rather than shipping an English-only interface.
+      - name: Fetch craft-i18n
+        shell: bash
+        run: |
+          set -euo pipefail
+          rev="$(tr -d '[:space:]' < craft-i18n.rev)"
+          dir="$RUNNER_TEMP/craft-i18n"
+          git init -q "$dir"
+          git -C "$dir" fetch -q --depth 1 https://github.com/storytold/craft-i18n "$rev"
+          git -C "$dir" checkout -q FETCH_HEAD
+          echo "CRAFT_I18N_DIR=$dir" >> "$GITHUB_ENV"
+          echo "CRAFT_I18N_REQUIRED=1" >> "$GITHUB_ENV"
 
       # Cargo.toml sets rust-version = "1.95" and the repository has no rust-toolchain file, so
       # current stable, with both macOS targets for the universal binary.
@@ -97,6 +110,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The interface translations (Russian), at the commit craft-i18n.rev pins. Required, so a
+      # build without them fails rather than shipping an English-only interface.
+      - name: Fetch craft-i18n
+        shell: bash
+        run: |
+          set -euo pipefail
+          rev="$(tr -d '[:space:]' < craft-i18n.rev)"
+          dir="$RUNNER_TEMP/craft-i18n"
+          git init -q "$dir"
+          git -C "$dir" fetch -q --depth 1 https://github.com/storytold/craft-i18n "$rev"
+          git -C "$dir" checkout -q FETCH_HEAD
+          echo "CRAFT_I18N_DIR=$dir" >> "$GITHUB_ENV"
+          echo "CRAFT_I18N_REQUIRED=1" >> "$GITHUB_ENV"
 
       # As in the macOS job; the later steps read it as $env:VERSION.
       - name: Read the version

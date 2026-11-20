@@ -30,14 +30,16 @@ always includes every interface language.
 
 ## How translations work
 
-PdfCraft uses the same system as PhotoCraft (`crates/ui-egui/src/i18n/`):
+PdfCraft reads its translations from [craft-i18n](https://github.com/storytold/craft-i18n), shared by the Crafting Apps, through the `craft-i18n` crate (`crates/ui-egui/src/i18n.rs` is a thin wrapper):
 
 - Strings in the code stay in English and serve as lookup keys. At draw time, `tl!("Save")` returns the text in the current language, and falls back to English when there is no entry.
-- Each language has a catalog, `crates/ui-egui/src/i18n/<code>.tsv`, with one entry per line: `context<TAB>English<TAB>translation`. An empty context marks a plain string. `@id` keys an entry by command id (for example `file.saveAs`), so one menu item can read differently from another with the same English label. `@plural` holds plural forms. Any other context disambiguates an English word with several meanings (`tl_ctx!` in UI code, for example the signature pad's "Type" button against the "Type" column). The header of `ru.tsv` documents the format and escapes.
+- Each language has two catalogs in craft-i18n: `locales/<code>/common.tsv` (rows every app shares) and `locales/<code>/pdfcraft.tsv` (PdfCraft's own rows, which win over shared ones). One entry per line: `context<TAB>English<TAB>translation`. An empty context marks a plain string. `@id` keys an entry by command id (for example `file.saveAs`); PdfCraft reads `@id` rows only from `pdfcraft.tsv`. `@plural` holds plural forms, chosen by CLDR rules. Any other context disambiguates an English word with several meanings (`tl_ctx!` in UI code). craft-i18n's `docs/integration.md` documents the format and escapes.
+- PdfCraft Plus embeds only the English and Russian catalogs, and appends `crates/ui-egui/src/i18n/ru.tsv` to the Russian one: the Russian rows for the strings only this fork has (`crates/ui-egui/build.rs`). A string the fork adds gets its Russian row there, not in craft-i18n.
+- The build embeds the catalogs from `CRAFT_I18N_DIR`, a craft-i18n checkout at the commit in `craft-i18n.rev` (CI and the flatpak manifests check it out there). Unset, the build is English only; `CRAFT_I18N_REQUIRED=1` (release builds) makes that an error. Tests that need the catalogs say they are skipped.
 - Placeholders (`{name}`) must appear in both columns. A trailing `…` must be kept. `i18n::fmt` fills placeholders in one pass, so a value such as a file name containing `{n}` is inserted as written.
-- A missing entry never fails a build or a test: that string shows in English. `cargo xtask i18n-report`, a step of `cargo xtask ci`, prints for each language how many strings it has no translation for and the first few. It counts every command, All tools label, literal passed to `tl!` or `i18n::t` in the UI source, engine wording (below) and key of the bundled catalogs, so a new English string shows up there until each catalog has it.
-- Catalogs are validated strictly: unknown escapes, unknown `@` contexts, placeholder or ellipsis mismatches, wrong plural form counts and duplicates are errors. The tests require the bundled catalogs to have none; at run time a bad line is skipped (and logged) and that string shows in English.
-- Each `.tsv` has an `ATTRIBUTION.toml` entry with `kind = "translation"` (title, author, source, licence), checked by `cargo xtask assets`. Catalogs are project files under the project licence, so the entry has no `sha256` and editing a catalog doesn't touch `ATTRIBUTION.toml`; git history records their provenance.
+- A missing entry never fails a build or a test: that string shows in English. `cargo xtask i18n-report`, a step of `cargo xtask ci`, prints for each language how many strings it has no translation for and the first few. It counts every command, All tools label, literal passed to `tl!` or `i18n::t` in the UI source, engine wording (below) and key of the embedded PdfCraft catalogs.
+- craft-i18n validates rows strictly (unknown escapes, unknown `@` contexts, placeholder or ellipsis mismatches, wrong plural form counts, duplicates). At run time a bad row is skipped (and logged) and that string shows in English; `bundled_catalogs_are_consistent` prints them.
+- `ATTRIBUTION.toml` records the translations as one `[[build_input]]`; craft-i18n's `ATTRIBUTION.md` credits the translators.
 - Translations are clean-room: write them from the meaning of the English text, never from another product's string tables.
 
 ## Sentences the engine words
@@ -54,8 +56,10 @@ Error details that come from the operating system, and faults rather than mistak
 
 ## Adding a language
 
-1. Copy the header of `ru.tsv` into `xx.tsv` and translate entries.
-2. Add one row to `LANGUAGES` in `crates/ui-egui/src/i18n/mod.rs`: code, native name, catalog and plural rule.
-3. Add an `ATTRIBUTION.toml` entry for the catalog (`kind = "translation"`, no `sha256`), then run `cargo xtask assets --write` (it regenerates `ATTRIBUTION.md` only) and `cargo xtask assets`.
+1. In craft-i18n, add `locales/xx/pdfcraft.tsv` with its `@id language.name` row, and translate entries.
+2. Add one row to `LANGUAGES` in `crates/ui-egui/src/i18n.rs` (code and whether it is right-to-left), one to `english_name`, and one to `DATE_LANGUAGES` in `crates/engine/src/dates.rs`.
+3. Bump `craft-i18n.rev` (and the `commit:` of the craft-i18n source in both flatpak manifests) to a craft-i18n commit with the catalog.
 
-The Preferences dropdown, the system-language match, the catalog tests (format, duplicates, placeholders, plural forms, command ids) and the translation gaps report then pick it up.
+The Preferences dropdown, the system-language match and the translation gaps report then pick it up.
+
+The egui 0.37 migration pins craft-fonts `b076417b5880bd4154bd22f00695b1d28c6bea83`. That manifest supplies Arabic, Hebrew, Thai and Devanagari faces selected for the web payload, but contains no Telugu face. The build code accepts a `Telu` row when a future input provides one; it does not establish Telugu glyph coverage with the current pin.

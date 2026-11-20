@@ -71,6 +71,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The interface translations (Russian), at the commit craft-i18n.rev pins. Required, so a
+      # build without them fails rather than shipping an English-only interface.
+      - name: Fetch craft-i18n
+        shell: bash
+        run: |
+          set -euo pipefail
+          rev="$(tr -d '[:space:]' < craft-i18n.rev)"
+          dir="$RUNNER_TEMP/craft-i18n"
+          git init -q "$dir"
+          git -C "$dir" fetch -q --depth 1 https://github.com/storytold/craft-i18n "$rev"
+          git -C "$dir" checkout -q FETCH_HEAD
+          echo "CRAFT_I18N_DIR=$dir" >> "$GITHUB_ENV"
+          echo "CRAFT_I18N_REQUIRED=1" >> "$GITHUB_ENV"
       - name: System packages
         # egui/winit/rfd, and the independent oracles (crates/oracle); the same list as ci.yml.
         run: |
@@ -99,6 +112,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The interface translations (Russian), at the commit craft-i18n.rev pins. Required, so a
+      # build without them fails rather than shipping an English-only interface.
+      - name: Fetch craft-i18n
+        shell: bash
+        run: |
+          set -euo pipefail
+          rev="$(tr -d '[:space:]' < craft-i18n.rev)"
+          dir="$RUNNER_TEMP/craft-i18n"
+          git init -q "$dir"
+          git -C "$dir" fetch -q --depth 1 https://github.com/storytold/craft-i18n "$rev"
+          git -C "$dir" checkout -q FETCH_HEAD
+          echo "CRAFT_I18N_DIR=$dir" >> "$GITHUB_ENV"
+          echo "CRAFT_I18N_REQUIRED=1" >> "$GITHUB_ENV"
+      # The checks package.ps1 runs on craft-fonts' OFL notices before they go into the MSI.
+      - name: Windows font notice regressions
+        shell: pwsh
+        run: ./packaging/windows/test-font-notices.ps1
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           toolchain: stable

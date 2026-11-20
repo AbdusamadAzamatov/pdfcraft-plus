@@ -133,6 +133,41 @@ fn thumbnail_size_is_settable_and_inspectable_through_the_control_channel() {
 }
 
 #[test]
+fn form_tab_numbers_can_be_shown_and_captured_through_the_control_channel() {
+    let (mut h, c) = harness();
+    h.state_mut().open_bytes("form.pdf", None, include_bytes!("../data/form.pdf").to_vec()).unwrap();
+    h.run_steps(3);
+    ok(&mut h, &c, "ui.command", json!({"id": "form.prepare"}));
+    let control = ok(&mut h, &c, "ui.inspect", json!({"query": "Show tab numbers"}));
+    assert!(control["widgets"].as_array().unwrap().iter().any(|widget| widget["label"] == "Show tab numbers"));
+    ok(&mut h, &c, "ui.click", json!({"label": "Show tab numbers"}));
+    h.run_steps(2);
+    assert!(h.state().views[h.state().active.unwrap()].prepare.show_tab_numbers);
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"][1]["dirty"], false);
+    let shot = ok(&mut h, &c, "ui.screenshot", json!({}));
+    assert!(shot["png_base64"].as_str().is_some_and(|png| !png.is_empty()), "the control channel returns a nonempty screenshot");
+}
+
+#[test]
+fn page_shadows_are_an_observable_app_wide_preference() {
+    let (mut h, c) = harness();
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["show_page_edge_shadows"], true);
+    for value in ["false", "true"] {
+        ok(&mut h, &c, "ui.set", json!({ "key": "show_page_edge_shadows", "value": value }));
+        assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["show_page_edge_shadows"], value == "true");
+    }
+    for value in ["off", "1", "False", ""] {
+        assert!(call(&mut h, &c, "ui.set", json!({ "key": "show_page_edge_shadows", "value": value })).is_err());
+        assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["show_page_edge_shadows"], true);
+    }
+    ok(&mut h, &c, "ui.set", json!({ "key": "show_page_edge_shadows", "value": false }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["show_page_edge_shadows"], false);
+    h.state_mut().active = None;
+    ok(&mut h, &c, "ui.set", json!({ "key": "show_page_edge_shadows", "value": "false" }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["show_page_edge_shadows"], false);
+}
+
+#[test]
 fn control_resize_reports_observed_dimensions_and_rejects_invalid_sizes() {
     let (mut h, c) = harness();
     for params in [
@@ -162,6 +197,9 @@ fn control_resize_reports_observed_dimensions_and_rejects_invalid_sizes() {
     assert_eq!(state["documents"][0]["dirty"], false);
 }
 
+/// Kittest calls only `App::logic` and `App::ui`, not eframe's `raw_input_hook`, so this checks
+/// the widget tree and key handling but not the production focus-generation ordering. The
+/// `production_*` tests above drive `prepare_raw_input` first and cover that ordering.
 #[test]
 fn control_focus_traverses_real_widgets_and_keyboard_activates() {
     let (mut h, c) = harness();
@@ -181,6 +219,55 @@ fn control_focus_traverses_real_widgets_and_keyboard_activates() {
     let state = ok(&mut h, &c, "ui.state", json!({}));
     assert_eq!(state["mode"], "Convert");
     assert_eq!(state["documents"][0]["dirty"], false);
+}
+
+/// A frame driven in production order: eframe's raw input hook runs before egui's input hooks, so
+/// the control plugin sees the focus/dialog generation produced by the previous UI pass. The
+/// kittest harness does not call `raw_input_hook`, which otherwise hides focus-change bugs.
+fn production_step(h: &mut Harness<'static, PdfCraftApp>) {
+    let ctx = h.ctx.clone();
+    let mut raw = std::mem::take(h.input_mut());
+    h.state_mut().prepare_raw_input(&ctx, &mut raw);
+    *h.input_mut() = raw;
+    h.step();
+}
+
+fn call_production(h: &mut Harness<'static, PdfCraftApp>, c: &ControlClient, method: &str, params: Value) -> Reply {
+    let rx = c.send(method, params);
+    for _ in 0..30 {
+        production_step(h);
+        if let Ok(r) = rx.try_recv() {
+            return r;
+        }
+    }
+    panic!("{method}: no reply after 30 production-ordered frames");
+}
+
+#[test]
+fn production_key_release_survives_the_focus_change_its_press_causes() {
+    let (mut h, c) = harness();
+    ok(&mut h, &c, "ui.focus", json!({"label": "Convert"}));
+    let reply = call_production(&mut h, &c, "ui.key", json!({"key": "Tab"}));
+    reply.unwrap_or_else(|e| panic!("a Tab press that moves focus must not leave its release unapplied: {e}"));
+    let sign = ok(&mut h, &c, "ui.inspect", json!({"query": "E-Sign", "role": "Button"}));
+    assert!(sign["widgets"].as_array().unwrap().iter().any(|w| w["label"] == "E-Sign" && w["focused"] == true), "focus moved on the press: {sign}");
+    assert!(!h.ctx.input(|i| i.keys_down.contains(&egui::Key::Tab)), "the release reached egui: no stuck Tab");
+}
+
+#[test]
+fn production_drag_releases_the_button_after_the_press_moves_focus() {
+    let (mut h, c) = harness_pages(2);
+    h.state_mut().apply_edit(pdfcraft_engine::Edit::AddBookmark { parent: vec![], index: 0, title: "Target".into(), page: 0, left: None, top: None });
+    ok(&mut h, &c, "ui.set", json!({"key": "panel", "value": "bookmarks"}));
+    let field = ok(&mut h, &c, "ui.inspect", json!({"query": "Search", "role": "TextInput"}));
+    let rect = field["widgets"][0]["rect"].as_array().expect("the search field has a rect");
+    let (x0, y0, x1, y1) = (rect[0].as_f64().unwrap(), rect[1].as_f64().unwrap(), rect[2].as_f64().unwrap(), rect[3].as_f64().unwrap());
+    let start = json!([x0 + 8.0, (y0 + y1) / 2.0]);
+    let end = json!([x1 - 8.0, (y0 + y1) / 2.0]);
+    call_production(&mut h, &c, "ui.drag", json!({"from": start, "to": end, "steps": 3}))
+        .unwrap_or_else(|e| panic!("the press's focus change must not cancel its moves and release: {e}"));
+    assert!(!h.ctx.input(|i| i.pointer.button_down(egui::PointerButton::Primary)), "the pointer button was released");
+    assert_eq!(h.ctx.input(|i| i.modifiers), egui::Modifiers::NONE, "no modifier is left held");
 }
 
 #[test]
@@ -209,7 +296,7 @@ fn control_text_focus_retains_text_undo_ownership() {
     ok(&mut h, &c, "ui.focus", json!({"id": widgets["widgets"][0]["id"]}));
     assert!(h.ctx.text_edit_focused());
     ok(&mut h, &c, "ui.type", json!({"text": "target"}));
-    let search_id = egui::Id::new(("bookmark_search", h.state().views[0].id.0));
+    let search_id = egui::Id::unique(("bookmark_search", h.state().views[0].id.0));
     assert_eq!(h.ctx.data(|d| d.get_temp::<String>(search_id)).as_deref(), Some("target"));
     ok(&mut h, &c, "ui.key", json!({"key": "Z", "modifiers": ["command"]}));
     assert_eq!(h.ctx.data(|d| d.get_temp::<String>(search_id)).as_deref(), Some(""));
@@ -401,6 +488,9 @@ fn theme_commands_and_options_report_preference_and_effective_colours() {
 /// command ids agents drive stay exactly the same.
 #[test]
 fn language_switch_preserves_document_and_command_ids() {
+    if crate::support::skip_without_catalogs("language_switch_preserves_document_and_command_ids") {
+        return;
+    }
     use pdfcraft_ui_egui::i18n;
     let (mut h, c) = harness();
     let doc = h.state().views[0].id;
@@ -409,6 +499,9 @@ fn language_switch_preserves_document_and_command_ids() {
     assert_eq!(documents[0]["dirty"], true);
     let commands = ok(&mut h, &c, "ui.commands", json!({}));
     for code in ["ru", "en"] {
+        if crate::support::skip_without_glyphs(&format!("language_switch_preserves_document_and_command_ids ({code})"), code, "") {
+            continue;
+        }
         ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": code }));
         h.run_steps(2);
         let state = ok(&mut h, &c, "ui.state", json!({}));
@@ -417,12 +510,16 @@ fn language_switch_preserves_document_and_command_ids() {
         assert_eq!(ok(&mut h, &c, "ui.commands", json!({})), commands);
 
         let lang = i18n::Lang::from_code(code).unwrap();
-        h.get_by_label(i18n::tr(lang, "Menu")).click();
+        // A title without an ASCII letter shows its mnemonic after it ("ファイル(F)").
+        let file = i18n::tr(lang, "File");
+        h.get_by(|n| n.role() == egui::accesskit::Role::MenuItem && n.label().is_some_and(|l| l.starts_with(file))).click();
         h.run_steps(2);
-        h.get_by_label(&format!("{} ⏵", i18n::tr(lang, "File"))).hover();
-        h.run_steps(3);
-        h.get_by_label_contains(i18n::tr(lang, "Open…"));
-        ok(&mut h, &c, "ui.key", json!({ "key": "Escape" }));
+        // The mnemonic goes before an ellipsis: "開く(O)…".
+        let open = i18n::tr(lang, "Open…").trim_end_matches('…');
+        let open_row = |n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.role() == egui::accesskit::Role::MenuItem && n.label().is_some_and(|l| l.starts_with(open))
+        };
+        assert!(h.query_all_by(open_row).next().is_some(), "File lists Open… in {code}");
         ok(&mut h, &c, "ui.key", json!({ "key": "Escape" }));
         h.run_steps(2);
     }
@@ -535,13 +632,21 @@ fn moving_before_middle_button_release_keeps_scrolling_without_starting_page_too
     ok(&mut h, &c, "ui.drag", json!({ "from": [p.x, p.y], "to": [p.x, p.y + 60.0], "steps": 12, "button": "middle" }));
     h.run_steps(2);
     assert!(h.state().views[0].page_screen_rect(0).unwrap().top() < top - 20.0);
-    assert!(h.state().views[0].auto_scrolling(), "release keeps scrolling toggled on even after movement");
+    assert!(!h.state().views[0].auto_scrolling(), "releasing after holding and scrolling turns auto-scroll off");
     let released = h.state().views[0].page_screen_rect(0).unwrap().top();
     h.run_steps(8);
-    assert!(h.state().views[0].page_screen_rect(0).unwrap().top() < released - 30.0, "scrolling continues with no button held");
+    assert_eq!(h.state().views[0].page_screen_rect(0).unwrap().top(), released, "no drift after releasing a held middle drag");
     assert!(h.state().views[0].crop_drag.is_none(), "the Crop tool must not receive a wheel drag");
     assert!(h.state().dialog.is_none());
     assert!(!h.state().session.get(h.state().views[0].id).unwrap().dirty);
+
+    // Small movement within the dead zone before release still latches auto-scroll on.
+    ok(&mut h, &c, "ui.drag", json!({ "from": [p.x, p.y], "to": [p.x, p.y + 10.0], "steps": 4, "button": "middle" }));
+    assert!(h.state().views[0].auto_scrolling(), "release within the dead zone keeps scrolling toggled on");
+    ok(&mut h, &c, "ui.move", json!({ "x": p.x, "y": p.y + 60.0 }));
+    h.run_steps(8);
+    assert!(h.state().views[0].page_screen_rect(0).unwrap().top() < released - 30.0, "scrolling continues with no button held");
+    assert!(h.state().views[0].crop_drag.is_none(), "the Crop tool must not receive a wheel drag");
     ok(&mut h, &c, "ui.click", json!({ "x": p.x, "y": p.y + 60.0, "button": "middle" }));
     assert!(!h.state().views[0].auto_scrolling(), "the next middle click toggles scrolling off");
 }
@@ -681,6 +786,7 @@ fn autoscroll_cancels_on_click_wheel_focus_loss_and_pointer_exit() {
         delta: egui::vec2(0.0, -20.0),
         phase: egui::TouchPhase::Move,
         modifiers: egui::Modifiers::NONE,
+        source: egui::MouseWheelSource::Unknown,
     });
     h.run_steps(2);
     assert!(!h.state().views[0].auto_scrolling());
@@ -755,7 +861,8 @@ fn organize_pages_supports_autoscroll_without_selecting_or_reordering_pages() {
     assert!(h.state().views[0].selected.is_empty());
     assert!(h.state().views[0].org_drag.is_none());
     assert!(!h.state().session.get(h.state().views[0].id).unwrap().dirty);
-    assert!(h.state().views[0].auto_scrolling(), "releasing the wheel leaves the grid scrolling on");
+    assert!(!h.state().views[0].auto_scrolling(), "releasing a held wheel stops the grid scrolling");
+    start_autoscroll(&mut h, &c);
     h.state_mut().views[0].organize = false;
     h.run_steps(2);
     assert!(!h.state().views[0].auto_scrolling(), "changing canvas mode cancels the gesture");
@@ -794,6 +901,27 @@ fn middle_button_pans_while_held_outside_linux() {
     assert!(!h.state().session.get(h.state().views[0].id).unwrap().dirty);
 }
 
+/// With Invert middle-button drag on, a held middle drag moves the view the way the pointer goes.
+#[cfg(not(target_os = "linux"))]
+#[test]
+fn inverted_middle_drag_moves_the_view_the_way_the_pointer_goes() {
+    let (mut h, c) = harness();
+    h.state_mut().set_option("zoom", "400").unwrap();
+    ok(&mut h, &c, "ui.set", json!({ "key": "invert_middle_drag", "value": "true" }));
+    h.run_steps(3);
+    h.state_mut().views[0].go_to_page(1);
+    h.run_steps(2);
+    let p = h.state().views[0].viewport_rect().center();
+    let top = h.state().views[0].page_screen_rect(1).unwrap().top();
+    ok(&mut h, &c, "ui.drag", json!({ "from": [p.x, p.y], "to": [p.x, p.y - 60.0], "steps": 12, "button": "middle" }));
+    h.run_steps(2);
+    let moved = h.state().views[0].page_screen_rect(1).unwrap().top();
+    assert!((moved - (top + 60.0)).abs() < 1.0, "dragging up scrolls up, so the page moves down: {top} -> {moved}");
+    assert!(!h.state().session.get(h.state().views[0].id).unwrap().dirty);
+}
+
+/// The control channel reports the open document, its page count and current page, and its
+/// view options can be set: the page, and a right-hand panel by name (an unknown one is refused).
 #[test]
 fn state_and_view_options() {
     let (mut h, c) = harness();
@@ -810,6 +938,9 @@ fn state_and_view_options() {
     assert!(call(&mut h, &c, "ui.set", json!({ "key": "panel", "value": "nonsense" })).is_err());
 }
 
+/// In a Japanese interface, the mode tabs and Preferences show Japanese labels, the command
+/// palette finds commands by their Japanese or English names or their ids, and switching back to
+/// English keeps the tabs working.
 #[test]
 fn inspect_and_click_by_label_and_id() {
     let (mut h, c) = harness();
@@ -1006,6 +1137,10 @@ fn drawing_a_comment_by_drag_and_its_context_menu() {
 #[test]
 fn screenshots_of_window_and_region() {
     let (mut h, c) = harness();
+    // The harness makes its GPU renderer on the first render. The app has one before the control
+    // channel answers anything, so make it here, outside the screenshot's 5 s deadline: with 16
+    // tests at once on Windows, making it took up to 6 s and every copy of this test failed.
+    h.render().expect("the test renderer draws");
     let shot = ok(&mut h, &c, "ui.screenshot", json!({}));
     let ppp = shot["pixels_per_point"].as_f64().unwrap();
     assert_eq!(shot["width"].as_f64().unwrap(), (1400.0 * ppp).round());
@@ -1015,6 +1150,10 @@ fn screenshots_of_window_and_region() {
     let region = ok(&mut h, &c, "ui.screenshot", json!({ "region": [10, 20, 110, 70] }));
     assert_eq!((region["width"].as_f64().unwrap(), region["height"].as_f64().unwrap()), ((100.0 * ppp).round(), (50.0 * ppp).round()));
     assert!(call(&mut h, &c, "ui.screenshot", json!({ "region": [5, 5, 1, 1] })).is_err());
+    // A region that cannot be inside the window is refused at admission, before a frame or slot
+    // is used, with an actionable message.
+    let outside = call(&mut h, &c, "ui.screenshot", json!({ "region": [1300, 0, 1500, 10] })).unwrap_err();
+    assert!(outside.contains("inside the window"), "{outside}");
 }
 
 #[test]
@@ -1312,8 +1451,7 @@ fn a_script_opened_panel_shows() {
     assert!(h.query_by_label("This document has no bookmarks.").is_none());
     let id = h.state().active_ids().unwrap().1;
     h.state_mut().run_button_script(id, "", "app.execMenuItem('ShowHideBookmarks')");
-    h.run_steps(4);
-    h.get_by_label("This document has no bookmarks.");
+    assert!(crate::support::step_until(&mut h, |h| h.query_by_label("This document has no bookmarks.").is_some()));
 }
 
 #[test]
@@ -1371,8 +1509,15 @@ fn rail_opens_a_panel_then_closes_the_open_one() {
 #[test]
 fn control_quit_retains_inactive_fill_sign_typing_after_cancel() {
     let (mut h, c) = harness();
-    h.state_mut().views[0].fill_text =
-        Some(pdfcraft_ui_egui::fill_sign::TypeBox { page: 0, at: [40.0, 200.0], text: "Unsaved signature note".into(), size: 10.0, focus: false });
+    h.state_mut().views[0].fill_text = Some(pdfcraft_ui_egui::fill_sign::TypeBox {
+        page: 0,
+        at: [40.0, 200.0],
+        text: "Unsaved signature note".into(),
+        size: 10.0,
+        color: [0.0; 3],
+        border: pdfcraft_ui_egui::fill_sign::TextBorder::NONE,
+        focus: false,
+    });
     h.state_mut().active = None;
     assert!(!h.state().session.get(h.state().views[0].id).unwrap().dirty);
     assert_eq!(ok(&mut h, &c, "ui.quit", json!({})), json!({"quitting":false,"needs_confirmation":true}));
@@ -1386,6 +1531,9 @@ fn control_quit_retains_inactive_fill_sign_typing_after_cancel() {
 
 #[test]
 fn control_quit_retains_blocked_content_typing_after_cancel() {
+    if crate::support::skip_without_glyphs("control_quit_retains_blocked_content_typing_after_cancel", "en", "Keep 世界") {
+        return;
+    }
     let (mut h, c) = harness();
     ok(&mut h, &c, "ui.command", json!({"id":"edit.text"}));
     h.run_steps(3);
@@ -1511,7 +1659,13 @@ fn navigation_wheel(h: &mut Harness<'static, PdfCraftApp>, pos: egui::Pos2, delt
         vec![
             egui::Event::ModifiersChanged(modifiers),
             egui::Event::PointerMoved(pos),
-            egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Point, delta: egui::vec2(0.0, delta), modifiers, phase: egui::TouchPhase::Move },
+            egui::Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                delta: egui::vec2(0.0, delta),
+                modifiers,
+                phase: egui::TouchPhase::Move,
+                source: egui::MouseWheelSource::Unknown,
+            },
         ],
     );
     h.run_steps(20);
@@ -1611,7 +1765,7 @@ fn page_size_shows_while_the_pointer_is_in_the_bottom_left_quadrant() {
     let (mut h, _c) = harness();
     let area = h.state().views[0].viewport_rect();
     let shown = |h: &Harness<'static, PdfCraftApp>| {
-        let layer = egui::LayerId::new(egui::Order::Foreground, egui::Id::new("page-size-hint"));
+        let layer = egui::LayerId::new(egui::Order::Foreground, egui::Id::unique("page-size-hint"));
         h.ctx.memory(|m| m.areas().visible_last_frame(&layer))
     };
     let away = area.center() + egui::vec2(300.0, -200.0);
@@ -1692,9 +1846,91 @@ fn routine_continuous_scrolling_does_not_add_navigation_history() {
         delta: egui::vec2(0.0, -1200.0),
         modifiers: egui::Modifiers::NONE,
         phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Unknown,
     });
     h.run_steps(8);
     assert!(h.state().views[0].current > 0, "the wheel really moved to a later page");
     assert!(h.state().views[0].back.is_empty());
     assert!(h.state().views[0].forward.is_empty());
+}
+
+/// CodeRabbit on #5341: the control channel folds a pinned folder on Home down to its heading
+/// and opens it again, as its chevron does, and `ui.state` says which are folded. Folders that
+/// aren't pinned, and states other than on and off, are refused with the reason.
+#[test]
+fn control_collapses_and_expands_a_pinned_folder() {
+    let dir = std::env::temp_dir().join(format!("pdfcraft-ui-fold-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("inside.pdf"), fixture(1)).unwrap();
+    let folder = dir.to_string_lossy().into_owned();
+    let slot: Arc<Mutex<Option<ControlClient>>> = Arc::default();
+    let (s, pin) = (slot.clone(), folder.clone());
+    let mut h = Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_eframe(move |cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.run_inline = true;
+        app.pin_folder(&pin);
+        *s.lock().unwrap() = Some(app.attach_control(&cc.egui_ctx));
+        app
+    });
+    h.run_steps(4);
+    let c = slot.lock().unwrap().take().unwrap();
+    let folded = |h: &mut Harness<'static, PdfCraftApp>| ok(h, &c, "ui.state", json!({}))["pinned_folders"].clone();
+    assert_eq!(folded(&mut h), json!([{ "folder": folder, "collapsed": false }]));
+    h.get_by_label("inside.pdf");
+    ok(&mut h, &c, "ui.set", json!({ "key": "folder-collapsed", "value": format!("{folder}=on") }));
+    h.run_steps(2);
+    assert_eq!(folded(&mut h), json!([{ "folder": folder, "collapsed": true }]));
+    assert!(h.query_by_label("inside.pdf").is_none(), "a collapsed folder lists nothing");
+    let unpinned = call(&mut h, &c, "ui.set", json!({ "key": "folder-collapsed", "value": "/not/pinned=on" })).unwrap_err();
+    assert!(unpinned.contains("not a pinned folder"), "{unpinned}");
+    let bad = call(&mut h, &c, "ui.set", json!({ "key": "folder-collapsed", "value": format!("{folder}=yes") })).unwrap_err();
+    assert!(bad.contains("=on or"), "{bad}");
+    assert_eq!(folded(&mut h), json!([{ "folder": folder, "collapsed": true }]), "refusals change nothing");
+    ok(&mut h, &c, "ui.set", json!({ "key": "folder-collapsed", "value": format!("{folder}=off") }));
+    h.run_steps(2);
+    assert_eq!(folded(&mut h), json!([{ "folder": folder, "collapsed": false }]));
+    h.get_by_label("inside.pdf");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn accessible_labels_on_format_text_and_pin_dialog() {
+    let (mut h, c) = harness();
+
+    // 1. Check Dialog::PinTool accessibility labels
+    h.state_mut().dialog = Some(pdfcraft_ui_egui::Dialog::PinTool);
+    h.run_steps(3);
+
+    let search = ok(&mut h, &c, "ui.inspect", json!({"role": "TextInput", "query": "Search tools…"}));
+    assert!(search["count"].as_u64().unwrap() >= 1, "search box has accessible label: {search}");
+
+    let result_rows = ok(&mut h, &c, "ui.inspect", json!({"query": "Organize Pages"}));
+    assert!(result_rows["count"].as_u64().unwrap() >= 1, "result row has accessible label: {result_rows}");
+
+    let pin_toggles = ok(&mut h, &c, "ui.inspect", json!({"query": "Pin"}));
+    assert!(pin_toggles["count"].as_u64().unwrap() >= 1, "pin toggle has accessible label: {pin_toggles}");
+
+    h.state_mut().dialog = None;
+    h.run_steps(2);
+
+    // 2. Open Add Text so Format text panel is visible
+    ok(&mut h, &c, "ui.command", json!({"id": "edit.text"}));
+    h.run_steps(3);
+
+    let font_combo = ok(&mut h, &c, "ui.inspect", json!({"query": "Font", "role": "ComboBox"}));
+    assert!(font_combo["count"].as_u64().unwrap() >= 1, "format-font has accessible label: {font_combo}");
+
+    let size_combo = ok(&mut h, &c, "ui.inspect", json!({"query": "Font size"}));
+    assert!(size_combo["count"].as_u64().unwrap() >= 1, "format-size has accessible label: {size_combo}");
+
+    let line_spacing_combo = ok(&mut h, &c, "ui.inspect", json!({"query": "Line spacing", "role": "ComboBox"}));
+    assert!(line_spacing_combo["count"].as_u64().unwrap() >= 1, "format-line-spacing has accessible label: {line_spacing_combo}");
+
+    let scale_spin = ok(&mut h, &c, "ui.inspect", json!({"query": "Horizontal scale", "role": "SpinButton"}));
+    assert!(scale_spin["count"].as_u64().unwrap() >= 1, "horizontal scale spin button has accessible label: {scale_spin}");
+
+    let char_spin = ok(&mut h, &c, "ui.inspect", json!({"query": "Character spacing", "role": "SpinButton"}));
+    assert!(char_spin["count"].as_u64().unwrap() >= 1, "character spacing spin button has accessible label: {char_spin}");
 }
