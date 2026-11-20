@@ -785,12 +785,21 @@ fn file_decrypt_writes_an_unencrypted_copy() {
     assert!(!dir.path().join("decrypted.pdf").exists(), "a refused call writes nothing");
 
     let out = json(&mut a, "file_decrypt", json!({ "input": "locked.pdf", "output": "decrypted.pdf", "password": "open", "confirmed_rights": true }));
-    assert_eq!(out["pages"], 2, "{out}");
+    assert!(out["bytes"].as_u64().unwrap() > 100, "{out}");
     assert_eq!(out["security"]["protected"], false, "{out}");
     let cos = pdfcraft_cos::Document::open(Arc::new(std::fs::read(dir.path().join("decrypted.pdf")).unwrap())).unwrap();
     assert!(cos.security().is_none() && cos.trailer().get(b"Encrypt").is_none());
     let list = json(&mut a, "doc_list", json!({}));
-    assert_eq!(list["documents"].as_array().unwrap().len(), 0, "nothing stays open: {list}");
+    assert_eq!(list["documents"].as_array().unwrap().len(), 0, "nothing enters the session: {list}");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = std::fs::metadata(dir.path().join("decrypted.pdf")).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600, "decrypted output is owner-only: {mode:o}");
+    }
+    // A bare filename lands in the working directory, not in an "empty parent" refusal.
+    let bare = json(&mut a, "file_decrypt", json!({ "input": "locked.pdf", "output": "bare.pdf", "password": "owner" }));
+    assert!(std::fs::metadata(dir.path().join("bare.pdf")).is_ok(), "{bare}");
 }
 
 /// Opened with its permissions password, the caller is the owner: no confirmation is needed.
@@ -800,7 +809,7 @@ fn file_decrypt_with_the_permissions_password_needs_no_confirmation() {
     let mut a = Automation::new().with_root(dir.path()).unwrap();
     std::fs::write(dir.path().join("locked.pdf"), locked_file("open", "owner")).unwrap();
     let out = json(&mut a, "file_decrypt", json!({ "input": "locked.pdf", "output": "decrypted.pdf", "password": "owner" }));
-    assert_eq!(out["pages"], 2, "{out}");
+    assert!(out["bytes"].as_u64().unwrap() > 100, "{out}");
 }
 
 /// Bad input fails before anything is written, and a written output is never replaced.
@@ -817,11 +826,19 @@ fn file_decrypt_refuses_bad_input_and_an_existing_output() {
     assert_eq!(std::fs::read(dir.path().join("taken.pdf")).unwrap(), b"keep me");
     let nested = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "no/such/dir/out.pdf", "password": "owner" })).unwrap_err();
     assert!(nested.to_string().contains("output directory does not exist"), "{nested}");
+    // A dangling symlink at the output is refused, never followed: the resolver refuses it
+    // under a root, and create_new reports the name as taken without one.
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("no-such-target.pdf", dir.path().join("dangling.pdf")).unwrap();
+        a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "dangling.pdf", "password": "owner" })).unwrap_err();
+        assert!(dir.path().join("dangling.pdf").symlink_metadata().is_ok_and(|m| m.is_symlink()), "the link was followed");
+    }
     let wrong = a.call("file_decrypt", &json!({ "input": "locked.pdf", "output": "x.pdf", "password": "nope" })).unwrap_err();
     assert!(wrong.to_string().contains("password"), "{wrong}");
     let plain = a.call("file_decrypt", &json!({ "input": "plain.pdf", "output": "x.pdf" })).unwrap_err();
     assert!(plain.to_string().contains("isn't encrypted"), "{plain}");
-    assert!(!dir.path().join("x.pdf").exists(), "a failed call writes nothing");
+    assert!(!dir.path().join("x.pdf").exists(), "a failed call writes nothing — not even the claimed placeholder");
     let list = json(&mut a, "doc_list", json!({}));
     assert_eq!(list["documents"].as_array().unwrap().len(), 0, "nothing stays open after a failure: {list}");
 }

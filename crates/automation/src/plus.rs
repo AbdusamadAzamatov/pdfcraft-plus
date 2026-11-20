@@ -4,7 +4,7 @@
 use super::error::{Result, ToolError, failed};
 use super::json::{Args, security, summary};
 use super::paths::{read_input, write_atomic};
-use super::{Arc, Automation, DocId, Edit, Path, Value, json};
+use super::{Arc, Automation, Edit, Path, Value, json};
 
 impl Automation {
     /// Rotate page content by any angle (organize.rotate-angle), optionally flattening first.
@@ -151,51 +151,65 @@ impl Automation {
 
     /// Open an encrypted file with its password, strip its security and write the decrypted PDF
     /// to `output` (the web tools' Decrypt PDF; qpdf's `--decrypt` and `--remove-restrictions`
-    /// in one step). `output` must not exist; nothing stays open in the session. When the file
-    /// restricts the caller — it was opened with its user password — `confirmed_rights` must
-    /// confirm the right to edit it, exactly as `doc_remove_restrictions` requires.
+    /// in one step). `output` must not exist; nothing enters the session — the file is worked on
+    /// at the object layer so the document's own open actions never run against it. When the
+    /// file restricts the caller — it was opened with its user password — `confirmed_rights`
+    /// must confirm the right to edit it, exactly as `doc_remove_restrictions` requires.
     pub(crate) fn file_decrypt(&mut self, a: &Args) -> Result<Value> {
         let input = a.str("input")?;
         let output = a.str("output")?;
         let source = self.resolve(input, false)?;
         let target = self.resolve(output, true)?;
-        if target.exists() {
-            return Err(failed(format!("output already exists; refusing to replace it: {output}")));
-        }
-        let parent = target.parent().ok_or_else(|| failed(format!("output has no parent directory: {output}")))?;
+        let parent = target.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
         if !parent.is_dir() {
             return Err(failed(format!("output directory does not exist: {}", parent.display())));
         }
-        let bytes = read_input(&source)?;
-        let name = source.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        let id = self.session.open(name, Some(source.to_string_lossy().into_owned()), Arc::new(bytes), a.opt_str("password")?).map_err(failed)?;
-        // Whatever happens next, the document leaves the session.
-        let result = self.file_decrypt_write(id, a.opt_bool("confirmed_rights")?.unwrap_or(false), &target);
-        self.session.close(id);
-        self.renderers.remove(&id);
-        self.texts.remove(&id);
-        result
+        // Claim the output name atomically: create_new fails on a file, folder or dangling
+        // symlink already there, so nothing planted between the check and the write slips in.
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // A decrypted copy deserves private permissions from creation; write_atomic then
+        // replaces this placeholder, keeping its owner-only mode.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt as _;
+            options.mode(0o600);
+        }
+        match options.open(&target) {
+            Ok(placeholder) => drop(placeholder),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                return Err(failed(format!("output already exists; refusing to replace it: {output}")));
+            }
+            Err(e) => return Err(failed(format!("{output}: {e}"))),
+        }
+        let written = file_decrypt_write(&source, &target, a.opt_str("password")?, a.opt_bool("confirmed_rights")?.unwrap_or(false));
+        if written.is_err() {
+            let _ = std::fs::remove_file(&target); // remove the placeholder this call created
+        }
+        written
     }
+}
 
-    fn file_decrypt_write(&mut self, id: DocId, confirmed_rights: bool, target: &Path) -> Result<Value> {
-        let doc = self.session.get(id).ok_or_else(|| failed("the opened document vanished"))?;
-        if doc.security_summary().is_none() {
-            return Err(failed("the input file isn't encrypted: there is nothing to decrypt"));
-        }
-        if doc.can_unlock() && !confirmed_rights {
-            return Err(ToolError::InvalidArgs(
-                "this file restricts you (it was opened with its user password): pass confirmed_rights: true to confirm that you have the right to edit it".into(),
-            ));
-        }
-        let pages = doc.info.pages.len();
-        self.session.apply(id, Edit::RemoveRestrictions { confirmed_rights: true }).map_err(failed)?;
-        let bytes = self.session.save_bytes(id).map_err(failed)?;
-        write_atomic(target, &bytes)?;
-        Ok(json!({
-            "output": target.to_string_lossy(),
-            "bytes": bytes.len(),
-            "pages": pages,
-            "security": security(self.session.get(id).ok_or_else(|| failed("the opened document vanished"))?),
-        }))
+fn file_decrypt_write(source: &Path, target: &Path, password: Option<&str>, confirmed_rights: bool) -> Result<Value> {
+    let bytes = read_input(source)?;
+    let mut doc = pdfcraft_cos::Document::open_with_password(Arc::new(bytes), password).map_err(failed)?;
+    if doc.security().is_none() {
+        return Err(failed("the input file isn't encrypted: there is nothing to decrypt"));
     }
+    // The permission bits the engine's `unrestricted` computes: bits 3–6 and 9–12 all set, or
+    // owner access. Anything less means the file restricts this caller.
+    let restricted = doc.permissions().is_some_and(|p| !p.owner && p.bits & 0b1111_0011_1100 != 0b1111_0011_1100);
+    if restricted && !confirmed_rights {
+        return Err(ToolError::InvalidArgs(
+            "this file restricts you (it was opened with its user password): pass confirmed_rights: true to confirm that you have the right to edit it".into(),
+        ));
+    }
+    doc.remove_encryption();
+    let out = pdfcraft_cos::write_full(&doc, &Default::default()).map_err(failed)?;
+    write_atomic(target, &out)?;
+    Ok(json!({
+        "output": target.to_string_lossy(),
+        "bytes": out.len(),
+        "security": json!({ "protected": false }),
+    }))
 }
