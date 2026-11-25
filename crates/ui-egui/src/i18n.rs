@@ -187,6 +187,7 @@ impl Lang {
             "fa" => "Persian",
             "pl" => "Polish",
             "sl" => "Slovenian",
+            "bs" => "Bosnian",
             "el" => "Greek",
             "tr" => "Turkish",
             "lt" => "Lithuanian",

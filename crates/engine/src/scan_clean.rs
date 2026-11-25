@@ -128,7 +128,7 @@ impl Session {
             return Err(EditError::ReadOnly(why.clone()));
         }
         let editor = doc.editor.as_ref().ok_or_else(|| EditError::ReadOnly(String::new()))?;
-        if let Some(p) = editor.cos.permissions() {
+        if let Some(p) = pdfcraft_cos::output_permissions(&editor.cos) {
             check_permission(&Edit::EnhanceScan { images: Vec::new() }, &p)?;
         }
         let all = doc.info.pages.len();

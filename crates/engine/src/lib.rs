@@ -41,6 +41,7 @@ mod history;
 pub mod js;
 mod layers;
 pub mod links;
+mod live_scripts;
 pub mod model3d;
 pub mod mosaic;
 mod object_clip;
@@ -55,6 +56,7 @@ pub mod print_raster;
 pub mod printcheck;
 mod protection;
 pub mod rasterize;
+mod rename;
 mod resize;
 mod rich_copy;
 mod rotate_angle;
@@ -86,6 +88,7 @@ pub use deskew::{DeskewOptions, DeskewPage, DeskewSkip};
 pub use links::{
     MAX_REMOTE_DOCUMENT_BYTES, RemoteDocumentPathError, read_remote_document, remote_document_path_is_absolute, resolve_remote_document_path,
 };
+pub use live_scripts::{MAX_TIMER_RUNS, ScriptRun};
 pub use pdfcraft_edit::strip_subset_tag;
 pub use rich_copy::RichCopy;
 pub use signature_image::{ImageSignaturePreview, SignatureImage};
@@ -190,6 +193,7 @@ pub use pictures::{MarkFile, image_dimensions};
 use pictures::{embed_image, fit_picture, mark_source, model_poster};
 use protection::unrestricted;
 pub use protection::{Changes, Printing, Protection, SecuritySummary};
+pub use rename::{RenameError, new_file_name, rename_target};
 pub use session::Session;
 pub use sources::{CombineSource, Combined, collage_name, combine_source_check, impose_name, office_to_pdf, source_page_count, stitch_name};
 use sources::{impose_error, open_grouped, open_source, open_source_with};
@@ -215,7 +219,7 @@ use doc_state::{LOW_RESOLUTION_PRINT_DPI, render_threads, renderer_password, sig
 /// The configuration of the pool that draws the viewer: the document's own, plus installed CJK
 /// fonts for fonts a PDF does not embed (`pdfcraft_render::RenderConfig::system_fonts`). Exports,
 /// printing, OCR and automation use the document configuration itself, so nothing drawn with an
-/// installed font is saved or printed (AGENTS.md §1.2, §1.4).
+/// installed font is saved or printed (licences.md; docs/development.md "Fonts and attribution").
 fn display_config(config: &pdfcraft_render::RenderConfig) -> pdfcraft_render::RenderConfig {
     config.clone().on_screen()
 }
@@ -225,5 +229,7 @@ pub const MAX_STAMP_LINE: usize = 200;
 
 #[cfg(test)]
 mod document_actions_tests;
+#[cfg(test)]
+mod link_javascript_tests;
 #[cfg(test)]
 mod tests;

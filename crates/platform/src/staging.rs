@@ -43,6 +43,10 @@ fn create_staging_as(
     suffixes: impl IntoIterator<Item = u64>,
     keep: Option<&std::fs::Metadata>,
 ) -> std::io::Result<(PathBuf, std::fs::File)> {
+    // One name, in `dir`: a separator in it would put the staging file somewhere else.
+    if name.is_empty() || name.chars().any(std::path::is_separator) {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "the file name is not a single name"));
+    }
     // At most 128 bytes of the target's name, cut between characters, so the staging name fits
     // the 255-byte (Linux, macOS) and 255-unit (Windows) limits however long that name is.
     let mut stem = String::new();
@@ -220,7 +224,7 @@ pub fn write_atomically_with(
 /// Provenance is managed by macOS for the new file, not writable document metadata.
 #[cfg(target_os = "macos")]
 fn preserve_target_xattrs(path: &Path, staged: &std::fs::File) -> std::io::Result<()> {
-    use rustix::fs::{Mode, OFlags, XattrFlags, fgetxattr, flistxattr, fsetxattr, open};
+    use rustix::fs::{Mode, OFlags, XattrFlags, fgetxattr, fgetxattr_query, flistxattr, fsetxattr, open};
     use rustix::io::Errno;
 
     // A new destination has nothing to retain. Replacing a symlink has always replaced the
@@ -257,47 +261,29 @@ fn preserve_target_xattrs(path: &Path, staged: &std::fs::File) -> std::io::Resul
             continue;
         }
         let name = std::ffi::CString::new(name).map_err(|_| std::io::Error::other("invalid extended attribute name"))?;
-        // An empty buffer asks for the size, and macOS 27 answers ERANGE to one: probe instead.
-        let mut get = |buffer: &mut [u8]| -> std::io::Result<usize> {
-            Ok(if buffer.is_empty() { xattr_len(|probe| fgetxattr(&source, &name, probe))? } else { fgetxattr(&source, &name, buffer)? })
-        };
-        let size = get(&mut [])?;
+        // rustix treats an empty read buffer as reading zero bytes, not a size query.
+        let size = fgetxattr_query(&source, &name)?;
         if size > MAX_VALUE_BYTES || size > MAX_TOTAL_BYTES.saturating_sub(total) {
             return Err(std::io::Error::other("extended attributes exceed the 16 MiB per-value or 64 MiB total limit"));
         }
         // Resource forks may return a prefix instead of ERANGE on growth; check the size again.
-        let value = read_xattr_value(size, &mut get)?;
+        let value = read_xattr_value(size, |buffer| Ok(fgetxattr(&source, &name, buffer)?), || Ok(fgetxattr_query(&source, &name)?))?;
         fsetxattr(staged, &name, &value, XattrFlags::empty())?;
         total = total.saturating_add(value.len());
     }
     Ok(())
 }
 
-/// The size of an attribute, read without an empty buffer: macOS 27 answers ERANGE to a size
-/// query whose buffer is empty but not null, which is what a safe wrapper passes. The buffer grows
-/// until the value fits with room to spare (a resource fork may return the prefix that fits
-/// instead of ERANGE). Past 64 MiB the buffer's own size is returned, which every caller refuses.
-#[cfg(target_os = "macos")]
-pub fn xattr_len(mut read: impl FnMut(&mut [u8]) -> rustix::io::Result<usize>) -> rustix::io::Result<usize> {
-    const GIVE_UP: usize = 64 * 1024 * 1024;
-    let mut capacity = 256usize;
-    loop {
-        let mut probe = vec![0u8; capacity];
-        match read(probe.as_mut_slice()) {
-            Ok(len) if len < capacity => return Ok(len),
-            Ok(_) | Err(rustix::io::Errno::RANGE) if capacity <= GIVE_UP => capacity = capacity.saturating_mul(2),
-            Ok(_) | Err(rustix::io::Errno::RANGE) => return Ok(capacity),
-            Err(e) => return Err(e),
-        }
-    }
-}
-
 /// Read an already size-bounded attribute, refusing a partial result or a changed post-read size.
 #[cfg(target_os = "macos")]
-fn read_xattr_value(size: usize, mut read: impl FnMut(&mut [u8]) -> std::io::Result<usize>) -> std::io::Result<Vec<u8>> {
+fn read_xattr_value(
+    size: usize,
+    read: impl FnOnce(&mut [u8]) -> std::io::Result<usize>,
+    query_size: impl FnOnce() -> std::io::Result<usize>,
+) -> std::io::Result<Vec<u8>> {
     let mut value = vec![0u8; size.max(1)];
     let len = read(value.as_mut_slice())?;
-    let after = read(&mut [])?;
+    let after = query_size()?;
     if len != size || after != size {
         return Err(std::io::Error::other("extended attribute changed size while saving"));
     }

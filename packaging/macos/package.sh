@@ -130,7 +130,7 @@ cp "$ROOT/NOTICE" "$APP/Contents/Resources/NOTICE"
 # The standard About panel (app menu > About) shows Credits.rtf under the version: what the fork is
 # and where upstream PdfCraft and this fork live (#1287).
 cp "$HERE/Credits.rtf" "$APP/Contents/Resources/Credits.rtf"
-copy_font_licences "$APP/Contents/Resources"
+copy_docs "$APP/Contents/Resources"
 # OCR models: the app finds them at Contents/MacOS/../Resources/models. Before signing, so the
 # bundle's seal covers them.
 stage_models "$APP/Contents/Resources/models"

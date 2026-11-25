@@ -159,7 +159,7 @@ impl Document {
         let editor = self.editor.as_ref().ok_or_else(|| EditError::ReadOnly(self.read_only_reason.clone().unwrap_or_default()))?;
         // What Edit text checks: the document's permissions.
         let probe = Edit::EditTextBlock { page: 0, block: 0, text: String::new(), style: Default::default() };
-        if let Some(p) = editor.cos.permissions() {
+        if let Some(p) = pdfcraft_cos::output_permissions(&editor.cos) {
             check_permission(&probe, &p)?;
         }
         if query.find.split_whitespace().next().is_none() {

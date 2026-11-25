@@ -19,6 +19,8 @@ pub(crate) fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Re
         | Edit::InsertBlankPage { .. }
         | Edit::DuplicatePages { .. }
         | Edit::DividePages { .. }
+        | Edit::SpawnTemplate { .. }
+        | Edit::SetTemplateHidden { .. }
         | Edit::ReplacePages { .. }
         | Edit::SetPageBox { .. }
         | Edit::SetTransition { .. }
@@ -208,6 +210,30 @@ fn note_skipped(doc: &mut pdfcraft_cos::Document, report: &pdfcraft_xfdf::Report
     ));
 }
 
+/// Up to the first five of `names`, quoted and joined, then how many more there are.
+fn listed_names(names: &[String]) -> String {
+    let shown: Vec<String> = names.iter().take(5).map(|n| format!("\"{}\"", skipped_text(n))).collect();
+    match names.len().saturating_sub(shown.len()) {
+        0 => shown.join(", "),
+        more => format!("{}; and {more} more", shown.join(", ")),
+    }
+}
+
+/// What a form-data import took from a file that also gave values the form refused (a value its
+/// field can't hold, such as an option it doesn't list): the repair log names the fields, so a
+/// partial import is said, not slipped in.
+fn note_rejected(doc: &mut pdfcraft_cos::Document, report: &pdfcraft_xfdf::Report) {
+    if report.rejected.is_empty() {
+        return;
+    }
+    let count = report.rejected.len();
+    doc.note_repair(format!(
+        "imported form data without the value{} the form refused for {}",
+        if count == 1 { "" } else { "s" },
+        listed_names(&report.rejected)
+    ));
+}
+
 /// At most this many characters of one skipped comment's description in the repair log.
 const SKIPPED_CHARS: usize = 200;
 
@@ -394,6 +420,27 @@ fn run_paging_seal(
         let strip = pdfcraft_edit::AddedImage { crop, ..pdfcraft_edit::AddedImage::new(rect, image) };
         pdfcraft_edit::add_content(doc, page, &AddedContent::Image(strip))?;
     }
+    Ok(())
+}
+
+/// [`Edit::InvertColors`] (PdfCraft Plus): inverts the colours of `pages`, refused with none chosen.
+fn run_invert_colors(doc: &mut pdfcraft_cos::Document, pages: &[usize]) -> Result<(), EditError> {
+    if pages.is_empty() {
+        return Err(EditError::Edit(pdfcraft_edit::EditError::Invalid("choose at least one page to invert".into())));
+    }
+    Ok(pdfcraft_edit::invert_colors(doc, pages)?)
+}
+
+/// [`Edit::RemoveProtection`], and [`Edit::RemoveRestrictions`] (PdfCraft Plus) once its rights are
+/// confirmed: the next save writes no encryption.
+fn run_remove_protection(doc: &mut pdfcraft_cos::Document, edit: &Edit) -> Result<(), EditError> {
+    if matches!(edit, Edit::RemoveRestrictions { confirmed_rights: false }) {
+        return Err(EditError::Invalid("confirm that you have the right to edit this file before removing restrictions".into()));
+    }
+    if doc.output_handler().is_none() {
+        return Err(EditError::Protection("the document isn't protected".into()));
+    }
+    doc.remove_encryption();
     Ok(())
 }
 
@@ -646,6 +693,10 @@ pub(crate) fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut E
             pdfcraft_organize::duplicate_pages(doc, pages, *at)?
         }
         Edit::DividePages { pages, cols, rows, rtl } => pdfcraft_organize::divide_pages(doc, pages, *cols, *rows, *rtl)?,
+        Edit::SpawnTemplate { name, at, rename } => {
+            pdfcraft_organize::spawn_template(doc, name, *at, *rename)?;
+        }
+        Edit::SetTemplateHidden { name, hidden } => pdfcraft_organize::set_template_hidden(doc, name, *hidden)?,
         Edit::ReplacePages { pages, name, bytes, src_pages } => {
             let src = crate::sources::open_source_into(name, bytes, doc)?;
             pdfcraft_organize::replace_pages(doc, pages, &src, src_pages)?;
@@ -682,7 +733,7 @@ pub(crate) fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut E
         Edit::BookmarksFromStructure => {
             let entries: Vec<_> = pdfcraft_a11y::headings(doc)
                 .into_iter()
-                .map(|h| pdfcraft_organize::OutlineEntry { level: h.level, title: h.title, page: h.page, element: h.obj, top: None })
+                .map(|h| pdfcraft_organize::OutlineEntry { level: h.level, title: h.title, page: h.page, element: h.obj, left: None, top: None })
                 .collect();
             pdfcraft_organize::add_bookmark_tree(doc, "Untitled", &entries)?;
         }
@@ -1052,12 +1103,7 @@ pub(crate) fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut E
             }
             pdfcraft_edit::add_background(doc, pages, &s, *replace)?
         }
-        Edit::InvertColors { pages } => {
-            if pages.is_empty() {
-                return Err(EditError::Edit(pdfcraft_edit::EditError::Invalid("choose at least one page to invert".into())));
-            }
-            pdfcraft_edit::invert_colors(doc, pages)?
-        }
+        Edit::InvertColors { pages } => run_invert_colors(doc, pages)?,
         Edit::RemoveMarks { kind } => {
             let n = pdfcraft_model::pages(doc).len();
             if pdfcraft_edit::remove_marks(doc, &(0..n).collect::<Vec<_>>(), *kind)? == 0 {
@@ -1172,7 +1218,14 @@ pub(crate) fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut E
                     let mut data = doc.clone();
                     match pdfcraft_xfdf::import(&mut data, bytes) {
                         Ok(report) => {
+                            // The importer hands back what the form refused. When that is all the
+                            // file gave, nothing was imported: say so, and leave the document
+                            // (and its Undo and Redo) as it was.
+                            if report.fields == 0 && report.comments == 0 && !report.rejected.is_empty() {
+                                return Err(pdfcraft_xfdf::DataError::Refused(listed_names(&report.rejected)).into());
+                            }
                             note_skipped(&mut data, &report);
+                            note_rejected(&mut data, &report);
                             *doc = data;
                         }
                         Err(e) if bytes[..bytes.len().min(1024)].windows(5).any(|w| w == b"%PDF-") => match comment_source(bytes) {
@@ -1235,17 +1288,15 @@ pub(crate) fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut E
                 encrypt_metadata: p.encrypt_metadata,
                 seed,
             };
-            doc.set_encryption(&params).map_err(|e| EditError::Protection(e.to_string()))?;
-        }
-        Edit::RemoveProtection | Edit::RemoveRestrictions { .. } => {
-            if matches!(edit, Edit::RemoveRestrictions { confirmed_rights: false }) {
-                return Err(EditError::Invalid("confirm that you have the right to edit this file before removing restrictions".into()));
+            // RC4-40 and RC4-128 are refused by `set_encryption` (RFC 7465); the legacy
+            // entry point is only for a file that must stay readable by a reader without AES.
+            if params.algorithm.is_legacy() {
+                doc.set_encryption_legacy(&params).map_err(|e| EditError::Protection(e.to_string()))?;
+            } else {
+                doc.set_encryption(&params).map_err(|e| EditError::Protection(e.to_string()))?;
             }
-            if doc.output_handler().is_none() {
-                return Err(EditError::Protection("the document isn't protected".into()));
-            }
-            doc.remove_encryption();
         }
+        Edit::RemoveProtection | Edit::RemoveRestrictions { .. } => run_remove_protection(doc, edit)?,
         Edit::Batch { edits, .. } => run_batch(doc, edits, cx)?,
     }
     Ok(())
