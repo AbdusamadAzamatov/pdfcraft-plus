@@ -28,6 +28,7 @@ mod pdfx;
 mod prune;
 mod resize;
 mod stitch;
+mod templates;
 mod transform;
 mod transition;
 pub mod view;
@@ -56,6 +57,7 @@ pub use outline::{
 pub use outline_io::{MAX_IMPORT_BOOKMARKS, OutlineNode, OutlineTree, import_outline, outline_tree, unmapped, view_arity};
 pub use resize::{MAX_PAGE_SIDE, ResizeMode, SIZE_TOLERANCE, SizeOrientation, pages_of_other_size, resize_pages, resize_transform};
 pub use stitch::{MAX_STITCH_GAP, MAX_STITCH_PAGES, StitchAlign, StitchDirection, StitchLayout, StitchOptions, stitch_layout, stitch_pages};
+pub use templates::{Template, set_template_hidden, spawn_template, templates};
 pub use transform::{RotateFit, page_has_drawn_annotations, pages_with_drawn_annotations, rotate_content, rotation_transform, transform_page};
 pub use transition::{TRANSITION_DIRECTIONS, TRANSITION_STYLES, Transition, TransitionSpec, set_transition};
 pub use view::{InitialView, displays_doc_title, initial_view, set_initial_view};
@@ -173,6 +175,12 @@ pub fn page_rotation(doc: &Document, index: usize) -> Result<i64, OrganizeError>
     let pages = walk(doc)?;
     let (_, attrs) = pages.get(index).ok_or(OrganizeError::NoSuchPage(index))?;
     Ok(resolved_rotation(doc, attrs).rem_euclid(360))
+}
+
+/// Effective inherited rotation of every leaf page, clockwise in degrees, from one walk of the
+/// page tree (what [`page_rotation`] gives per page).
+pub fn page_rotations(doc: &Document) -> Result<Vec<i64>, OrganizeError> {
+    Ok(walk(doc)?.iter().map(|(_, attrs)| resolved_rotation(doc, attrs).rem_euclid(360)).collect())
 }
 
 pub fn page_count(doc: &Document) -> Result<usize, OrganizeError> {

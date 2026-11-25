@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, OnceLock};
 
-use pdfcraft_cos::{SaveOptions, write_full, write_incremental, write_linearized};
+use pdfcraft_cos::{SaveOptions, write_full, write_incremental};
 use pdfcraft_render::{LayerOp, OpenError, ReadingColors, RenderConfig, RenderPool, inspect};
 
 #[cfg(test)]

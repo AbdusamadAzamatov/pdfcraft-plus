@@ -1,7 +1,6 @@
 use super::{
     Arc, DocId, Document, EditError, Keys, OpenError, RecoverySnapshot, RenderPool, SaveOptions, Session, SignOptions, StatusCaptions, TrustStore,
-    display_bytes, display_config, guard, render_threads, signatures_of, writable, write_full, write_incremental, write_linearized,
-    xfa_sync_datasets,
+    display_bytes, display_config, guard, render_threads, signatures_of, writable, write_full, write_incremental, xfa_sync_datasets,
 };
 
 impl Session {
@@ -52,20 +51,6 @@ impl Session {
         guard(|| write_full(&cos, &opts)).map_err(EditError::Write)?.map(Arc::new).map_err(|e| EditError::Write(e.to_string()))
     }
 
-    /// A linearized rewrite (Fast Web View, ISO 32000-2 Annex F): the first page displays before
-    /// the rest of the file has downloaded. Same security as the document (the same keys unless
-    /// protection was changed), no object streams. Refused for signed documents, like any full
-    /// rewrite. Write with [`Self::check_save`] and [`Self::mark_saved`] as for the other saves.
-    pub fn save_linearized_bytes(&self, id: DocId) -> Result<Arc<Vec<u8>>, EditError> {
-        let doc = self.get(id).ok_or(EditError::NoDocument)?;
-        if doc.is_signed() {
-            return Err(EditError::Signed);
-        }
-        let editor = doc.editor.as_ref().ok_or_else(|| EditError::ReadOnly(doc.read_only_reason.clone().unwrap_or_default()))?;
-        let opts = SaveOptions { mod_date: self.now().map(pdfcraft_cos::pdf_date), ..SaveOptions::default() };
-        guard(|| write_linearized(&editor.cos, &opts)).map_err(EditError::Write)?.map(Arc::new).map_err(|e| EditError::Write(e.to_string()))
-    }
-
     /// Check that `bytes`, from [`Self::save_bytes`] or [`Self::save_full_bytes`], reopen as this
     /// document before they are written (#1698): [`Self::mark_saved`] only finds out after the
     /// file has been replaced. Same error as `mark_saved`.
@@ -80,6 +65,7 @@ impl Session {
     /// so the next save appends only newer edits. Undo history is kept.
     pub fn mark_saved(&mut self, id: DocId, bytes: Arc<Vec<u8>>, path: Option<String>) -> Result<(), EditError> {
         let doc = self.doc_mut(id)?;
+        let mut renumbered = false;
         if let Some(editor) = doc.editor.as_mut() {
             // An encrypted file needs the password it is protected with now (the owner
             // password when known, so saving never downgrades this session's rights).
@@ -92,6 +78,7 @@ impl Session {
             let reopened =
                 pdfcraft_cos::Document::open_with_password(bytes.clone(), keys.reopen.as_deref()).map_err(|e| EditError::Reopen(e.to_string()))?;
             if !preserves_objects {
+                renumbered = true;
                 crate::js::replace_runtime(&mut doc.js_runtime);
             }
             editor.cos = reopened;
@@ -110,7 +97,8 @@ impl Session {
         }
         doc.dirty = false;
         doc.generation += 1;
-        Self::refresh(doc).inspect_err(|_| Self::show_released(doc))
+        let refreshed = if renumbered { Self::refresh_renumbered(doc) } else { Self::refresh(doc) };
+        refreshed.inspect_err(|_| Self::show_released(doc))
     }
 
     /// Enter the permissions (owner) password of a document opened with its user password,
@@ -121,7 +109,7 @@ impl Session {
     pub fn unlock(&mut self, id: DocId, password: &str) -> Result<(), EditError> {
         let doc = self.doc_mut(id)?;
         let editor = doc.editor.as_mut().ok_or_else(|| EditError::ReadOnly(doc.read_only_reason.clone().unwrap_or_default()))?;
-        if editor.cos.permissions().is_none_or(|p| p.owner) {
+        if pdfcraft_cos::output_permissions(&editor.cos).is_none_or(|p| p.owner) {
             return Ok(());
         }
         editor.cos.unlock(password).map_err(|e| match e {
@@ -139,7 +127,7 @@ impl Session {
         // Other states with the same restricted access are unlocked too; states opened with
         // other passwords (protection changed and saved since) stay as they are.
         for (_, cos, keys, _) in editor.undo.iter_mut().chain(editor.redo.iter_mut()) {
-            if cos.permissions().is_some_and(|p| !p.owner) && cos.unlock(password).is_ok() {
+            if pdfcraft_cos::output_permissions(cos).is_some_and(|p| !p.owner) && cos.unlock(password).is_ok() {
                 reopen_as_owner(cos, keys);
             }
         }

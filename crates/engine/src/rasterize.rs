@@ -78,7 +78,7 @@ impl Session {
         let mut distinct = pages.to_vec();
         distinct.sort_unstable();
         distinct.dedup();
-        let raster = Raster { dpi: options.dpi, grayscale: options.grayscale };
+        let raster = Raster { dpi: options.dpi, grayscale: options.grayscale, colour: None };
         let bytes = crate::guard(|| crate::print_raster::rasterize_page_content(doc, &distinct, &raster, options.burn_comments))
             .map_err(EditError::Print)?
             .map_err(|e| EditError::Print(format!("the pages could not be drawn as pictures: {e}")))?;

@@ -792,6 +792,10 @@ fn card_documents_and_view(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens,
         app.view_defaults.show_page_gaps = show_page_gaps;
     }
     ctx.label_secondary(ui, tl!("Hide gaps to join page edges. Margins inside the PDF remain unchanged."), t);
+    ctx.checkbox(ui, &mut app.view_defaults.full_screen_fill, tl!("Full screen fills the screen with one page at a time"), t);
+    ctx.label_secondary(ui, tl!("Turn off to keep the page display, such as continuous scrolling, in full screen."), t);
+    ctx.checkbox(ui, &mut app.full_screen_escape_exits, tl!("Esc leaves full screen"), t);
+    ctx.label_secondary(ui, tl!("Turn off so that only Ctrl+L (⌘L on macOS) leaves full screen, as for a kiosk display."), t);
     ui.add_space(6.0);
 
     let mut fit_changed = false;
@@ -889,13 +893,6 @@ fn card_fill_and_sign(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, ctx:
         ctx.checkbox(ui, &mut app.ask_to_lock_signatures, tl!("Otherwise, ask on the first save after a signature is placed"), t);
     });
     ctx.label_secondary(ui, tl!("Text, marks and signatures become part of the page. Other comments stay editable."), t);
-    // Fast Web View (Acrobat: Preferences ▸ Documents). The web build saves through the browser.
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        ui.add_space(8.0);
-        ctx.checkbox(ui, &mut app.fast_web_view_on_save_as, tl!("Save As writes Fast Web View files"), t);
-        ctx.label_secondary(ui, tl!("The first page shows while the rest downloads. Files get larger."), t);
-    }
     ui.add_space(8.0);
     date_format(ui, app, t, ctx);
 }

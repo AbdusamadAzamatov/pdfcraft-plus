@@ -54,7 +54,7 @@ of tools:
 - **Page Layout:** N-up, booklet, poster, interleave, divide, remove blank pages, stitch,
   collage (e.g. an ID card's front and back on one sheet), change page size, trim white margins,
   straighten scans and rotate by any angle.
-- **Clean-up:** Fast Web View, rasterize, grayscale, invert colours and remove restrictions (after
+- **Clean-up:** Rasterize, grayscale, invert colours and remove restrictions (after
   you confirm you have the right to).
 - **Scanner tools:** more looks for camera photos (lighten, vivid colour, ink-saving eco and
   invert for blackboards), moiré removal and flattening of curved book pages, a paging seal

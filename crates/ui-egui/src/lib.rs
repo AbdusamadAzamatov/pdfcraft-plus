@@ -134,6 +134,7 @@ use dialogs::pageboxes;
 use dialogs::palette;
 use dialogs::printer_marks_ui;
 use dialogs::protect;
+use dialogs::rename_ui;
 use dialogs::standards_ui;
 use dialogs::word_count_ui;
 pub use home::folders_ui;
@@ -321,6 +322,11 @@ pub struct PdfCraftApp {
     pub(crate) status_captions_lang: Option<i18n::Lang>,
     pub views: Vec<DocView>,
     pub(crate) closed_tabs: Vec<String>,
+    /// The Rename dialog's name being typed.
+    pub(crate) rename_draft: Option<rename_ui::RenameDraft>,
+    /// A name typed in Rename whose "Save and Rename" save did not go through; the dialog opens
+    /// again with it on the next frame.
+    pub(crate) rename_returned: rename_ui::Returned,
     /// `None` shows the Home tab.
     pub active: Option<usize>,
     pub mode: Mode,
@@ -395,6 +401,9 @@ pub struct PdfCraftApp {
     pub invert_middle_drag: bool,
     /// Preferences ▸ Animation effects: on, off, or as the system's animation setting says.
     pub animation_effects: motion::AnimationEffects,
+    /// Preferences ▸ Esc leaves full screen (on by default). Off, only ⌘L / Ctrl+L leaves it, as
+    /// for a kiosk display; Esc still closes the find bar and the like.
+    pub full_screen_escape_exits: bool,
     /// Whether the system asked for no animations, and how the desktop app asks it.
     pub motion: motion::Motion,
     /// Interface language preference: `auto` (follow the system) or a code from [`i18n::LANGUAGES`].
@@ -408,9 +417,6 @@ pub struct PdfCraftApp {
     ui_scale_applied: Option<f32>,
     /// Preferences: bake Fill & Sign marks into the page when saving. Off, so a normal save stays editable.
     pub flatten_fill_sign_on_save: bool,
-    /// Preferences: Save As to a new file writes it linearized (Fast Web View, ISO 32000-2 Annex F).
-    /// A preference rather than a picker checkbox: the system file dialog can't hold one. Off.
-    pub fast_web_view_on_save_as: bool,
     /// Ask on the first save after Fill & Sign places a signature or initials whether to lock
     /// them into the page (#2149). Off once the user says not to ask again.
     pub ask_to_lock_signatures: bool,
@@ -528,6 +534,9 @@ pub struct PdfCraftApp {
     pub pinned: folders_ui::PinnedFolders,
     /// The recent files restored from settings, checked off the UI thread (#5682).
     recent_check: persist::recent_check::RecentCheck,
+    /// Failures of the Reveal worker, taken each frame and shown as a notification.
+    #[cfg(not(target_arch = "wasm32"))]
+    reveal_errors: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
     /// Tools pinned to Home, in user-defined order.
     pub pinned_tools: Vec<String>,
     /// Search query for the Pin a tool selection dialog.
@@ -546,6 +555,9 @@ pub struct PdfCraftApp {
     pub toast_dropped: u64,
     /// Whether the macOS title bar is drawn by us (traffic lights over our tab strip).
     pub integrated_titlebar: bool,
+    /// Whether AppKit put those traffic lights at the right end of the title bar, as it does when
+    /// the system language is right-to-left (`None` until a window has said).
+    pub titlebar_lights_right: Option<bool>,
     /// Set when the desktop leaves the window frame to the app (GNOME on Wayland): the tab strip
     /// carries these window buttons and the window's edges resize it.
     pub window_controls: Option<window_controls::Layout>,

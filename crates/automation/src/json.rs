@@ -292,9 +292,6 @@ pub(crate) fn info(d: &Document) -> Value {
         "document": summary(d),
         "pdf_version": i.pdf_version,
         "file_size": i.file_size,
-        // Fast Web View: the file as last opened or saved is linearized (Annex F). An
-        // incremental save ends it; doc_save with linearize: true writes one.
-        "fast_web_view": d.fast_web_view(),
         "title": i.title, "author": i.author, "subject": i.subject, "keywords": i.keywords,
         // Custom document properties (Document Properties ▸ Custom): /Info entries beyond the
         // ones the spec names, set and cleared with doc_set_info.
@@ -414,6 +411,7 @@ fn link_target(i: &pdfcraft_render::DocInfo, target: &pdfcraft_render::LinkTarge
             })).collect::<Vec<_>>(),
             "preserve_rb": preserve_rb,
         }),
+        pdfcraft_render::LinkTarget::JavaScript(script) => json!({ "javascript": script }),
         pdfcraft_render::LinkTarget::RemoteGoTo { launch, file, destination, new_window } => json!({
             "action": if *launch { "Launch" } else { "GoToR" },
             "remote_document": file,
